@@ -5,7 +5,7 @@ import copy
 import pytest
 import torch
 
-from cognarium.loading import load
+from cognarium.loading import _resolve_revision, load
 from cognarium.responses import Query
 from cognarium.stimuli import Stimulus, Trial
 from cognarium.subjects.exemplar import ExemplarLearner
@@ -137,3 +137,46 @@ def test_load_returns_subjects_unchanged_and_rejects_others():
     assert load(subject) is subject
     with pytest.raises(TypeError):
         load(3)
+
+
+def fake_hub_cache(root, sha="abc123"):
+    repo = root / "models--org--tiny"
+    (repo / "refs").mkdir(parents=True)
+    (repo / "refs" / "main").write_text(sha)
+    (repo / "snapshots" / sha).mkdir(parents=True)
+    (repo / "snapshots" / sha / "config.json").write_text("{}")
+
+
+def test_revision_comes_from_the_cached_snapshot(tmp_path, monkeypatch):
+    monkeypatch.setattr("huggingface_hub.constants.HF_HUB_CACHE", str(tmp_path))
+    fake_hub_cache(tmp_path)
+    assert _resolve_revision("org/tiny", None) == "abc123"
+    assert _resolve_revision("org/tiny", "abc123") == "abc123"
+
+
+def test_revision_falls_back_to_the_one_requested(tmp_path, monkeypatch):
+    monkeypatch.setattr("huggingface_hub.constants.HF_HUB_CACHE", str(tmp_path))
+    assert _resolve_revision("org/absent", "v1") == "v1"
+    assert _resolve_revision("org/absent", None) is None
+
+
+def test_a_local_folder_has_no_revision(tmp_path):
+    assert _resolve_revision(str(tmp_path), None) is None
+
+
+def test_load_records_the_revision(tiny_model_and_tokenizer, tmp_path, monkeypatch):
+    model, tok = tiny_model_and_tokenizer
+    model.save_pretrained(tmp_path / "model")
+    tok.save_pretrained(tmp_path / "model")
+    monkeypatch.setattr("cognarium.loading._resolve_revision", lambda name, revision: "abc123")
+    assert load(str(tmp_path / "model"), device="cpu").config()["revision"] == "abc123"
+
+
+def test_weights_still_count_when_there_is_a_revision(tiny_model_and_tokenizer):
+    model, tok = tiny_model_and_tokenizer
+    subject = HFSubject(model, tok, device="cpu", revision="abc123")
+    before = subject.config()
+    assert before["revision"] == "abc123"
+    with torch.no_grad():
+        next(model.parameters()).add_(1.0)
+    assert subject.config()["weights"] != before["weights"]

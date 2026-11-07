@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -99,5 +100,16 @@ def _load_by_name(
         model,
         tokenizer,
         device=device,
-        batch_size=batch_size
+        batch_size=batch_size,
+        revision=_resolve_revision(name, revision)
     )
+
+
+def _resolve_revision(name: str, requested: str | None) -> str | None:
+    if Path(name).exists():
+        return None
+    from huggingface_hub import try_to_load_from_cache
+
+    # the cached file sits at .../snapshots/<commit>/config.json
+    cached = try_to_load_from_cache(name, "config.json", revision=requested)
+    return Path(cached).parent.name if isinstance(cached, str) else requested

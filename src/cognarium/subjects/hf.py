@@ -25,6 +25,7 @@ class HFSubject(Subject):
         device: Where the model runs.
         batch_size: How many sequences go through the model at once.
         option_prefix: What separates a prompt from its option.
+        revision: The Hub commit the model came from, if it came from the Hub.
 
     Raises:
         ValueError: If the tokenizer has neither a pad token nor an EOS token.
@@ -41,7 +42,8 @@ class HFSubject(Subject):
         *,
         device: str = "auto",
         batch_size: int = 32,
-        option_prefix: str = " "
+        option_prefix: str = " ",
+        revision: str | None = None
     ) -> None:
         if tokenizer.pad_token_id is None:
             if tokenizer.eos_token_id is None:
@@ -52,6 +54,7 @@ class HFSubject(Subject):
         self.tokenizer = tokenizer
         self.batch_size = batch_size
         self.option_prefix = option_prefix
+        self.revision = revision
 
     def respond(self, queries: Sequence[Query], *, capture_logits: bool = False) -> Responses:
         """Scores each query's options after its prompt.
@@ -78,22 +81,22 @@ class HFSubject(Subject):
         )
 
     def config(self) -> dict[str, Any]:
-        """Describes the model, including its weights when there is no revision.
+        """Describes the model, including a fingerprint of its weights.
+
+        The fingerprint is there even when the revision is known, because `model`
+        stays available and may have been edited since it was loaded.
 
         Returns:
-            The class, model name, revision, dtype and option prefix.
+            The class, model name, revision, dtype, option prefix and weights.
         """
-        revision = getattr(self.model.config, "_commit_hash", None)
-        described = {
+        return {
             "class": type(self).__name__,
             "model": self.model.name_or_path,
-            "revision": revision,
+            "revision": self.revision,
             "dtype": str(next(self.model.parameters()).dtype),
-            "option_prefix": self.option_prefix
+            "option_prefix": self.option_prefix,
+            "weights": weights_digest(self.model)
         }
-        if revision is None:
-            described["weights"] = weights_digest(self.model)
-        return described
 
     def runtime(self) -> dict[str, Any]:
         """Describes how the model runs.

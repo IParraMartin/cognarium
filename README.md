@@ -89,4 +89,4 @@ uv run pytest
 
 Seeds derive per chain, generation and item, so sampling doesn't depend on batch size.
 Exact numeric equality across devices isn't guaranteed. Each run's `manifest.json`
-holds its settings, seeds, library versions, and the device and batch size of each session.
+holds its settings, seeds, library versions, model revision, and the device and batch size of each session.
