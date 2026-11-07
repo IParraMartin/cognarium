@@ -23,6 +23,11 @@ import torch
 from cognarium.errors import MissingAbilityError
 from cognarium.metrics import classification, detection, information
 
+_NO_PROBABILITIES = (
+    "This measure reads probabilities over options, and free responses have none. "
+    "Score the columns the paradigm parses from the text instead."
+)
+
 
 def _accuracy(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
     _require(frame, "accuracy", ["response", "answer", *group_by])
@@ -62,6 +67,7 @@ def _surprisal(
         "response",
         *group_by
     ])
+    _refuse_free(frame)
     chosen = [
         float(log_probs[list(options).index(response)])
         for log_probs, options, response in zip(
@@ -280,7 +286,7 @@ def _row_entropy(frame: pd.DataFrame, raw: bool = False) -> np.ndarray:
 
 
 def _row_accuracy(frame: pd.DataFrame) -> np.ndarray:
-    _answer_positions(frame, "accuracy")
+    _check_answers(frame, "accuracy")
     return (frame["response"] == frame["answer"]).to_numpy(dtype=np.float64)
 
 
@@ -335,6 +341,7 @@ def _row_log_probs(frame: pd.DataFrame, raw: bool) -> torch.Tensor:
 
 
 def _positions(frame: pd.DataFrame, column: str) -> torch.Tensor:
+    _refuse_free(frame)
     return torch.tensor([
         list(options).index(chosen)
         for options, chosen in zip(frame["options"], frame[column], strict=True)
@@ -342,9 +349,18 @@ def _positions(frame: pd.DataFrame, column: str) -> torch.Tensor:
 
 
 def _answer_positions(frame: pd.DataFrame, name: str) -> torch.Tensor:
+    _check_answers(frame, name)
+    return _positions(frame, "answer")
+
+
+def _check_answers(frame: pd.DataFrame, name: str) -> None:
     if frame["answer"].isna().any():
         raise MissingAbilityError(f"Measure '{name}' needs a correct answer on every row. Filter with `where`.")
-    return _positions(frame, "answer")
+
+
+def _refuse_free(frame: pd.DataFrame) -> None:
+    if any(len(options) == 0 for options in frame["options"]):
+        raise MissingAbilityError(_NO_PROBABILITIES)
 
 
 def _option_position(options: Sequence[str], option: str | int) -> int:
@@ -375,6 +391,7 @@ def _answered(
         *columns,
         *group_by
     ])
+    _refuse_free(frame)
     scored = frame[frame["answer"].notna()]
     if scored.empty:
         raise MissingAbilityError(f"Measure '{name}' needs trials with a correct answer.")
@@ -437,6 +454,8 @@ def _mean_by(frame: pd.DataFrame, group_by: Sequence[str], values: np.ndarray) -
 
 
 def _stack(rows: pd.Series) -> torch.Tensor:
+    if any(len(row) == 0 for row in rows):
+        raise MissingAbilityError(_NO_PROBABILITIES)
     width = max(len(row) for row in rows)
     stacked = np.full((len(rows), width), -math.inf, dtype=np.float64)
     for index, row in enumerate(rows):

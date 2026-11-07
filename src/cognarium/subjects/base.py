@@ -47,12 +47,14 @@ class Subject(ABC):
         learning_modes: The ways this subject can learn.
         default_learning: The mode `learning="auto"` picks.
         state_dtype: The precision states are stored in by default.
+        can_generate: Whether this subject can write free responses.
     """
 
     modalities: frozenset[str] = frozenset()
     learning_modes: frozenset[str] = frozenset()
     default_learning: str | None = None
     state_dtype: ClassVar[str] = "float16"
+    can_generate: ClassVar[bool] = False
 
     @abstractmethod
     def respond(
@@ -75,6 +77,32 @@ class Subject(ABC):
         Returns:
             One row of scores per query.
         """
+
+    def generate(
+        self,
+        queries: Sequence[Query],
+        *,
+        max_new_tokens: int,
+        temperature: float = 1.0,
+        top_p: float = 1.0,
+        top_k: int | None = None
+    ) -> list[str]:
+        """Writes a free response to each query.
+
+        Args:
+            queries: The queries to answer.
+            max_new_tokens: How many tokens each response may use.
+            temperature: Divides log probabilities before a token is sampled.
+            top_p: Keeps the smallest set of tokens covering this much probability.
+            top_k: Keeps only this many of the most likely tokens.
+
+        Returns:
+            One text per query.
+
+        Raises:
+            MissingAbilityError: If this subject can't write free responses.
+        """
+        raise MissingAbilityError(f"{type(self).__name__} can only choose between options, not write free responses.")
 
     def state_layers(self) -> tuple[str, ...]:
         """Names the internal states this subject can record.

@@ -12,12 +12,13 @@ import numpy as np
 import torch
 
 from cognarium.device import resolve_device
-from cognarium.errors import UntrainedModelWarning
+from cognarium.errors import MissingAbilityError, UntrainedModelWarning
 from cognarium.models.lstm import LSTMLanguageModel, SimpleTokenizer
 from cognarium.recording.capture import StateCapture, hook_layers
 from cognarium.responses import PromptTemplate, Query, Responses
 from cognarium.stimuli import Observation
 from cognarium.subjects.base import Readout, Subject, weights_digest
+from cognarium.subjects.generation import generate_texts
 from cognarium.subjects.scoring import pad_sequences, score_options
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ class CustomSubject(Subject):
 
     modalities = frozenset({"text"})
     learning_modes = frozenset({"in_context", "weights"})
+    can_generate = True
 
     def __init__(
         self,
@@ -123,6 +125,48 @@ class CustomSubject(Subject):
                 capture_logits=capture_logits,
                 on_batch=on_batch
             )
+
+    def generate(
+        self,
+        queries: Sequence[Query],
+        *,
+        max_new_tokens: int,
+        temperature: float = 1.0,
+        top_p: float = 1.0,
+        top_k: int | None = None
+    ) -> list[str]:
+        """Writes a free response to each query.
+
+        Args:
+            queries: The queries to answer.
+            max_new_tokens: How many tokens each response may use.
+            temperature: Divides log probabilities before a token is sampled.
+            top_p: Keeps the smallest set of tokens covering this much probability.
+            top_k: Keeps only this many of the most likely tokens.
+
+        Returns:
+            One text per query.
+
+        Raises:
+            MissingAbilityError: If the tokenizer has no `decode(token_ids)`.
+        """
+        if not hasattr(self.tokenizer, "decode"):
+            raise MissingAbilityError(f"{type(self.tokenizer).__name__} needs a decode(token_ids) to write responses.")
+        self.model.eval()
+        return generate_texts(
+            queries,
+            forward=self._forward,
+            encode_prompt=self.tokenizer.encode,
+            decode=self.tokenizer.decode,
+            eos_token_id=getattr(self.tokenizer, "eos_token_id", None),
+            pad_token_id=self.tokenizer.pad_token_id,
+            device=self.device,
+            batch_size=self.batch_size,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k
+        )
 
     def state_layers(self) -> tuple[str, ...]:
         """Names the layers that can be recorded.
@@ -289,6 +333,7 @@ class LSTM(Subject):
     modalities = frozenset({"text"})
     learning_modes = frozenset({"in_context", "weights"})
     default_learning = "weights"
+    can_generate = True
 
     def __init__(
         self,

@@ -49,16 +49,18 @@ class SimpleTokenizer:
         """
         return [self._ids.get(word, self.unk_token_id) for word in text.split()]
 
-    def decode(self, token_id: int) -> str:
-        """Turns a token id back into its word.
+    def decode(self, token_ids: int | Sequence[int]) -> str:
+        """Turns token ids back into text.
 
         Args:
-            token_id: The token id.
+            token_ids: One token id, or several.
 
         Returns:
-            The word.
+            The word, or the words joined by spaces.
         """
-        return self._words[token_id]
+        if isinstance(token_ids, int):
+            return self._words[token_ids]
+        return " ".join(self._words[token] for token in token_ids)
 
     def __len__(self) -> int:
         return len(self._ids) + 2

@@ -158,23 +158,31 @@ def run(
         disable=not progress
     ) as bar:
         while (step := paradigm.step(index, previous)) is not None:
-            responses, state_columns = _respond_and_store(
-                bound,
-                step,
-                mode,
-                capture_logits="logits" in record,
-                root=root,
-                settings=settings
-            )
-            extra = {**state_columns, **_logit_table(bound, step, responses)}
-            previous = _build_table(
-                paradigm,
-                step,
-                responses,
-                extra
-            )
-            if "logits" in record and responses.logits is not None:
-                _write_logits(logits_path(root, index), responses.logits)
+            if paradigm.response_mode == "generate":
+                previous = _free_table(paradigm, step, _generate(
+                    bound,
+                    step,
+                    mode,
+                    paradigm
+                ))
+            else:
+                responses, state_columns = _respond_and_store(
+                    bound,
+                    step,
+                    mode,
+                    capture_logits="logits" in record,
+                    root=root,
+                    settings=settings
+                )
+                extra = {**state_columns, **_logit_table(bound, step, responses)}
+                previous = _build_table(
+                    paradigm,
+                    step,
+                    responses,
+                    extra
+                )
+                if "logits" in record and responses.logits is not None:
+                    _write_logits(logits_path(root, index), responses.logits)
             _write_table(step_path(root, index), previous)
             index += 1
             bar.update()
@@ -224,6 +232,16 @@ def _validate(
             f"{type(subject).__name__} can't use learning mode '{mode}'. It supports "
             f"{sorted(subject.learning_modes)}."
         )
+    if paradigm.response_mode == "generate":
+        if not subject.can_generate:
+            raise MissingAbilityError(
+                f"Paradigm '{paradigm.name}' needs free responses, which {type(subject).__name__} can't write."
+            )
+        if record:
+            raise MissingAbilityError(
+                f"Paradigm '{paradigm.name}' uses free responses, and they can't record {sorted(record)} yet. "
+                "Leave out record."
+            )
 
 
 def _validate_recording(
@@ -449,13 +467,38 @@ def _train_and_respond(
     capture_logits: bool,
     capture_states: StateCapture | None
 ) -> Responses:
-    first = queries[0]
-    learner = subject.fresh(first.init_seed)
-    learner.learn(first.context, template=first.template, instructions=first.instructions)
-    # the context now lives in the weights, so it mustn't also reach the prompt
-    bare = [replace(query, context=()) for query in queries]
+    learner, bare = _trained(subject, queries)
     extra = {} if capture_states is None else {"capture_states": capture_states}
     return learner.respond(bare, capture_logits=capture_logits, **extra)
+
+
+def _trained(subject: Subject, queries: Sequence[Query]) -> tuple[Subject, list[Query]]:
+    first = queries[0]
+    learner = subject.fresh(first.init_seed)
+    if first.context:
+        learner.learn(first.context, template=first.template, instructions=first.instructions)
+    # the context now lives in the weights, so it mustn't also reach the prompt
+    return learner, [replace(query, context=()) for query in queries]
+
+
+def _generate(
+    subject: Subject,
+    step: Step,
+    mode: str | None,
+    paradigm: Paradigm
+) -> list[str]:
+    options = {"max_new_tokens": paradigm.max_new_tokens, **paradigm.settings.shaping}
+    if mode != "weights":
+        return subject.generate(step.queries, **options)
+    positions: dict[int, list[int]] = {}
+    for position, query in enumerate(step.queries):
+        positions.setdefault(query.group, []).append(position)
+    texts = [""] * len(step.queries)
+    for members in positions.values():
+        learner, bare = _trained(subject, [step.queries[i] for i in members])
+        for position, text in zip(members, learner.generate(bare, **options), strict=True):
+            texts[position] = text
+    return texts
 
 
 def _build_table(
@@ -492,6 +535,26 @@ def _build_table(
         rows["log_probs"].append(log_probs[row, :width].tolist())
         rows["shaped_log_probs"].append(shaped[row, :width].tolist())
     return paradigm.annotate(pd.DataFrame({**rows, **step.columns, **extra}))
+
+
+def _free_table(
+    paradigm: Paradigm,
+    step: Step,
+    texts: Sequence[str]
+) -> pd.DataFrame:
+    size = len(step.queries)
+    rows = {
+        "step": [step.index] * size,
+        "item": [query.trial.item for query in step.queries],
+        "options": [[] for _ in range(size)],
+        "answer": [query.trial.answer for query in step.queries],
+        "response": list(texts),
+        "response_index": [-1] * size,
+        "scores": [[] for _ in range(size)],
+        "log_probs": [[] for _ in range(size)],
+        "shaped_log_probs": [[] for _ in range(size)]
+    }
+    return paradigm.annotate(pd.DataFrame({**rows, **step.columns}))
 
 
 def _write_table(path: Path, frame: pd.DataFrame) -> None:

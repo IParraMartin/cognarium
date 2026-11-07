@@ -14,6 +14,7 @@ from cognarium.recording.capture import StateCapture, hook_layers, pool_states
 from cognarium.recording.layers import LayerMap, find_layer_map
 from cognarium.responses import Query, Responses
 from cognarium.subjects.base import Readout, Subject, weights_digest
+from cognarium.subjects.generation import generate_texts
 from cognarium.subjects.scoring import score_options
 
 _CHECK_TOKENS = 8
@@ -42,6 +43,7 @@ class HFSubject(Subject):
 
     modalities = frozenset({"text"})
     learning_modes = frozenset({"in_context"})
+    can_generate = True
     default_learning = "in_context"
 
     def __init__(
@@ -104,6 +106,46 @@ class HFSubject(Subject):
                 capture_logits=capture_logits,
                 on_batch=on_batch
             )
+
+    def generate(
+        self,
+        queries: Sequence[Query],
+        *,
+        max_new_tokens: int,
+        temperature: float = 1.0,
+        top_p: float = 1.0,
+        top_k: int | None = None
+    ) -> list[str]:
+        """Writes a free response to each query.
+
+        Args:
+            queries: The queries to answer.
+            max_new_tokens: How many tokens each response may use.
+            temperature: Divides log probabilities before a token is sampled.
+            top_p: Keeps the smallest set of tokens covering this much probability.
+            top_k: Keeps only this many of the most likely tokens.
+
+        Returns:
+            One text per query.
+
+        Raises:
+            ValueError: If a prompt leaves no room for `max_new_tokens`.
+        """
+        return generate_texts(
+            queries,
+            forward=self._forward,
+            encode_prompt=lambda text: self.tokenizer(text)["input_ids"],
+            decode=lambda tokens: self.tokenizer.decode(tokens, skip_special_tokens=True),
+            eos_token_id=self.tokenizer.eos_token_id,
+            pad_token_id=self.tokenizer.pad_token_id,
+            device=self.device,
+            batch_size=self.batch_size,
+            max_length=getattr(self.model.config, "max_position_embeddings", None),
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k
+        )
 
     def state_layers(self) -> tuple[str, ...]:
         """Names the model's blocks.

@@ -251,6 +251,7 @@ class Paradigm:
         if cached is None:
             cached = [self._participant_trials(participant) for participant in range(self.n_participants)]
             _check_columns(cached)
+            self._check_response_mode(cached)
             self._sequences = cached
         return cached
 
@@ -422,6 +423,17 @@ class Paradigm:
             return trials
         shuffled = [trials[position] for position in rng.permutation(len(trials)).tolist()]
         return sorted(shuffled, key=lambda trial: trial.block)
+
+    def _check_response_mode(self, sequences: Sequence[Sequence[Trial]]) -> None:
+        trials = [trial for row in sequences for trial in row]
+        free = sum(trial.free for trial in trials)
+        if self.response_mode == "generate" and free < len(trials):
+            raise ValueError(f"Paradigm '{self.name}' has response_mode 'generate', so its trials can't have options.")
+        if self.response_mode == "choice" and free > 0:
+            raise ValueError(
+                f"Paradigm '{self.name}' has response_mode 'choice', so its trials need options. "
+                "Set response_mode = 'generate' for free responses."
+            )
 
     def _history(
         self,
