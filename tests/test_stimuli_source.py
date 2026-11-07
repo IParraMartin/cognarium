@@ -11,6 +11,7 @@ import cognarium as cg
 
 class Words(cg.Paradigm):
     item_columns = ("word", "kind")
+    stimuli_label = "built-in, not human-normed"
 
     def default_items(self, rng):
         return [{"word": "built", "kind": "in"}]
@@ -36,6 +37,15 @@ def test_built_in_rows_are_the_default_and_are_labelled():
     paradigm = Words()
     assert texts(paradigm) == ["built"]
     assert paradigm.config()["stimuli"] == "built-in, not human-normed"
+
+
+def test_a_paradigm_says_nothing_about_stimuli_it_does_not_describe():
+    class Plain(cg.Paradigm):
+        def trials(self, rng):
+            yield cg.Trial(cg.Stimulus(text="a"), options=["a", "b"])
+
+    assert Plain().config()["stimuli"] is None
+    assert Words(stimuli=ROWS).config()["stimuli"] == "your own rows"
 
 
 def test_stimuli_accepts_a_list_of_rows():

@@ -29,7 +29,7 @@ _RESPONSE_STREAM = 1
 _GROUP_STREAM = 2
 _INIT_STREAM = 3
 _TRIAL_STREAM = 4
-_BUILT_IN = "built-in, not human-normed"
+BUILT_IN_STIMULI = "built-in, not human-normed"
 # trials that see no past can share a step, and this keeps each step's file small
 _ISOLATED_STEP_SIZE = 256
 _RESERVED_COLUMNS = frozenset({
@@ -164,6 +164,8 @@ class Paradigm:
         template: How stimuli and labels are written for subjects that read text.
         effects: What `score` reports. The first is the paradigm's primary effect.
         item_columns: The columns each row of `stimuli` must fill.
+        stimuli_label: Describes the stimuli the paradigm makes itself, which results
+            report unless `stimuli` replaces them.
         rows: The rows given as `stimuli`, or None.
         personas: The personas, if any.
         n_participants: How many virtual participants take part.
@@ -187,6 +189,7 @@ class Paradigm:
     template: PromptTemplate = PromptTemplate()
     effects: tuple[Effect, ...] = ()
     item_columns: ClassVar[tuple[str, ...]] = ()
+    stimuli_label: ClassVar[str | None] = None
     rows: list[dict[str, Any]] | None = None
     personas: tuple[str, ...] | None = None
     n_participants: int = 1
@@ -454,9 +457,7 @@ class Paradigm:
         self._modalities = value
 
     def _stimuli_label(self) -> str | None:
-        if not self.item_columns:
-            return None
-        return _BUILT_IN if self.rows is None else self._stimuli_source
+        return self.stimuli_label if self.rows is None else self._stimuli_source
 
     def _participant_trials(self, participant: int) -> list[Trial]:
         rng = np.random.default_rng([self.settings.seed, _TRIAL_STREAM, participant])
