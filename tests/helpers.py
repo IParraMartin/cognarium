@@ -35,3 +35,25 @@ class ScriptedSubject(Subject):
         if self.choices is not None:
             choices = torch.full((len(queries),), self.choices, dtype=torch.long)
         return Responses(scores=scores, choices=choices)
+
+
+class TrainableScriptedSubject(ScriptedSubject):
+    """A scripted subject that keeps state, and records how it was trained."""
+
+    def __init__(self, **kwargs):
+        super().__init__(modes=("weights",), **kwargs)
+        self.fresh_seeds = []
+        self.learned = []
+        self.max_context_seen = 0
+
+    def fresh(self, seed):
+        self.fresh_seeds.append(tuple(seed))
+        return self
+
+    def learn(self, observations, *, template, instructions=None):
+        self.learned.append(tuple(observations))
+
+    def respond(self, queries, *, capture_logits=False):
+        longest = max(len(query.context) for query in queries)
+        self.max_context_seen = max(self.max_context_seen, longest)
+        return super().respond(queries, capture_logits=capture_logits)
