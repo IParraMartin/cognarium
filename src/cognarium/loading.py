@@ -9,6 +9,7 @@ import torch
 
 from cognarium.device import resolve_device, resolve_dtype
 from cognarium.subjects.base import Subject
+from cognarium.subjects.custom import CustomSubject
 from cognarium.subjects.hf import HFSubject
 
 
@@ -65,7 +66,14 @@ def load(
 
     if isinstance(model, PreTrainedModel):
         return HFSubject(model, tokenizer, device=resolved_device, batch_size=batch_size)
-    raise TypeError("Custom modules aren't supported yet.")
+    return CustomSubject(
+        model,
+        tokenizer,
+        adapter=adapter,
+        pretrained=pretrained,
+        device=resolved_device,
+        batch_size=batch_size
+    )
 
 
 def _load_by_name(

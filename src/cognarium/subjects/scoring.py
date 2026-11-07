@@ -100,7 +100,7 @@ def _score_from_prompts(
     """Runs each prompt once, which is enough for single-token options."""
     collected = []
     for batch in _batches(indices, batch_size):
-        ids, mask = _pad([prompts[i] for i in batch], pad_token_id, device)
+        ids, mask = pad_sequences([prompts[i] for i in batch], pad_token_id, device)
         positions = mask.sum(dim=1) - 1
         rows = torch.arange(len(batch), device=device)
         logits = forward(ids, mask)[rows, positions].float().cpu()
@@ -128,7 +128,7 @@ def _score_from_pairs(
     pairs = [(i, k) for i in indices for k in range(len(options[i]))]
     for batch in _batches(pairs, batch_size):
         sequences = [prompts[i] + options[i][k] for i, k in batch]
-        ids, mask = _pad(sequences, pad_token_id, device)
+        ids, mask = pad_sequences(sequences, pad_token_id, device)
         log_probs = forward(ids, mask).float().log_softmax(dim=-1).cpu().double()
         for row, (i, k) in enumerate(batch):
             start = len(prompts[i]) - 1
@@ -172,11 +172,21 @@ def _check_lengths(
             )
 
 
-def _pad(
+def pad_sequences(
     sequences: list[list[int]],
     pad_token_id: int,
     device: torch.device
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    """Right-pads token sequences into a batch.
+
+    Args:
+        sequences: The token ids of each sequence.
+        pad_token_id: The id used for padding.
+        device: Where the batch should live.
+
+    Returns:
+        The ids and the attention mask, both of shape (batch, longest sequence).
+    """
     length = max(len(sequence) for sequence in sequences)
     ids = torch.full((len(sequences), length), pad_token_id, dtype=torch.long)
     mask = torch.zeros((len(sequences), length), dtype=torch.long)
