@@ -17,12 +17,20 @@ dependencies = [
     "pyarrow",
     "safetensors",
     "torch>=2.9",
+    "torchmetrics>=1.9.0",
     "tqdm",
     "transformers>=5"
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "scipy"]
+dev = [
+    "dit",
+    "pytest",
+    "rsatoolbox",
+    "ruff",
+    "scikit-learn",
+    "scipy"
+]
 all = []
 
 [tool.hatch.version]
