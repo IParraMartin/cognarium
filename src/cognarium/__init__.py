@@ -10,9 +10,13 @@ from cognarium import (
     subjects,
     tasks
 )
-from cognarium.errors import MissingAbilityError, RunConflictError
+from cognarium.errors import (
+    IdenticalParticipantsWarning,
+    MissingAbilityError,
+    RunConflictError
+)
 from cognarium.loading import load
-from cognarium.paradigms.base import Paradigm, Step
+from cognarium.paradigms.base import Effect, Paradigm, Step
 from cognarium.recording import HiddenStates, LayerMap
 from cognarium.responses import PromptTemplate, Query, Responses
 from cognarium.results import Results
@@ -23,7 +27,9 @@ from cognarium.subjects.base import Readout
 __version__ = "0.0.1"
 
 __all__ = [
+    "Effect",
     "HiddenStates",
+    "IdenticalParticipantsWarning",
     "LayerMap",
     "MissingAbilityError",
     "Observation",

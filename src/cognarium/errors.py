@@ -17,3 +17,7 @@ class RunConflictError(CognariumError):
 
 class UntrainedModelWarning(UserWarning):
     """A model with untrained weights is being used as if it had learned."""
+
+
+class IdenticalParticipantsWarning(UserWarning):
+    """Virtual participants would all give the same probabilities."""

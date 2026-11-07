@@ -44,6 +44,7 @@ from cognarium.metrics.information import (
 from cognarium.metrics.statistics import (
     bootstrap_ci,
     cohens_d,
+    contrast_table,
     fdr,
     hedges_g,
     permutation_test
@@ -60,6 +61,7 @@ __all__ = [
     "brier",
     "cohens_d",
     "conditional_entropy",
+    "contrast_table",
     "criterion",
     "cross_entropy",
     "d_prime",

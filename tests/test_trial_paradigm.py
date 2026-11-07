@@ -223,7 +223,8 @@ def test_sequences_depend_only_on_the_seed():
 def test_participant_columns_and_groups_reach_the_table(tmp_path):
     subject = Watching()
     paradigm = Priming(pairs=PAIRS, n_participants=3)
-    frame = run_quietly(paradigm, subject, tmp_path / "run").to_pandas()
+    with pytest.warns(cg.IdenticalParticipantsWarning):
+        frame = run_quietly(paradigm, subject, tmp_path / "run").to_pandas()
     assert sorted(frame["participant"].tolist()) == [0, 0, 1, 1, 2, 2]
     assert set(frame["trial"]) == {0, 1}
     assert [query.group for query in subject.seen] == frame["participant"].tolist()

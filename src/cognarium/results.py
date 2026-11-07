@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 import torch
 from safetensors.torch import load_file
 
 from cognarium.errors import MissingAbilityError
-from cognarium.metrics.measures import MEASURES
+from cognarium.metrics.measures import MEASURES, PROXIES, ROW_MEASURES
+from cognarium.metrics.statistics import contrast_table
 from cognarium.recording.lens import read_layers
 from cognarium.recording.store import HiddenStates
 
 if TYPE_CHECKING:
+    from cognarium.paradigms.base import Paradigm
     from cognarium.subjects.base import Subject
 
 _TABLE_COLUMNS = ("metric", "value", "reference")
@@ -57,11 +60,13 @@ class Results:
         frame: The results table.
         manifest: The run's settings, seeds and versions.
         subject: The subject that made these results, if it's still around.
+        paradigm: The paradigm that made these results, if it's still around.
 
     Attributes:
         path: The run folder.
         manifest: The run's settings, seeds and versions.
         subject: The subject that made these results, or None.
+        paradigm: The paradigm that made these results, or None.
     """
 
     def __init__(
@@ -70,21 +75,30 @@ class Results:
         frame: pd.DataFrame,
         manifest: dict[str, Any],
         *,
-        subject: Subject | None = None
+        subject: Subject | None = None,
+        paradigm: Paradigm | None = None
     ) -> None:
         self.path = Path(path)
         self.manifest = manifest
         self.subject = subject
+        self.paradigm = paradigm
         self._frame = frame
         self._hidden: HiddenStates | None = None
 
     @classmethod
-    def load(cls, path: str | Path, *, subject: Subject | None = None) -> Results:
+    def load(
+        cls,
+        path: str | Path,
+        *,
+        subject: Subject | None = None,
+        paradigm: Paradigm | None = None
+    ) -> Results:
         """Reopens a run from its folder.
 
         Args:
             path: The run folder.
             subject: The subject that made these results, if you have it.
+            paradigm: The paradigm that made these results, which `score` needs.
 
         Returns:
             The results of every finished step. The table is empty if no step has
@@ -98,7 +112,8 @@ class Results:
             root,
             frame,
             manifest,
-            subject=subject
+            subject=subject,
+            paradigm=paradigm
         )
 
     @property
@@ -245,6 +260,94 @@ class Results:
             combined["reference"] = None
         return combined[[*group_by, *_TABLE_COLUMNS]]
 
+    def contrast(
+        self,
+        measure: str,
+        by: str | None = None,
+        *,
+        levels: Sequence[Any] | None = None,
+        against: float | None = None,
+        where: Mapping[str, Any] | None = None,
+        ci_by: str = "item",
+        n_resamples: int = 2000,
+        level: float = 0.95,
+        seed: int = 0,
+        **options: Any
+    ) -> pd.DataFrame:
+        """Compares two levels of a condition, or one level with a fixed value.
+
+        Args:
+            measure: `surprisal`, `answer_surprisal`, `entropy`, `accuracy`,
+                `answer_probability`, `answer_margin`, `option_probability`,
+                `expected_option`, or any numeric column of the results table.
+            by: The column naming the levels.
+            levels: The levels to compare. `level_a` minus `level_b` is reported.
+            against: Compares with this value rather than a second level.
+            where: Keeps only the rows whose columns equal these values.
+            ci_by: The column whose groups the interval resamples.
+            n_resamples: How many resamples the interval and the p value each use.
+            level: The interval's coverage, such as 0.95.
+            seed: Seeds the resampling.
+            **options: Passed to the measure, such as `option` for `option_probability`.
+                `raw=True` uses the distribution before temperature, top-k and top-p.
+
+        Returns:
+            One row, with the columns of `cognarium.metrics.contrast_table`, then
+            `measure` and `proxy_for`, which names the human behaviour a proxy measure
+            stands in for, and is None for any other measure.
+
+        Raises:
+            ValueError: If the measure is unknown, no rows match `where`, a value isn't
+                finite, participants are identical and `ci_by` is `participant`, or the
+                comparison can't be made.
+            MissingAbilityError: If a measure needs answers that some rows lack.
+        """
+        if ci_by == "participant" and self.manifest["paradigm"].get("participants_identical"):
+            raise ValueError(
+                "Every participant is identical in this run, so an interval over participants would "
+                "have zero width. Use ci_by='item', or give participants context or personas."
+            )
+        rows = _matching(self._frame, where)
+        if measure in ROW_MEASURES:
+            values = ROW_MEASURES[measure](rows, **options)
+        elif measure in rows.columns and pd.api.types.is_numeric_dtype(rows[measure]):
+            values = rows[measure].to_numpy(dtype=np.float64)
+        else:
+            raise ValueError(f"Choose a measure from {sorted(ROW_MEASURES)} or a numeric column, got '{measure}'.")
+        if not np.isfinite(values).all() and not options.get("raw", False):
+            raise ValueError(
+                f"Some values of '{measure}' aren't finite, since top-k or top-p removed an option "
+                "they read. Use raw=True for the distribution before those settings."
+            )
+        table = contrast_table(
+            rows.assign(contrasted=values),
+            "contrasted",
+            by=by,
+            levels=levels,
+            against=against,
+            group=ci_by,
+            n_resamples=n_resamples,
+            level=level,
+            seed=seed
+        )
+        return table.assign(measure=measure, proxy_for=PROXIES.get(measure))
+
+    def score(self) -> pd.DataFrame:
+        """Reports the effects the paradigm declares.
+
+        Returns:
+            One row per effect, with the primary effect first.
+
+        Raises:
+            MissingAbilityError: If this run was reopened without its paradigm, or the
+                paradigm declares no effects.
+        """
+        if self.paradigm is None:
+            raise MissingAbilityError(
+                "This run was reopened from disk, so pass its paradigm: cg.Results.load(path, paradigm=...)."
+            )
+        return self.paradigm.score(self)
+
     def _lens_subject(self, subject: Subject | None) -> Subject:
         if subject is None and self.subject is None:
             raise MissingAbilityError("This run was reopened from disk, so pass its subject: results.lens(subject).")
@@ -263,3 +366,14 @@ class Results:
         if differing:
             raise ValueError(f"This subject isn't the one this run used. These differ: {differing}.")
         return subject
+
+
+def _matching(frame: pd.DataFrame, where: Mapping[str, Any] | None) -> pd.DataFrame:
+    rows = frame
+    for column, value in (where or {}).items():
+        if column not in frame.columns:
+            raise ValueError(f"There is no column '{column}'. The table has {list(frame.columns)}.")
+        rows = rows[rows[column] == value]
+    if rows.empty:
+        raise ValueError(f"There are no rows where {dict(where or {})}.")
+    return rows

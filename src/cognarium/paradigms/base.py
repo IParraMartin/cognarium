@@ -7,8 +7,8 @@ import json
 import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
-from typing import Any, ClassVar
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,9 @@ from cognarium.errors import MissingAbilityError
 from cognarium.responses import PromptTemplate, Query
 from cognarium.settings import Settings
 from cognarium.stimuli import Observation, Stimulus, Trial
+
+if TYPE_CHECKING:
+    from cognarium.results import Results
 
 # the streams iterated learning uses are 0 to 3, and a new stream never shifts an old one
 _RESPONSE_STREAM = 1
@@ -88,6 +91,31 @@ class Step:
     columns: Mapping[str, Sequence[Any]]
 
 
+@dataclass(frozen=True)
+class Effect:
+    """One comparison a paradigm reports, declared as data.
+
+    Attributes:
+        name: Identifies the effect in the scores.
+        measure: A measure with one value per row, such as `answer_surprisal`, or a
+            numeric result column.
+        by: The column naming the levels.
+        levels: The levels to compare. `level_a` minus `level_b` is reported, so a
+            human-like effect comes out positive.
+        against: Compares with this value instead of a second level, such as 0.5 for chance.
+        where: Keeps only the rows whose columns equal these values.
+        options: Passed to the measure.
+    """
+
+    name: str
+    measure: str
+    by: str | None = None
+    levels: tuple[Any, ...] | None = None
+    against: float | None = None
+    where: Mapping[str, Any] = field(default_factory=dict)
+    options: Mapping[str, Any] = field(default_factory=dict)
+
+
 class Paradigm:
     """An experiment, written as a list of trials or as a function of past results.
 
@@ -129,6 +157,7 @@ class Paradigm:
             each participant's trials are shuffled within their blocks.
         response_mode: `"choice"` picks an option, and `"generate"` answers freely.
         template: How stimuli and labels are written for subjects that read text.
+        effects: What `score` reports. The first is the paradigm's primary effect.
         personas: The personas, if any.
         n_participants: How many virtual participants take part.
         max_new_tokens: How many tokens a free response may use.
@@ -147,6 +176,7 @@ class Paradigm:
     ordered: ClassVar[bool] = False
     response_mode: ClassVar[str] = "choice"
     template: PromptTemplate = PromptTemplate()
+    effects: tuple[Effect, ...] = ()
     personas: tuple[str, ...] | None = None
     n_participants: int = 1
     max_new_tokens: int = 32
@@ -283,6 +313,35 @@ class Paradigm:
             "participants_identical": self._participants_identical(),
             **self.settings.config()
         }
+
+    def score(self, results: Results) -> pd.DataFrame:
+        """Reports this paradigm's effects.
+
+        Args:
+            results: The results of a run of this paradigm.
+
+        Returns:
+            One row per effect, with the primary effect first. See `Results.contrast`
+            for the columns.
+
+        Raises:
+            MissingAbilityError: If the paradigm declares no effects.
+        """
+        if not self.effects:
+            raise MissingAbilityError(f"Paradigm '{self.name}' declares no effects. Set `effects`, or write score().")
+        tables = [
+            results.contrast(
+                effect.measure,
+                effect.by,
+                levels=effect.levels,
+                against=effect.against,
+                where=effect.where or None,
+                **effect.options
+            ).assign(effect=effect.name)
+            for effect in self.effects
+        ]
+        combined = pd.concat(tables, ignore_index=True)
+        return combined[["effect", *(column for column in combined.columns if column != "effect")]]
 
     def annotate(self, frame: pd.DataFrame) -> pd.DataFrame:
         """Adds columns that depend on a finished step's responses.

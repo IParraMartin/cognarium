@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import sys
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -18,7 +19,11 @@ import torch
 from safetensors.torch import save_file
 from tqdm.auto import tqdm
 
-from cognarium.errors import MissingAbilityError, RunConflictError
+from cognarium.errors import (
+    IdenticalParticipantsWarning,
+    MissingAbilityError,
+    RunConflictError
+)
 from cognarium.paradigms.base import Paradigm, Step
 from cognarium.recording.capture import StateCapture
 from cognarium.recording.logits import logit_columns
@@ -114,6 +119,14 @@ def run(
         "learning": mode,
         "record": sorted(record)
     }
+    if described["paradigm"].get("participants_identical"):
+        warnings.warn(
+            f"With isolated trials and no personas, all {paradigm.n_participants} participants see the "
+            "same trials and give the same probabilities. They add no information, so "
+            "participant-level intervals are refused.",
+            IdenticalParticipantsWarning,
+            stacklevel=2
+        )
     settings = None
     if "hidden_states" in record:
         settings = {
@@ -168,7 +181,7 @@ def run(
 
     manifest["status"] = "complete"
     _write_json(root / "manifest.json", manifest)
-    return Results.load(root, subject=bound)
+    return Results.load(root, subject=bound, paradigm=paradigm)
 
 
 def _resolve_learning(paradigm: Paradigm, subject: Subject, learning: str) -> str | None:

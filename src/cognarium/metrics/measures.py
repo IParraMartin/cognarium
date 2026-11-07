@@ -265,6 +265,98 @@ MEASURES: dict[str, Callable[..., pd.DataFrame]] = {
 }
 
 
+def _row_surprisal(frame: pd.DataFrame, raw: bool = False) -> np.ndarray:
+    rows = _row_log_probs(frame, raw)
+    return information.surprisal(rows[torch.arange(len(rows)), _positions(frame, "response")]).numpy()
+
+
+def _row_answer_surprisal(frame: pd.DataFrame, raw: bool = False) -> np.ndarray:
+    rows = _row_log_probs(frame, raw)
+    return information.surprisal(rows[torch.arange(len(rows)), _answer_positions(frame, "answer_surprisal")]).numpy()
+
+
+def _row_entropy(frame: pd.DataFrame, raw: bool = False) -> np.ndarray:
+    return information.entropy(_row_log_probs(frame, raw)).numpy()
+
+
+def _row_accuracy(frame: pd.DataFrame) -> np.ndarray:
+    _answer_positions(frame, "accuracy")
+    return (frame["response"] == frame["answer"]).to_numpy(dtype=np.float64)
+
+
+def _row_answer_probability(frame: pd.DataFrame, raw: bool = False) -> np.ndarray:
+    rows = _row_log_probs(frame, raw)
+    return rows[torch.arange(len(rows)), _answer_positions(frame, "answer_probability")].exp().numpy()
+
+
+def _row_answer_margin(frame: pd.DataFrame, raw: bool = False) -> np.ndarray:
+    rows = _row_log_probs(frame, raw)
+    positions = _answer_positions(frame, "answer_margin")
+    indices = torch.arange(len(rows))
+    best_other = rows.clone()
+    best_other[indices, positions] = -torch.inf
+    return (rows[indices, positions] - best_other.max(dim=-1).values).numpy()
+
+
+def _row_option_probability(frame: pd.DataFrame, option: str | int, raw: bool = False) -> np.ndarray:
+    rows = _row_log_probs(frame, raw)
+    positions = torch.tensor([_option_position(options, option) for options in frame["options"]])
+    return rows[torch.arange(len(rows)), positions].exp().numpy()
+
+
+def _row_expected_option(frame: pd.DataFrame, raw: bool = False) -> np.ndarray:
+    rows = _row_log_probs(frame, raw)
+    return (rows.exp() * torch.arange(rows.shape[1], dtype=torch.float64)).sum(dim=-1).numpy()
+
+
+# one value per row, in bits for surprisal and entropy and in nats for the margin
+ROW_MEASURES: dict[str, Callable[..., np.ndarray]] = {
+    "surprisal": _row_surprisal,
+    "answer_surprisal": _row_answer_surprisal,
+    "entropy": _row_entropy,
+    "accuracy": _row_accuracy,
+    "answer_probability": _row_answer_probability,
+    "answer_margin": _row_answer_margin,
+    "option_probability": _row_option_probability,
+    "expected_option": _row_expected_option
+}
+
+# what a measure stands in for, so that results never present it as that behaviour
+PROXIES: dict[str, str] = {
+    "surprisal": "reaction time",
+    "answer_surprisal": "reaction time",
+    "entropy": "reaction time",
+    "answer_margin": "reaction time"
+}
+
+
+def _row_log_probs(frame: pd.DataFrame, raw: bool) -> torch.Tensor:
+    return _stack(frame["log_probs" if raw else "shaped_log_probs"])
+
+
+def _positions(frame: pd.DataFrame, column: str) -> torch.Tensor:
+    return torch.tensor([
+        list(options).index(chosen)
+        for options, chosen in zip(frame["options"], frame[column], strict=True)
+    ])
+
+
+def _answer_positions(frame: pd.DataFrame, name: str) -> torch.Tensor:
+    if frame["answer"].isna().any():
+        raise MissingAbilityError(f"Measure '{name}' needs a correct answer on every row. Filter with `where`.")
+    return _positions(frame, "answer")
+
+
+def _option_position(options: Sequence[str], option: str | int) -> int:
+    if isinstance(option, str):
+        if option not in options:
+            raise ValueError(f"The option '{option}' isn't one of {list(options)}.")
+        return list(options).index(option)
+    if not 0 <= option < len(options):
+        raise ValueError(f"There is no option at position {option} of {list(options)}.")
+    return option
+
+
 def _require(frame: pd.DataFrame, name: str, columns: Iterable[str]) -> None:
     missing = sorted(set(columns) - set(frame.columns))
     if missing:
