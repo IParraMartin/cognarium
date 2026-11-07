@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from cognarium import (
     context,
+    data,
     metrics,
     models,
     paradigms,
@@ -44,6 +45,7 @@ __all__ = [
     "Stimulus",
     "Trial",
     "context",
+    "data",
     "load",
     "metrics",
     "models",

@@ -15,6 +15,7 @@ import pandas as pd
 import torch
 
 from cognarium.context import ContextPolicy, isolated
+from cognarium.data.convert import read_rows
 from cognarium.errors import MissingAbilityError
 from cognarium.responses import PromptTemplate, Query
 from cognarium.settings import Settings
@@ -28,6 +29,7 @@ _RESPONSE_STREAM = 1
 _GROUP_STREAM = 2
 _INIT_STREAM = 3
 _TRIAL_STREAM = 4
+_BUILT_IN = "built-in, not human-normed"
 # trials that see no past can share a step, and this keeps each step's file small
 _ISOLATED_STEP_SIZE = 256
 _RESERVED_COLUMNS = frozenset({
@@ -127,6 +129,9 @@ class Paradigm:
     stopped run can therefore continue from its last saved step.
 
     Args:
+        stimuli: Rows that replace the paradigm's built-in items, for a paradigm that names
+            its `item_columns`: a path to a `.csv`, `.json`, `.jsonl` or `.parquet` file, a
+            `cg.data.Dataset`, a table, or a list of mappings.
         n_participants: How many virtual participants take part. Each one draws its
             own trials and order.
         personas: Text placed before the instructions, with one per participant,
@@ -158,14 +163,18 @@ class Paradigm:
         response_mode: `"choice"` picks an option, and `"generate"` answers freely.
         template: How stimuli and labels are written for subjects that read text.
         effects: What `score` reports. The first is the paradigm's primary effect.
+        item_columns: The columns each row of `stimuli` must fill.
+        rows: The rows given as `stimuli`, or None.
         personas: The personas, if any.
         n_participants: How many virtual participants take part.
         max_new_tokens: How many tokens a free response may use.
         parameters: The paradigm's other parameters.
 
     Raises:
-        ValueError: If a count is below 1, the list of personas is empty, or a parameter
-            would replace one of the paradigm's methods.
+        FileNotFoundError: If `stimuli` names a file that doesn't exist.
+        ValueError: If a count is below 1, the list of personas is empty, a parameter
+            would replace one of the paradigm's methods, or `stimuli` can't fill
+            `item_columns`.
     """
 
     name: ClassVar[str]
@@ -177,6 +186,8 @@ class Paradigm:
     response_mode: ClassVar[str] = "choice"
     template: PromptTemplate = PromptTemplate()
     effects: tuple[Effect, ...] = ()
+    item_columns: ClassVar[tuple[str, ...]] = ()
+    rows: list[dict[str, Any]] | None = None
     personas: tuple[str, ...] | None = None
     n_participants: int = 1
     max_new_tokens: int = 32
@@ -189,6 +200,7 @@ class Paradigm:
     def __init__(
         self,
         *,
+        stimuli: Any = None,
         n_participants: int = 1,
         personas: Sequence[str] | None = None,
         instructions: str | None = None,
@@ -206,6 +218,11 @@ class Paradigm:
             raise ValueError(f"max_new_tokens must be at least 1, got {max_new_tokens}.")
         if personas is not None and len(personas) == 0:
             raise ValueError("personas is empty. Leave it out, or give at least one.")
+        self._stimuli_source = None
+        if stimuli is not None:
+            if not self.item_columns:
+                raise ValueError(f"Paradigm '{self.name}' has no item_columns, so stimuli= has nothing to fill.")
+            self.rows, self._stimuli_source = read_rows(stimuli, self.item_columns)
         for key, value in parameters.items():
             if callable(getattr(type(self), key, None)):
                 raise ValueError(f"A parameter can't be called '{key}', since that would replace a method.")
@@ -236,6 +253,31 @@ class Paradigm:
             NotImplementedError: If the paradigm defines neither `trials` nor `step`.
         """
         raise NotImplementedError(f"{type(self).__name__} needs a trials(self, rng) method, or its own step().")
+
+    def default_items(self, rng: np.random.Generator) -> list[dict[str, Any]]:
+        """Gives the rows this paradigm uses when no `stimuli` are passed.
+
+        Args:
+            rng: Seeded for this participant, for anything random in the rows.
+
+        Returns:
+            One mapping per item, holding at least `item_columns`.
+
+        Raises:
+            NotImplementedError: If the paradigm has no built-in items.
+        """
+        raise NotImplementedError(f"{type(self).__name__} has no built-in items, so pass stimuli=.")
+
+    def item_rows(self, rng: np.random.Generator) -> list[dict[str, Any]]:
+        """Gives the rows to build trials from.
+
+        Args:
+            rng: Seeded for this participant, for anything random in the rows.
+
+        Returns:
+            The rows passed as `stimuli`, or else the built-in ones.
+        """
+        return self.default_items(rng) if self.rows is None else self.rows
 
     def sequences(self) -> list[list[Trial]]:
         """Gives each participant's trials in the order they see them.
@@ -302,6 +344,7 @@ class Paradigm:
             "name": self.name,
             "parameters": {key: _json_safe(value) for key, value in self.parameters.items()},
             "trials": self._digest(),
+            "stimuli": self._stimuli_label(),
             "n_participants": self.n_participants,
             "personas": None if self.personas is None else list(self.personas),
             "context": {
@@ -409,6 +452,11 @@ class Paradigm:
     @modalities.setter
     def modalities(self, value: frozenset[str]) -> None:
         self._modalities = value
+
+    def _stimuli_label(self) -> str | None:
+        if not self.item_columns:
+            return None
+        return _BUILT_IN if self.rows is None else self._stimuli_source
 
     def _participant_trials(self, participant: int) -> list[Trial]:
         rng = np.random.default_rng([self.settings.seed, _TRIAL_STREAM, participant])
