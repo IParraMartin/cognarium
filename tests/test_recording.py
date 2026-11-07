@@ -28,7 +28,13 @@ def paradigm():
     return IteratedLearning(ShepardCategories(type="I"), generations=3, chains=2)
 
 
-def recorded(tmp_path, subject, *, name="run", **kwargs):
+def recorded(
+    tmp_path,
+    subject,
+    *,
+    name="run",
+    **kwargs
+):
     return run(
         paradigm(),
         subject,
@@ -57,8 +63,18 @@ def test_states_line_up_with_the_table(tiny_model_and_tokenizer, tmp_path):
 
 def test_batch_size_does_not_change_the_states(tiny_model_and_tokenizer, tmp_path):
     model, tok = tiny_model_and_tokenizer
-    one = recorded(tmp_path, HFSubject(model, tok, device="cpu", batch_size=1), name="one")
-    many = recorded(tmp_path, HFSubject(model, tok, device="cpu", batch_size=8), name="many")
+    one = recorded(tmp_path, HFSubject(
+        model,
+        tok,
+        device="cpu",
+        batch_size=1
+    ), name="one")
+    many = recorded(tmp_path, HFSubject(
+        model,
+        tok,
+        device="cpu",
+        batch_size=8
+    ), name="many")
     assert one.manifest["key"] == many.manifest["key"]
     for layer in ["layer_00", "layer_01"]:
         assert torch.allclose(one.hidden.to_tensor(layer).float(), many.hidden.to_tensor(layer).float(), atol=2e-3)
@@ -67,7 +83,13 @@ def test_batch_size_does_not_change_the_states(tiny_model_and_tokenizer, tmp_pat
 def test_subject_without_states_fails_before_any_call(tmp_path):
     subject = ScriptedSubject()
     with pytest.raises(MissingAbilityError, match="ScriptedSubject"):
-        run(paradigm(), subject, record=["hidden_states"], out=tmp_path / "run", progress=False)
+        run(
+            paradigm(),
+            subject,
+            record=["hidden_states"],
+            out=tmp_path / "run",
+            progress=False
+        )
     assert subject.calls == 0
     assert not (tmp_path / "run").exists()
 
@@ -124,11 +146,21 @@ def test_recording_settings_without_recording_raise(tiny_model_and_tokenizer, tm
 
 def test_hidden_without_recording_explains(tmp_path):
     with pytest.raises(MissingAbilityError, match="hidden_states"):
-        run(paradigm(), ScriptedSubject(), out=tmp_path / "run", progress=False).hidden
+        run(
+            paradigm(),
+            ScriptedSubject(),
+            out=tmp_path / "run",
+            progress=False
+        ).hidden
 
 
 def test_a_run_without_states_keeps_its_key(tmp_path):
-    results = run(paradigm(), ScriptedSubject(), out=tmp_path / "run", progress=False)
+    results = run(
+        paradigm(),
+        ScriptedSubject(),
+        out=tmp_path / "run",
+        progress=False
+    )
     assert "states" not in results.manifest
     identity = {section: results.manifest[section] for section in ["paradigm", "subject", "learning", "record"]}
     text = json.dumps(identity, sort_keys=True)
@@ -260,7 +292,13 @@ def test_a_subject_that_skips_a_requested_layer_fails(tiny_model_and_tokenizer, 
     model, tok = tiny_model_and_tokenizer
 
     class Skipping(HFSubject):
-        def respond(self, queries, *, capture_logits=False, capture_states=None):
+        def respond(
+            self,
+            queries,
+            *,
+            capture_logits=False,
+            capture_states=None
+        ):
             partial = type(capture_states)(("layer_00",), capture_states.pool, capture_states.write)
             return super().respond(queries, capture_logits=capture_logits, capture_states=partial)
 

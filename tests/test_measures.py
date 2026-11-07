@@ -262,7 +262,12 @@ def test_cross_entropy_is_infinite_for_an_impossible_answer():
 
 def test_detection_measures_use_the_first_option_by_default():
     frame = scored_frame()
-    assert values(results(frame=frame).metrics("d_prime"), "d_prime")[0] == pytest.approx(metrics.d_prime(2, 1, 1, 2))
+    assert values(results(frame=frame).metrics("d_prime"), "d_prime")[0] == pytest.approx(metrics.d_prime(
+        2,
+        1,
+        1,
+        2
+    ))
     for name in ["d_prime", "criterion", "a_prime"]:
         default = values(results(frame=frame).metrics(name), name)[0]
         assert default == pytest.approx(values(results(frame=frame).metrics(name, positive="A"), name)[0])
@@ -333,5 +338,10 @@ def test_measures_need_an_answer(name):
 def test_measures_read_the_arrays_parquet_gives_back(tmp_path):
     scored_frame().to_parquet(tmp_path / "frame.parquet")
     frame = pd.read_parquet(tmp_path / "frame.parquet")
-    table = results(frame=frame).metrics("f1", "auroc", "cross_entropy", "d_prime")
+    table = results(frame=frame).metrics(
+        "f1",
+        "auroc",
+        "cross_entropy",
+        "d_prime"
+    )
     assert table["value"].notna().all()

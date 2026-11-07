@@ -94,7 +94,12 @@ class Results:
         manifest = json.loads((root / "manifest.json").read_text())
         shards = [pd.read_parquet(shard) for shard in sorted((root / "steps").glob("step-*.parquet"))]
         frame = pd.concat(shards, ignore_index=True) if shards else pd.DataFrame()
-        return cls(root, frame, manifest, subject=subject)
+        return cls(
+            root,
+            frame,
+            manifest,
+            subject=subject
+        )
 
     @property
     def hidden(self) -> HiddenStates:

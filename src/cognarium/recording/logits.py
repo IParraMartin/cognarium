@@ -38,7 +38,12 @@ def logit_columns(
     """
     logits = logits.detach().cpu().double()
     margins, ranks, differences = [], [], []
-    for row, tokens, answer in zip(logits, option_tokens, answers, strict=True):
+    for row, tokens, answer in zip(
+        logits,
+        option_tokens,
+        answers,
+        strict=True
+    ):
         values = row[torch.tensor(list(tokens))]
         ordered = values.sort(descending=True).values
         margins.append((ordered[0] - ordered[1]).item() if len(ordered) > 1 else None)

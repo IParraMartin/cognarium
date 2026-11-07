@@ -277,7 +277,12 @@ def _answered(
     columns: Iterable[str],
     group_by: Sequence[str]
 ) -> tuple[pd.DataFrame, list[str]]:
-    _require(frame, name, ["answer", "options", *columns, *group_by])
+    _require(frame, name, [
+        "answer",
+        "options",
+        *columns,
+        *group_by
+    ])
     scored = frame[frame["answer"].notna()]
     if scored.empty:
         raise MissingAbilityError(f"Measure '{name}' needs trials with a correct answer.")

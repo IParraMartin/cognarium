@@ -318,7 +318,12 @@ def layer_matrix(
         metric = GEOMETRY[metric]
     names = list(states)
     rows = [[metric(states[first], states[second]) for second in names] for first in names]
-    return pd.DataFrame(rows, index=names, columns=names, dtype=float)
+    return pd.DataFrame(
+        rows,
+        index=names,
+        columns=names,
+        dtype=float
+    )
 
 
 def _matrix(x: torch.Tensor, *, rescale: bool = True) -> torch.Tensor:

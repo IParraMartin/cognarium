@@ -123,7 +123,12 @@ def _rates(
 ) -> tuple[float, float]:
     if correction not in ("loglinear", None):
         raise ValueError(f"Unknown correction '{correction}'. Use 'loglinear' or None.")
-    if min(hits, misses, false_alarms, correct_rejections) < 0:
+    if min(
+        hits,
+        misses,
+        false_alarms,
+        correct_rejections
+    ) < 0:
         raise ValueError("Counts must not be negative.")
     if hits + misses == 0 or false_alarms + correct_rejections == 0:
         raise ValueError("Signal detection needs both signal trials and noise trials.")

@@ -29,7 +29,15 @@ def index_columns(index, rows):
     }
 
 
-def describe(root, index, rows, *, layers, pool, dtype):
+def describe(
+    root,
+    index,
+    rows,
+    *,
+    layers,
+    pool,
+    dtype
+):
     root.mkdir(parents=True, exist_ok=True)
     (root / "steps").mkdir(exist_ok=True)
     frame = pd.DataFrame(index_columns(index, rows))
@@ -40,10 +48,16 @@ def describe(root, index, rows, *, layers, pool, dtype):
             "pool": pool,
             "dtype": dtype
         },
-        "paradigm": {"name": "test"},
-        "subject": {"class": "Test"},
+        "paradigm": {
+            "name": "test"
+        },
+        "subject": {
+            "class": "Test"
+        },
         "learning": None,
-        "versions": {"cognarium": "test"},
+        "versions": {
+            "cognarium": "test"
+        },
         "sessions": []
     }
     (root / "manifest.json").write_text(json.dumps(manifest))
@@ -57,7 +71,12 @@ def written(
     rows=6,
     rows_per_shard=4096
 ):
-    with StateWriter(root, 0, dtype=dtype, rows_per_shard=rows_per_shard) as writer:
+    with StateWriter(
+        root,
+        0,
+        dtype=dtype,
+        rows_per_shard=rows_per_shard
+    ) as writer:
         for seed, layer in enumerate(layers):
             writer.write(layer, fill(rows, seed=seed), range(rows))
         index = writer.finish(rows)
@@ -109,21 +128,41 @@ def test_round_trip_restores_query_order_whatever_order_writes_arrive(tmp_path):
 
 
 def test_shards_roll_over_by_row_count(tmp_path):
-    states = written(tmp_path, layers=("a",), rows=7, rows_per_shard=3)
+    states = written(
+        tmp_path,
+        layers=("a",),
+        rows=7,
+        rows_per_shard=3
+    )
     assert len(list((tmp_path / "states" / "a").glob("*.safetensors"))) == 3
     assert torch.equal(states.to_tensor("a"), fill(7))
 
 
 def test_shard_names_follow_the_layout(tmp_path):
-    written(tmp_path, layers=("a",), rows=4, rows_per_shard=3)
+    written(
+        tmp_path,
+        layers=("a",),
+        rows=4,
+        rows_per_shard=3
+    )
     names = sorted(path.name for path in (tmp_path / "states" / "a").iterdir())
     assert names == ["step-00000-00000.safetensors", "step-00000-00001.safetensors"]
 
 
 def test_a_rerun_overwrites_the_same_shards(tmp_path):
-    written(tmp_path, layers=("a",), rows=4, rows_per_shard=3)
+    written(
+        tmp_path,
+        layers=("a",),
+        rows=4,
+        rows_per_shard=3
+    )
     first = sorted((tmp_path / "states" / "a").iterdir())
-    written(tmp_path, layers=("a",), rows=4, rows_per_shard=3)
+    written(
+        tmp_path,
+        layers=("a",),
+        rows=4,
+        rows_per_shard=3
+    )
     assert sorted((tmp_path / "states" / "a").iterdir()) == first
 
 
@@ -153,7 +192,13 @@ def test_a_failing_disk_surfaces_and_does_not_hang(tmp_path, monkeypatch):
     made = []
 
     def attempt():
-        with StateWriter(tmp_path, 0, dtype="float32", rows_per_shard=1, max_pending=1) as writer:
+        with StateWriter(
+            tmp_path,
+            0,
+            dtype="float32",
+            rows_per_shard=1,
+            max_pending=1
+        ) as writer:
             made.append(writer)
             for query in range(50):
                 writer.write("a", fill(1), [query])
@@ -176,7 +221,13 @@ def test_exiting_on_an_exception_stops_the_thread(tmp_path, monkeypatch):
     made = []
 
     def attempt():
-        with StateWriter(tmp_path, 0, dtype="float32", rows_per_shard=1, max_pending=1) as writer:
+        with StateWriter(
+            tmp_path,
+            0,
+            dtype="float32",
+            rows_per_shard=1,
+            max_pending=1
+        ) as writer:
             made.append(writer)
             for query in range(3):
                 writer.write("a", fill(1), [query])
@@ -198,7 +249,13 @@ def test_the_queue_stays_bounded(tmp_path, monkeypatch):
         real(*args, **kwargs)
 
     monkeypatch.setattr(store, "save_file", slow)
-    with StateWriter(tmp_path, 0, dtype="float32", rows_per_shard=1, max_pending=2) as writer:
+    with StateWriter(
+        tmp_path,
+        0,
+        dtype="float32",
+        rows_per_shard=1,
+        max_pending=2
+    ) as writer:
         made.append(writer)
         for query in range(20):
             writer.write("a", fill(1), [query])
@@ -280,7 +337,12 @@ def test_writer_names_its_layers(tmp_path):
 def test_states_from_inference_mode_can_be_written(tmp_path):
     with torch.inference_mode():
         rows = fill(3)
-    with StateWriter(tmp_path, 0, dtype="float16", rows_per_shard=2) as writer:
+    with StateWriter(
+        tmp_path,
+        0,
+        dtype="float16",
+        rows_per_shard=2
+    ) as writer:
         writer.write("a", rows, range(3))
         index = writer.finish(3)
     assert index[2] == ("step-00000-00001", 0)
@@ -289,9 +351,24 @@ def test_states_from_inference_mode_can_be_written(tmp_path):
 def test_no_pool_round_trips_through_sequences(tmp_path):
     first = torch.arange(8.0).reshape(2, 2, 2)
     second = torch.arange(100.0, 106.0).reshape(1, 3, 2)
-    with StateWriter(tmp_path, 0, dtype="float32", rows_per_shard=2) as writer:
-        writer.write("a", first, [0, 1], torch.tensor([1, 2]))
-        writer.write("a", second, [2], torch.tensor([3]))
+    with StateWriter(
+        tmp_path,
+        0,
+        dtype="float32",
+        rows_per_shard=2
+    ) as writer:
+        writer.write(
+            "a",
+            first,
+            [0, 1],
+            torch.tensor([1, 2])
+        )
+        writer.write(
+            "a",
+            second,
+            [2],
+            torch.tensor([3])
+        )
         index = writer.finish(3)
     describe(
         tmp_path,
@@ -315,8 +392,18 @@ def test_no_pool_pads_rows_that_share_a_shard(tmp_path):
     first = torch.ones(1, 2, 2)
     second = 2 * torch.ones(1, 3, 2)
     with StateWriter(tmp_path, 0, dtype="float32") as writer:
-        writer.write("a", first, [0], torch.tensor([2]))
-        writer.write("a", second, [1], torch.tensor([3]))
+        writer.write(
+            "a",
+            first,
+            [0],
+            torch.tensor([2])
+        )
+        writer.write(
+            "a",
+            second,
+            [1],
+            torch.tensor([3])
+        )
         index = writer.finish(2)
     describe(
         tmp_path,
@@ -354,7 +441,12 @@ def test_open_reads_no_shard_until_asked(tmp_path, monkeypatch):
 
 
 def test_where_selects_rows(tmp_path):
-    states = written(tmp_path, layers=("a",), rows=6, rows_per_shard=4)
+    states = written(
+        tmp_path,
+        layers=("a",),
+        rows=6,
+        rows_per_shard=4
+    )
     mask = states.trials["query"] > 3
     assert torch.equal(states.to_tensor("a", where=mask), fill(6)[4:])
     assert torch.equal(states.to_tensor("a", where=mask.to_numpy()), fill(6)[4:])
@@ -373,8 +465,18 @@ def test_selecting_nothing_explains(tmp_path):
 
 
 def test_steps_of_different_widths_explain(tmp_path):
-    states = written(tmp_path, layers=("a",), rows=2, rows_per_shard=1)
-    with StateWriter(tmp_path, 0, dtype="float32", rows_per_shard=1) as writer:
+    states = written(
+        tmp_path,
+        layers=("a",),
+        rows=2,
+        rows_per_shard=1
+    )
+    with StateWriter(
+        tmp_path,
+        0,
+        dtype="float32",
+        rows_per_shard=1
+    ) as writer:
         writer.write("a", fill(1, width=4), [0])
         writer.write("a", fill(1, width=4), [1])
         writer.finish(2)

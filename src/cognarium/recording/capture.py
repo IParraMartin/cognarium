@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import (
+    Callable,
+    Iterator,
+    Mapping,
+    Sequence
+)
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -104,7 +109,12 @@ def hook_layers(
             if name not in latest:
                 raise ValueError(f"Layer '{name}' didn't run during the forward call, so it can't be recorded.")
             states, lengths = pool_states(latest.pop(name), mask, capture.pool)
-            capture.write(name, states, queries, lengths)
+            capture.write(
+                name,
+                states,
+                queries,
+                lengths
+            )
 
     handles = [modules[name].register_forward_hook(remember(name)) for name in capture.layers]
     try:

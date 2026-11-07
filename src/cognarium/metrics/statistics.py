@@ -139,7 +139,12 @@ def permutation_test(
     extreme = 0
     for size in _chunks(n_resamples):
         if paired:
-            signs = torch.randint(2, (size, len(x)), generator=generator, dtype=torch.float64) * 2 - 1
+            signs = torch.randint(
+                2,
+                (size, len(x)),
+                generator=generator,
+                dtype=torch.float64
+            ) * 2 - 1
             shuffled = (signs * (x - y)).mean(dim=1).abs()
         else:
             order = torch.rand(size, len(pooled), generator=generator).argsort(dim=1)

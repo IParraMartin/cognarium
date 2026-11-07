@@ -35,7 +35,12 @@ def test_label_metrics_match_scikit_learn(predicted, target):
     assert accuracy(p, t) == pytest.approx(sklearn.metrics.accuracy_score(target, predicted))
     assert mcc(p, t) == pytest.approx(sklearn.metrics.matthews_corrcoef(target, predicted))
     for ours, theirs in ONE_CLASS_SCORES:
-        assert ours(p, t) == pytest.approx(theirs(target, predicted, average="macro", zero_division=0))
+        assert ours(p, t) == pytest.approx(theirs(
+            target,
+            predicted,
+            average="macro",
+            zero_division=0
+        ))
 
 
 def test_balanced_accuracy_matches_scikit_learn():
@@ -111,7 +116,12 @@ def test_multiclass_with_a_missing_class_raises(metric):
         metric(probabilities, torch.tensor([0, 1]))
 
 
-@pytest.mark.parametrize("metric", [auroc, auprc, brier, ece])
+@pytest.mark.parametrize("metric", [
+    auroc,
+    auprc,
+    brier,
+    ece
+])
 def test_values_outside_zero_and_one_raise(metric):
     with pytest.raises(ValueError, match="probabilities"):
         metric(torch.tensor([1.5, -0.5]), torch.tensor([1, 0]))

@@ -24,7 +24,12 @@ from cognarium.metrics.geometry import (
 
 def matrix(n=50, d=10, seed=0):
     generator = torch.Generator().manual_seed(seed)
-    return torch.randn(n, d, generator=generator, dtype=torch.float64)
+    return torch.randn(
+        n,
+        d,
+        generator=generator,
+        dtype=torch.float64
+    )
 
 
 def rotation(d, seed=1):
@@ -87,11 +92,22 @@ def test_euclidean_pearson_rsa_matches_scipy():
         scipy.spatial.distance.pdist(x.numpy(), "euclidean"),
         scipy.spatial.distance.pdist(y.numpy(), "euclidean")
     ).statistic
-    assert rsa(x, y, metric="euclidean", method="pearson") == pytest.approx(expected)
+    assert rsa(
+        x,
+        y,
+        metric="euclidean",
+        method="pearson"
+    ) == pytest.approx(expected)
 
 
 def test_rsa_averages_tied_ranks_like_scipy():
-    x = torch.tensor([[0.0], [0.0], [1.0], [1.0], [2.0]], dtype=torch.float64)
+    x = torch.tensor([
+        [0.0],
+        [0.0],
+        [1.0],
+        [1.0],
+        [2.0]
+    ], dtype=torch.float64)
     y = matrix(n=5, d=3, seed=4)
     expected = scipy.stats.spearmanr(
         scipy.spatial.distance.pdist(x.numpy(), "euclidean"),
@@ -213,7 +229,12 @@ def test_cca_warns_when_the_rows_force_a_high_score(metric):
 
 def test_participation_ratio_limits():
     assert participation_ratio(matrix(n=5000)) == pytest.approx(10, rel=0.05)
-    steps = torch.linspace(0, 1, 100, dtype=torch.float64)[:, None]
+    steps = torch.linspace(
+        0,
+        1,
+        100,
+        dtype=torch.float64
+    )[:, None]
     line = steps @ torch.ones(1, 5, dtype=torch.float64)
     assert participation_ratio(line) == pytest.approx(1.0)
 
@@ -273,10 +294,18 @@ def test_debiased_cka_is_a_named_metric():
         ]
     )
     x, y = matrix(seed=2), matrix(seed=3)
-    assert layer_matrix({"a": x, "b": y}, "debiased_cka").loc["a", "b"] == pytest.approx(linear_cka(x, y, debiased=True))
+    table = layer_matrix({"a": x, "b": y}, "debiased_cka")
+    assert table.loc["a", "b"] == pytest.approx(linear_cka(x, y, debiased=True))
 
 
-@pytest.mark.parametrize("metric", [linear_cka, rbf_cka, rsa, procrustes, svcca, pwcca])
+@pytest.mark.parametrize("metric", [
+    linear_cka,
+    rbf_cka,
+    rsa,
+    procrustes,
+    svcca,
+    pwcca
+])
 def test_constant_input_raises(metric):
     with pytest.raises(ValueError, match="variance"):
         metric(torch.ones(20, 4, dtype=torch.float64), matrix(n=20, d=4))
@@ -299,7 +328,14 @@ def test_constant_rows_raise_for_correlation_rsa():
         rsa(x, matrix(n=20, d=4))
 
 
-@pytest.mark.parametrize("metric", [linear_cka, rsa, procrustes, mse, svcca, pwcca])
+@pytest.mark.parametrize("metric", [
+    linear_cka,
+    rsa,
+    procrustes,
+    mse,
+    svcca,
+    pwcca
+])
 def test_mismatched_rows_raise(metric):
     with pytest.raises(ValueError, match="rows"):
         metric(matrix(n=20), matrix(n=21))
@@ -349,7 +385,12 @@ def test_single_matrix_measures_survive_extreme_values(scale):
 
 
 def test_columns_of_very_different_scales_stay_finite():
-    x = matrix() * torch.logspace(-150, 150, 10, dtype=torch.float64)
+    x = matrix() * torch.logspace(
+        -150,
+        150,
+        10,
+        dtype=torch.float64
+    )
     for score in [linear_cka(x, x), participation_ratio(x)]:
         assert math.isfinite(score)
 

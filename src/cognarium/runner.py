@@ -154,7 +154,12 @@ def run(
                 settings=settings
             )
             extra = {**state_columns, **_logit_table(bound, step, responses)}
-            previous = _build_table(paradigm, step, responses, extra)
+            previous = _build_table(
+                paradigm,
+                step,
+                responses,
+                extra
+            )
             if "logits" in record and responses.logits is not None:
                 _write_logits(logits_path(root, index), responses.logits)
             _write_table(step_path(root, index), previous)
@@ -322,7 +327,12 @@ def _respond_and_store(
     settings: Mapping[str, Any] | None
 ) -> tuple[Responses, dict[str, list[Any]]]:
     if settings is None:
-        return _respond(subject, step, mode, capture_logits=capture_logits), {}
+        return _respond(
+            subject,
+            step,
+            mode,
+            capture_logits=capture_logits
+        ), {}
     pool = settings["pool"]
     with StateWriter(
         root,
@@ -405,7 +415,12 @@ def _in_step_positions(capture: StateCapture, members: Sequence[int]) -> StateCa
         queries: Sequence[int],
         lengths: torch.Tensor | None = None
     ) -> None:
-        capture.write(layer, states, [members[query] for query in queries], lengths)
+        capture.write(
+            layer,
+            states,
+            [members[query] for query in queries],
+            lengths
+        )
 
     return replace(capture, write=write)
 

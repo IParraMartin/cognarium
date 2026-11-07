@@ -26,7 +26,10 @@ _KEY_VALUE = {
 }
 TINY_ARCHITECTURES = {
     "gpt2": _GPT,
-    "gptj": {**_GPT, "rotary_dim": 4},
+    "gptj": {
+        **_GPT,
+        "rotary_dim": 4
+    },
     "falcon": {
         "num_hidden_layers": 2,
         "num_attention_heads": 2,
@@ -37,13 +40,25 @@ TINY_ARCHITECTURES = {
         "n_head": 2,
         "hidden_size": 16
     },
-    "llama": {**_DECODER, "intermediate_size": 32},
+    "llama": {
+        **_DECODER,
+        "intermediate_size": 32
+    },
     "mistral": _KEY_VALUE,
-    "gemma": {**_KEY_VALUE, "head_dim": 8},
-    "gemma2": {**_KEY_VALUE, "head_dim": 8},
+    "gemma": {
+        **_KEY_VALUE,
+        "head_dim": 8
+    },
+    "gemma2": {
+        **_KEY_VALUE,
+        "head_dim": 8
+    },
     "qwen2": _KEY_VALUE,
     "phi3": _KEY_VALUE,
-    "gpt_neox": {**_DECODER, "intermediate_size": 32},
+    "gpt_neox": {
+        **_DECODER,
+        "intermediate_size": 32
+    },
     "opt": {
         **_DECODER,
         "ffn_dim": 32,

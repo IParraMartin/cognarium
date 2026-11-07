@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import cognarium as cg
 from cognarium.paradigms.learning import IteratedLearning
 from cognarium.runner import run
 from cognarium.subjects.bayesian import BayesianLearner
@@ -47,3 +48,57 @@ def test_noisy_sampling_chains_also_converge(tmp_path):
 
 def test_map_chains_do_not_converge_to_the_prior(tmp_path):
     assert final_kl("map", tmp_path)[14] > 0.5
+
+
+def test_every_metric_family_is_exposed():
+    families = [
+        [
+            "conditional_entropy",
+            "cross_entropy",
+            "entropy",
+            "information_bottleneck",
+            "joint_entropy",
+            "js_divergence",
+            "kl_divergence",
+            "ksg_mutual_information",
+            "mutual_information",
+            "perplexity",
+            "surprisal"
+        ],
+        [
+            "accuracy",
+            "auprc",
+            "auroc",
+            "balanced_accuracy",
+            "brier",
+            "ece",
+            "f1",
+            "mcc",
+            "precision",
+            "recall"
+        ],
+        ["a_prime", "criterion", "d_prime"],
+        [
+            "bootstrap_ci",
+            "cohens_d",
+            "fdr",
+            "hedges_g",
+            "permutation_test"
+        ],
+        [
+            "GEOMETRY",
+            "intrinsic_dimension",
+            "layer_matrix",
+            "linear_cka",
+            "mse",
+            "participation_ratio",
+            "procrustes",
+            "pwcca",
+            "rbf_cka",
+            "rsa",
+            "svcca"
+        ]
+    ]
+    for family in families:
+        for name in family:
+            assert hasattr(cg.metrics, name), name

@@ -106,8 +106,18 @@ def js_divergence(
         The divergence, with `dim` removed. In bits it lies between 0 and 1.
     """
     log_middle = torch.logaddexp(log_p, log_q) - math.log(2)
-    to_p = kl_divergence(log_p, log_middle, dim=dim, base=base)
-    to_q = kl_divergence(log_q, log_middle, dim=dim, base=base)
+    to_p = kl_divergence(
+        log_p,
+        log_middle,
+        dim=dim,
+        base=base
+    )
+    to_q = kl_divergence(
+        log_q,
+        log_middle,
+        dim=dim,
+        base=base
+    )
     return (to_p + to_q) / 2
 
 
@@ -246,10 +256,20 @@ def information_bottleneck(
     rows = []
     for beta in betas:
         generator = torch.Generator().manual_seed(seed)
-        start = torch.rand(len(joint), width, generator=generator, dtype=torch.float64)
+        start = torch.rand(
+            len(joint),
+            width,
+            generator=generator,
+            dtype=torch.float64
+        )
         log_encoder = (start / start.sum(dim=1, keepdim=True)).log()
         for _ in range(n_iterations):
-            updated = _bottleneck_update(log_encoder, log_x, log_y_given_x, beta)
+            updated = _bottleneck_update(
+                log_encoder,
+                log_x,
+                log_y_given_x,
+                beta
+            )
             moved = (updated.exp() - log_encoder.exp()).abs().max()
             log_encoder = updated
             if moved < tolerance:
@@ -276,7 +296,12 @@ def _bottleneck_update(
     log_t = log_joint_tx.logsumexp(dim=0)
     # p(y | t) is a mixture of p(y | x), weighted by how much of t each x makes up
     # a cluster that has died has no probability to divide by, and stays dead
-    log_x_given_t = torch.nan_to_num(log_joint_tx - log_t, nan=-torch.inf, posinf=torch.inf, neginf=-torch.inf)
+    log_x_given_t = torch.nan_to_num(
+        log_joint_tx - log_t,
+        nan=-torch.inf,
+        posinf=torch.inf,
+        neginf=-torch.inf
+    )
     log_y_given_t = (log_x_given_t[:, :, None] + log_y_given_x[:, None, :]).logsumexp(dim=0)
     divergence = kl_divergence(log_y_given_x[:, None, :], log_y_given_t[None, :, :], base=math.e)
     log_scores = log_t - beta * divergence

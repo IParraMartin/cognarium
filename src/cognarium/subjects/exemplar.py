@@ -148,7 +148,12 @@ class ExemplarLearner(Subject):
     def _log_similarity(self, queries: list[Query]) -> torch.Tensor:
         context = queries[0].context
         if not context:
-            return torch.empty(len(queries), 0, dtype=self.dtype, device=self.device)
+            return torch.empty(
+                len(queries),
+                0,
+                dtype=self.dtype,
+                device=self.device
+            )
         targets = self._stack([query.trial.stimulus for query in queries])
         exemplars = self._stack([observation.stimulus for observation in context])
         distances = (targets[:, None, :] - exemplars[None, :, :]).abs()

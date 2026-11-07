@@ -236,7 +236,12 @@ def ece(probabilities: torch.Tensor, targets: torch.Tensor, *, n_bins: int = 15)
 
     probabilities, targets = _check_probabilities(probabilities, targets)
     if probabilities.ndim == 1:
-        return binary_calibration_error(probabilities, targets, n_bins=n_bins, norm="l1").item()
+        return binary_calibration_error(
+            probabilities,
+            targets,
+            n_bins=n_bins,
+            norm="l1"
+        ).item()
     return multiclass_calibration_error(
         probabilities,
         targets,

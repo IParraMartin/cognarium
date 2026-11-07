@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
 import torch
 
 from cognarium.device import resolve_device, resolve_dtype
+from cognarium.recording.layers import LayerMap
 from cognarium.subjects.base import Subject
 from cognarium.subjects.custom import CustomSubject
 from cognarium.subjects.hf import HFSubject
@@ -23,7 +24,10 @@ def load(
     batch_size: int = 32,
     revision: str | None = None,
     pretrained: bool = True,
-    adapter: Callable[..., torch.Tensor] | None = None
+    adapter: Callable[..., torch.Tensor] | None = None,
+    layer_map: LayerMap | None = None,
+    layers: Mapping[str, str] | None = None,
+    readout: str | None = None
 ) -> Subject:
     """Turns a model into a subject that can run experiments.
 
@@ -37,25 +41,33 @@ def load(
         revision: The Hugging Face revision to load.
         pretrained: Whether a custom module's weights are already trained.
         adapter: How to get logits out of a custom module.
+        layer_map: Where a Hugging Face model keeps its blocks, final norm and head,
+            for a model that can't be recognised or detected.
+        layers: Which submodules of a custom module to record, as names mapped to
+            dotted paths.
+        readout: The dotted path of a custom module's output head, which the logit
+            lens reads states through.
 
     Returns:
         The subject.
 
     Raises:
-        TypeError: If the model isn't a supported type, or a model object comes
-            without a tokenizer.
+        TypeError: If the model isn't a supported type, a model object comes without
+            a tokenizer, or a setting doesn't apply to this kind of model.
     """
     if isinstance(model, Subject):
         return model
     resolved_device = resolve_device(device)
     if isinstance(model, str):
+        _refuse_custom_settings(layers, readout)
         return _load_by_name(
             model,
             tokenizer=tokenizer,
             device=resolved_device,
             dtype=resolve_dtype(dtype, resolved_device),
             batch_size=batch_size,
-            revision=revision
+            revision=revision,
+            layer_map=layer_map
         )
     if not isinstance(model, torch.nn.Module):
         raise TypeError(f"Can't load a model of type {type(model).__name__}.")
@@ -66,20 +78,32 @@ def load(
     from transformers import PreTrainedModel
 
     if isinstance(model, PreTrainedModel):
+        _refuse_custom_settings(layers, readout)
         return HFSubject(
             model,
             tokenizer,
             device=resolved_device,
-            batch_size=batch_size
+            batch_size=batch_size,
+            layer_map=layer_map
         )
+    if layer_map is not None:
+        raise TypeError("layer_map is for Hugging Face models. Use layers and readout on a custom module.")
     return CustomSubject(
         model,
         tokenizer,
         adapter=adapter,
         pretrained=pretrained,
         device=resolved_device,
-        batch_size=batch_size
+        batch_size=batch_size,
+        layers=layers,
+        readout=readout
     )
+
+
+def _refuse_custom_settings(layers: Mapping[str, str] | None, readout: str | None) -> None:
+    for name, value in {"layers": layers, "readout": readout}.items():
+        if value is not None:
+            raise TypeError(f"{name} is for custom modules. Use layer_map on a Hugging Face model.")
 
 
 def _load_by_name(
@@ -89,7 +113,8 @@ def _load_by_name(
     device: torch.device,
     dtype: torch.dtype,
     batch_size: int,
-    revision: str | None
+    revision: str | None,
+    layer_map: LayerMap | None
 ) -> HFSubject:
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -101,7 +126,8 @@ def _load_by_name(
         tokenizer,
         device=device,
         batch_size=batch_size,
-        revision=_resolve_revision(name, revision)
+        revision=_resolve_revision(name, revision),
+        layer_map=layer_map
     )
 
 

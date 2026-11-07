@@ -77,7 +77,12 @@ def test_a_head_without_a_list_of_blocks_explains():
 
 def test_a_passed_layer_map_wins(tiny_model_and_tokenizer):
     model, tok = tiny_model_and_tokenizer
-    subject = HFSubject(model, tok, device="cpu", layer_map=LayerMap("transformer.h", None, "lm_head"))
+    subject = HFSubject(
+        model,
+        tok,
+        device="cpu",
+        layer_map=LayerMap("transformer.h", None, "lm_head")
+    )
     states = torch.zeros(1, 16)
     assert torch.equal(subject.readout().head(states), model.lm_head(states))
 
@@ -86,8 +91,18 @@ def test_last_pool_takes_the_last_real_token_under_padding(tiny_model_and_tokeni
     model, tok = tiny_model_and_tokenizer
     queries = [query("Object: small"), query("Object: small red circle")]
     batched, alone = RecordingCapture(pool="last"), RecordingCapture(pool="last")
-    HFSubject(model, tok, device="cpu", batch_size=2).respond(queries, capture_states=batched)
-    HFSubject(model, tok, device="cpu", batch_size=1).respond(queries, capture_states=alone)
+    HFSubject(
+        model,
+        tok,
+        device="cpu",
+        batch_size=2
+    ).respond(queries, capture_states=batched)
+    HFSubject(
+        model,
+        tok,
+        device="cpu",
+        batch_size=1
+    ).respond(queries, capture_states=alone)
     assert torch.allclose(batched.stacked("layer_00"), alone.stacked("layer_00"), atol=1e-4)
 
 
@@ -105,7 +120,12 @@ def test_mean_pool_and_no_pool(tiny_model_and_tokenizer):
     model, tok = tiny_model_and_tokenizer
     queries = [query("Object: small"), query("Object: small red circle")]
     mean, full = RecordingCapture(pool="mean"), RecordingCapture(pool=None)
-    subject = HFSubject(model, tok, device="cpu", batch_size=2)
+    subject = HFSubject(
+        model,
+        tok,
+        device="cpu",
+        batch_size=2
+    )
     subject.respond(queries, capture_states=mean)
     subject.respond(queries, capture_states=full)
     states, _, lengths = full.written["layer_00"][0]
@@ -214,7 +234,12 @@ def test_states_reach_the_capture_on_every_device(tiny_model_and_tokenizer, devi
 def test_custom_module_records_named_layers():
     tok = SimpleTokenizer.from_texts(["Object: small A B"])
     model = LSTMLanguageModel(len(tok), hidden_dim=8)
-    subject = CustomSubject(model, tok, layers={"lstm": "lstm"}, device="cpu")
+    subject = CustomSubject(
+        model,
+        tok,
+        layers={"lstm": "lstm"},
+        device="cpu"
+    )
     capture = RecordingCapture(layers=("lstm",))
     subject.respond([query(), query()], capture_states=capture)
     assert subject.state_layers() == ("lstm",)
@@ -224,7 +249,12 @@ def test_custom_module_records_named_layers():
 def test_custom_readout_and_first_tokens():
     tok = SimpleTokenizer.from_texts(["Object: small A B"])
     model = LSTMLanguageModel(len(tok), hidden_dim=8)
-    subject = CustomSubject(model, tok, readout="readout", device="cpu")
+    subject = CustomSubject(
+        model,
+        tok,
+        readout="readout",
+        device="cpu"
+    )
     readout = subject.readout()
     assert readout.head(torch.zeros(1, 8)).shape == (1, len(tok))
     assert readout.device == subject.device

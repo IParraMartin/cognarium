@@ -28,7 +28,13 @@ from cognarium.errors import MissingAbilityError, RunConflictError
 from cognarium.metrics.geometry import layer_matrix
 
 _DTYPES = ("float16", "bfloat16", "float32", "float64")
-_SHARED_SECTIONS = ("paradigm", "subject", "learning", "versions")
+_SHARED_SECTIONS = (
+    "key",
+    "paradigm",
+    "subject",
+    "learning",
+    "versions"
+)
 
 
 class StateWriter:
@@ -154,7 +160,12 @@ class StateWriter:
     def _shard_name(self, shard: int) -> str:
         return f"step-{self._step:05d}-{shard:05d}"
 
-    def _check_finite(self, layer: str, states: torch.Tensor, converted: torch.Tensor) -> None:
+    def _check_finite(
+        self,
+        layer: str,
+        states: torch.Tensor,
+        converted: torch.Tensor
+    ) -> None:
         if converted.isfinite().all():
             return
         if not states.isfinite().all():
@@ -178,7 +189,12 @@ class StateWriter:
                 raise RuntimeError(f"Layer '{layer}' wrote its queries in a different order from the first layer.")
         return first
 
-    def _send_shard(self, layer: str, buffer: _LayerBuffer, count: int) -> None:
+    def _send_shard(
+        self,
+        layer: str,
+        buffer: _LayerBuffer,
+        count: int
+    ) -> None:
         name = self._shard_name(buffer.shards)
         path = self._root / "states" / layer / f"{name}.safetensors"
         self._queue.put((path, buffer.cut(count)))
@@ -387,11 +403,18 @@ class HiddenStates:
         """
         self._check_layer(layer)
         if self.pool is not None:
-            raise ValueError(f"This store was pooled with '{self.pool}', so it holds one row per trial. Use to_tensor().")
+            raise ValueError(
+                f"This store was pooled with '{self.pool}', so it holds one row per trial. Use to_tensor()."
+            )
         rows = self._select(where)
         sequences: list[torch.Tensor | None] = [None] * len(rows)
         for picks, chunk, lengths in self._read(layer, rows):
-            for position, row, length in zip(picks.tolist(), chunk, lengths.tolist(), strict=True):
+            for position, row, length in zip(
+                picks.tolist(),
+                chunk,
+                lengths.tolist(),
+                strict=True
+            ):
                 sequences[position] = row[:length].clone()
         return sequences
 

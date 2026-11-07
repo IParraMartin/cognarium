@@ -23,7 +23,13 @@ def paradigm():
     return IteratedLearning(ShepardCategories(type="I"), generations=3, chains=2)
 
 
-def recorded(subject, tmp_path, *, name="run", **kwargs):
+def recorded(
+    subject,
+    tmp_path,
+    *,
+    name="run",
+    **kwargs
+):
     return run(
         paradigm(),
         subject,
@@ -224,6 +230,11 @@ def test_lens_works_on_float16_states(tiny_model_and_tokenizer, tmp_path):
     model, tok = tiny_model_and_tokenizer
     subject = HFSubject(model, tok, device="cpu")
     rounded = recorded(subject, tmp_path, name="rounded").lens(layers=["layer_01"])
-    exact = recorded(subject, tmp_path, name="exact", state_dtype="float32").lens(layers=["layer_01"])
+    exact = recorded(
+        subject,
+        tmp_path,
+        name="exact",
+        state_dtype="float32"
+    ).lens(layers=["layer_01"])
     matches = sum(a == b for a, b in zip(rounded["top_token"], exact["top_token"], strict=True))
     assert matches / len(exact) >= 0.95

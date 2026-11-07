@@ -123,9 +123,24 @@ def test_perplexity_is_the_inverse_geometric_mean():
 
 def test_ksg_recovers_a_gaussian():
     generator = torch.Generator().manual_seed(0)
-    x = torch.randn(2000, 1, generator=generator, dtype=torch.float64)
-    y = 0.8 * x + 0.6 * torch.randn(2000, 1, generator=generator, dtype=torch.float64)
-    unrelated = torch.randn(2000, 1, generator=generator, dtype=torch.float64)
+    x = torch.randn(
+        2000,
+        1,
+        generator=generator,
+        dtype=torch.float64
+    )
+    y = 0.8 * x + 0.6 * torch.randn(
+        2000,
+        1,
+        generator=generator,
+        dtype=torch.float64
+    )
+    unrelated = torch.randn(
+        2000,
+        1,
+        generator=generator,
+        dtype=torch.float64
+    )
     assert ksg_mutual_information(x, y) == pytest.approx(-0.5 * math.log2(1 - 0.64), abs=0.05)
     assert abs(ksg_mutual_information(x, unrelated)) < 0.05
 
