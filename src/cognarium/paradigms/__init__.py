@@ -16,6 +16,14 @@ from cognarium.paradigms.control import (
     Stroop,
     TaskSwitching
 )
+from cognarium.paradigms.language import (
+    Fluency,
+    GardenPath,
+    LexicalDecision,
+    MinimalPairs,
+    SemanticPriming,
+    StructuralPriming
+)
 from cognarium.paradigms.learning import (
     ArtificialGrammar,
     CategoryLearning,
@@ -47,7 +55,13 @@ PARADIGMS: dict[str, type[Paradigm]] = {
         DRM,
         CategoryLearning,
         ArtificialGrammar,
-        StatisticalLearning
+        StatisticalLearning,
+        SemanticPriming,
+        StructuralPriming,
+        LexicalDecision,
+        GardenPath,
+        MinimalPairs,
+        Fluency
     )
 }
 
@@ -58,18 +72,24 @@ __all__ = [
     "CategoryLearning",
     "Effect",
     "Flanker",
+    "Fluency",
     "FreeRecall",
+    "GardenPath",
     "GoNoGo",
     "HypothesisSpace",
     "IteratedLearning",
+    "LexicalDecision",
+    "MinimalPairs",
     "NBack",
     "Paradigm",
+    "SemanticPriming",
     "Simon",
     "Span",
     "StatisticalLearning",
     "Step",
     "Sternberg",
     "StopSignal",
+    "StructuralPriming",
     "Stroop",
     "TaskSwitching"
 ]

@@ -30,6 +30,16 @@ def test_prompt_renders_exact_format():
     )
 
 
+def test_an_empty_cue_lets_the_response_continue_the_stimulus():
+    template = PromptTemplate(stimulus="{text}", response="")
+    query = Query(
+        trial=Trial(Stimulus(text="The boat sailed down the river"), options=["sank", "slowly"]),
+        context=(Observation(Stimulus(text="The dog barked"), "loudly"),),
+        template=template
+    )
+    assert query.prompt() == "The dog barked loudly\nThe boat sailed down the river"
+
+
 def test_prompt_without_text_raises():
     query = Query(trial=Trial(Stimulus(features=torch.zeros(3)), options=["A", "B"]))
     with pytest.raises(ValueError, match="text"):

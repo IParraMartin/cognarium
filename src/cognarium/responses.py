@@ -20,7 +20,9 @@ class PromptTemplate:
 
     Attributes:
         stimulus: A format string for the stimulus, with a `{text}` field.
-        response: The cue the response follows.
+        response: The cue the response follows. When it is empty, the response
+            continues the stimulus directly, as when scoring the next word of a
+            sentence.
         separator: What joins the parts of a prompt.
     """
 
@@ -35,14 +37,15 @@ class PromptTemplate:
             stimulus: The stimulus to write out.
 
         Returns:
-            The rendered text, ending with the response cue.
+            The rendered text, ending with the response cue if there is one.
 
         Raises:
             ValueError: If the stimulus has no text.
         """
         if stimulus.text is None:
             raise ValueError("This stimulus has no text, so it can't be rendered as a prompt.")
-        return self.separator.join([self.stimulus.format(text=stimulus.text), self.response])
+        written = self.stimulus.format(text=stimulus.text)
+        return self.separator.join([written, self.response]) if self.response else written
 
     def render_observation(self, observation: Observation) -> str:
         """Writes a labelled stimulus, including its label.

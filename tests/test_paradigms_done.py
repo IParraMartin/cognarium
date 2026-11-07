@@ -24,7 +24,8 @@ def run_quietly(paradigm, subject, folder):
 
 
 def texts(paradigm):
-    return [trial.stimulus.text for trial in paradigm.sequences()[0]]
+    # options too, since a paradigm like minimal pairs only moves its options around
+    return [(trial.stimulus.text, trial.options) for trial in paradigm.sequences()[0]]
 
 
 def test_every_paradigm_has_a_case():

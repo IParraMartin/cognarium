@@ -8,7 +8,12 @@ from typing import Any
 
 import torch
 
-from cognarium.paradigms import control, learning, memory
+from cognarium.paradigms import (
+    control,
+    language,
+    learning,
+    memory
+)
 from cognarium.paradigms.base import Effect, Paradigm
 from cognarium.responses import Responses
 from cognarium.stimuli import Trial
@@ -133,6 +138,12 @@ def _span_text(trial: Trial, effect: Effect | None) -> str:
     return trial.answer
 
 
+def _fluency_text(trial: Trial, effect: Effect | None) -> str:
+    # with the effect, a category brings more to mind than a letter
+    count = 6 if effect is not None and trial.condition["kind"] == "semantic" else 3
+    return ", ".join(f"{trial.condition['cue']}{index}" for index in range(count))
+
+
 def _recall_text(trial: Trial, effect: Effect | None) -> str:
     studied = list(trial.condition["studied"])
     return ", ".join(studied[-2:] if effect is not None else studied)
@@ -187,5 +198,11 @@ CASES: dict[str, Case] = {
     "artificial_grammar": Case(lambda **options: learning.ArtificialGrammar(n_train=12, n_test=6, **options)),
     "statistical_learning": Case(
         lambda **options: learning.StatisticalLearning(n_words=4, stream_words=12, **options)
-    )
+    ),
+    "semantic_priming": Case(language.SemanticPriming),
+    "structural_priming": Case(language.StructuralPriming),
+    "lexical_decision": Case(language.LexicalDecision),
+    "garden_path": Case(language.GardenPath),
+    "minimal_pairs": Case(language.MinimalPairs),
+    "fluency": Case(language.Fluency, _fluency_text)
 }

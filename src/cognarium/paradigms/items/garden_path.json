@@ -1,0 +1,149 @@
+{
+  "note": "Sentence beginnings written for cognarium: reduced relatives, object or clause complements, and early closure. Each foil continues the misleading reading. Not taken from a published list and not human-normed.",
+  "rows": [
+    {
+      "ambiguous": "The soldier marched across the yard",
+      "unambiguous": "The soldier who was marched across the yard",
+      "disambiguator": "fainted",
+      "foil": "and"
+    },
+    {
+      "ambiguous": "The boat sailed down the river",
+      "unambiguous": "The boat that was sailed down the river",
+      "disambiguator": "sank",
+      "foil": "slowly"
+    },
+    {
+      "ambiguous": "The dog walked through the park",
+      "unambiguous": "The dog that was walked through the park",
+      "disambiguator": "barked",
+      "foil": "then"
+    },
+    {
+      "ambiguous": "The athlete raced around the track",
+      "unambiguous": "The athlete who was raced around the track",
+      "disambiguator": "collapsed",
+      "foil": "again"
+    },
+    {
+      "ambiguous": "The balloon floated over the lake",
+      "unambiguous": "The balloon that was floated over the lake",
+      "disambiguator": "burst",
+      "foil": "quickly"
+    },
+    {
+      "ambiguous": "The pony trotted along the road",
+      "unambiguous": "The pony that was trotted along the road",
+      "disambiguator": "stumbled",
+      "foil": "today"
+    },
+    {
+      "ambiguous": "The patient rushed into the clinic",
+      "unambiguous": "The patient who was rushed into the clinic",
+      "disambiguator": "recovered",
+      "foil": "alone"
+    },
+    {
+      "ambiguous": "The cyclist pushed up the hill",
+      "unambiguous": "The cyclist who was pushed up the hill",
+      "disambiguator": "fell",
+      "foil": "twice"
+    },
+    {
+      "ambiguous": "The detective found the key",
+      "unambiguous": "The detective found that the key",
+      "disambiguator": "was",
+      "foil": "in"
+    },
+    {
+      "ambiguous": "The coach heard the rumor",
+      "unambiguous": "The coach heard that the rumor",
+      "disambiguator": "had",
+      "foil": "about"
+    },
+    {
+      "ambiguous": "The nurse noticed the bruise",
+      "unambiguous": "The nurse noticed that the bruise",
+      "disambiguator": "was",
+      "foil": "on"
+    },
+    {
+      "ambiguous": "The editor accepted the article",
+      "unambiguous": "The editor accepted that the article",
+      "disambiguator": "needed",
+      "foil": "with"
+    },
+    {
+      "ambiguous": "The pilot reported the storm",
+      "unambiguous": "The pilot reported that the storm",
+      "disambiguator": "had",
+      "foil": "to"
+    },
+    {
+      "ambiguous": "The judge believed the witness",
+      "unambiguous": "The judge believed that the witness",
+      "disambiguator": "was",
+      "foil": "completely"
+    },
+    {
+      "ambiguous": "The farmer knew the path",
+      "unambiguous": "The farmer knew that the path",
+      "disambiguator": "was",
+      "foil": "well"
+    },
+    {
+      "ambiguous": "The manager announced the plan",
+      "unambiguous": "The manager announced that the plan",
+      "disambiguator": "would",
+      "foil": "to"
+    },
+    {
+      "ambiguous": "While the chef stirred the soup",
+      "unambiguous": "While the chef stirred, the soup",
+      "disambiguator": "boiled",
+      "foil": "with"
+    },
+    {
+      "ambiguous": "As the girl painted the fence",
+      "unambiguous": "As the girl painted, the fence",
+      "disambiguator": "collapsed",
+      "foil": "with"
+    },
+    {
+      "ambiguous": "After the hunter shot the deer",
+      "unambiguous": "After the hunter shot, the deer",
+      "disambiguator": "ran",
+      "foil": "with"
+    },
+    {
+      "ambiguous": "While the band played the song",
+      "unambiguous": "While the band played, the song",
+      "disambiguator": "ended",
+      "foil": "again"
+    },
+    {
+      "ambiguous": "When the boy kicked the ball",
+      "unambiguous": "When the boy kicked, the ball",
+      "disambiguator": "rolled",
+      "foil": "into"
+    },
+    {
+      "ambiguous": "While the woman knitted the scarf",
+      "unambiguous": "While the woman knitted, the scarf",
+      "disambiguator": "fell",
+      "foil": "for"
+    },
+    {
+      "ambiguous": "Before the baker washed the bowls",
+      "unambiguous": "Before the baker washed, the bowls",
+      "disambiguator": "dried",
+      "foil": "in"
+    },
+    {
+      "ambiguous": "As the twins ate the cake",
+      "unambiguous": "As the twins ate, the cake",
+      "disambiguator": "melted",
+      "foil": "with"
+    }
+  ]
+}
