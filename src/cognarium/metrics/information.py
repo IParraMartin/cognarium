@@ -240,7 +240,8 @@ def information_bottleneck(
     """
     joint = log_joint.double().cpu()
     log_x = joint.logsumexp(dim=1)
-    log_y_given_x = joint - log_x[:, None]
+    # an x with no probability has no p(y | x), and contributes nothing
+    log_y_given_x = torch.where(log_x[:, None].isneginf(), -torch.inf, joint - log_x[:, None])
     width = len(joint) if n_clusters is None else n_clusters
     rows = []
     for beta in betas:

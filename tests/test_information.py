@@ -176,3 +176,10 @@ def test_bottleneck_stays_finite_when_clusters_die(n_clusters):
     joint = double_log([[0.5, 0.0], [0.0, 0.5]])
     table = information_bottleneck(joint, [0.01, 1.0, 1000.0], n_clusters=n_clusters)
     assert table[["complexity", "relevance"]].notna().all().all()
+
+
+def test_bottleneck_ignores_an_impossible_row():
+    with_row = double_log([[0.25, 0.25], [0.0, 0.0], [0.4, 0.1]])
+    without_row = double_log([[0.25, 0.25], [0.4, 0.1]])
+    relevance = information_bottleneck(with_row, [50.0])["relevance"].item()
+    assert relevance == pytest.approx(mutual_information(without_row).item(), abs=1e-3)
