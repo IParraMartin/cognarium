@@ -235,6 +235,18 @@ def test_fluency_handles_output_with_no_separators(tmp_path):
     assert frame["n_produced"].tolist() == [0] * len(frame)
 
 
+def test_fluency_counts_only_chunks_of_one_or_two_words():
+    paradigm = language.Fluency(semantic=("animals",), letters=("f",))
+    frame = pd.DataFrame({
+        "response": ["1500:273291 [A0:4C: E8:2T, cat, sea lion, the big brown dog, café", "f00, fig"],
+        "kind": ["semantic", "letter"],
+        "cue": ["animals", "f"]
+    })
+    annotated = paradigm.annotate(frame)
+    assert annotated["produced"].tolist() == [["cat", "sea lion", "café"], ["fig"]]
+    assert annotated["n_valid"].tolist() == [3, 1]
+
+
 def test_fluency_needs_a_cue_of_each_kind():
     with pytest.raises(ValueError, match="semantic"):
         language.Fluency(semantic=(), letters=("f",))

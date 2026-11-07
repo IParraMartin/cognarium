@@ -142,7 +142,7 @@ Verbal fluency, where people usually produce more words for a semantic category 
 
 ### What it can't capture
 
-There is no time limit, so the token budget stands in for one, and words given for a category aren't checked for membership, since cognarium holds no category norms. A response is read as a list separated by commas, semicolons or new lines, or by spaces when it has none of those. The categories and letters are common choices, not human-normed.
+There is no time limit, so the token budget stands in for one, and words given for a category aren't checked for membership, since cognarium holds no category norms. A response is read as a list separated by commas, semicolons or new lines, or by spaces when it has none of those. Only items of one or two words made of letters count, so numbers, code and sentences are left out. The categories and letters are common choices, not human-normed.
 
 ### Run it
 

@@ -70,7 +70,7 @@ Each vignette is told with a description that fits the added property and with a
 
 ### Maps onto
 
-The conjunction fallacy (Tversky and Kahneman, 1983): a description that fits one property makes people rate that property joined with another as more likely than the single property. The primary effect is the drop in choosing the single property after a fitting description, and `error_rate` compares that choice with chance.
+The conjunction fallacy (Tversky and Kahneman, 1983): a description that fits one property makes people rate that property joined with another as more likely than the single property. The primary effect is the drop in choosing the single property after a fitting description, and `error_rate` compares the probability of the conjunction after a fitting description with chance, so it comes out positive when the conjunction is preferred.
 
 ### What it can't capture
 

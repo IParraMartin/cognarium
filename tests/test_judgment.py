@@ -8,6 +8,7 @@ from importlib import resources
 
 import pytest
 from helpers import ScriptedSubject
+from paradigm_cases import EffectSubject
 
 import cognarium as cg
 from cognarium.paradigms import judgment
@@ -108,6 +109,21 @@ def test_conjunction_positions_are_balanced():
     counts = Counter((trial.condition["description"], trial.answer) for trial in trials)
     assert counts[("representative", "1")] == counts[("representative", "2")]
     assert counts[("neutral", "1")] == counts[("neutral", "2")]
+
+
+def test_conjunction_error_rate_is_positive_when_the_conjunction_is_chosen(tmp_path):
+    paradigm = judgment.ConjunctionFallacy()
+    # disfavours the answer, the single property, on every trial
+    choosing = EffectSubject(cg.Effect("conjunction", "answer_surprisal"))
+    results = cg.run(
+        paradigm,
+        choosing,
+        out=tmp_path / "run",
+        progress=False
+    )
+    table = results.score().set_index("effect")
+    assert table.loc["error_rate", "difference"] > 0
+    assert table.loc["error_rate", "measure"] == "conjunction_probability"
 
 
 def test_false_belief_answer_is_the_first_place_only_when_the_belief_is_false():

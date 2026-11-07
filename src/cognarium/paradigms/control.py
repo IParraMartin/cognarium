@@ -53,7 +53,8 @@ class Stroop(Paradigm):
             "errors",
             "answer_margin",
             by="congruency",
-            levels=("congruent", "incongruent")
+            levels=("congruent", "incongruent"),
+            proxy_for="error rate"
         )
     )
 
@@ -143,7 +144,8 @@ class Flanker(Paradigm):
             "errors",
             "answer_margin",
             by="congruency",
-            levels=("congruent", "incongruent")
+            levels=("congruent", "incongruent"),
+            proxy_for="error rate"
         )
     )
 
@@ -245,7 +247,8 @@ class Simon(Paradigm):
             "errors",
             "answer_margin",
             by="correspondence",
-            levels=("corresponding", "non_corresponding")
+            levels=("corresponding", "non_corresponding"),
+            proxy_for="error rate"
         )
     )
 
@@ -368,7 +371,8 @@ class GoNoGo(Paradigm):
             "errors",
             "answer_margin",
             by="trial_type",
-            levels=("go", "no_go")
+            levels=("go", "no_go"),
+            proxy_for="error rate"
         )
     )
 
@@ -490,7 +494,8 @@ class StopSignal(Paradigm):
                 "stopping",
                 "answer_margin",
                 by="trial_type",
-                levels=("go", "stop")
+                levels=("go", "stop"),
+                proxy_for="error rate"
             )
         )
 
@@ -558,7 +563,8 @@ class TaskSwitching(Paradigm):
             "errors",
             "answer_margin",
             by="transition",
-            levels=("repeat", "switch")
+            levels=("repeat", "switch"),
+            proxy_for="error rate"
         )
     )
 

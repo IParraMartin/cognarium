@@ -81,3 +81,7 @@ written, `group_by` to the columns metrics are reported by, or override
 | `accuracy`, `surprisal` | Whether the response was correct, and the surprisal of the response, in bits |
 
 A numeric column the paradigm writes, such as `n_recalled`, works as a measure too.
+
+Surprisal, entropy and the margin stand in for reaction time, and `score()` says so in
+`proxy_for`. When a measure stands in for something else, name it on the effect, as the
+built-in `errors` effects do: `cg.Effect("errors", "answer_margin", ..., proxy_for="error rate")`.

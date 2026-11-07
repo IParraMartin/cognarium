@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
 from cognarium.paradigms.base import (
     BUILT_IN_STIMULI,
@@ -180,8 +182,9 @@ class ConjunctionFallacy(Paradigm):
     Maps onto the conjunction fallacy (Tversky and Kahneman, 1983): a description that
     fits one property makes people rate that property joined with another as more likely
     than the single property. The primary effect is the drop in choosing the single
-    property after a fitting description, and `error_rate` compares that choice with
-    chance. What it can't capture: a choice between two statements replaces ranking
+    property after a fitting description, and `error_rate` compares the probability of
+    the conjunction after a fitting description with chance, so it comes out positive
+    when the conjunction is preferred. What it can't capture: a choice between two statements replaces ranking
     several, and a subject may read "more likely" as "more fitting". The built-in
     vignettes were written for cognarium and are not human-normed.
 
@@ -203,7 +206,7 @@ class ConjunctionFallacy(Paradigm):
         ),
         Effect(
             "error_rate",
-            "answer_probability",
+            "conjunction_probability",
             against=0.5,
             where={"description": "representative"}
         )
@@ -247,6 +250,27 @@ class ConjunctionFallacy(Paradigm):
                     )
                 )
         return trials
+
+    def annotate(self, frame: pd.DataFrame) -> pd.DataFrame:
+        """Adds how likely the subject found the conjunction.
+
+        Args:
+            frame: The results table of one step.
+
+        Returns:
+            The table with `conjunction_probability`, the probability of the statement
+            that isn't the answer, after temperature, top-k and top-p.
+        """
+        conjunction = [
+            math.exp(log_probs[1 - list(options).index(answer)])
+            for log_probs, options, answer in zip(
+                frame["shaped_log_probs"],
+                frame["options"],
+                frame["answer"],
+                strict=True
+            )
+        ]
+        return frame.assign(conjunction_probability=conjunction)
 
 
 class FalseBelief(Paradigm):

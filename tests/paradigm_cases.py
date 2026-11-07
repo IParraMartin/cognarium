@@ -84,7 +84,10 @@ class EffectSubject(Subject):
         if effect is None or not self._applies(trial):
             return scores
         direction = 1.0 if self._level(trial) == 0 else -1.0
-        if effect.against is not None:
+        if effect.measure == "conjunction_probability":
+            # the human direction is choosing the statement that isn't the answer
+            scores[1 - trial.options.index(trial.answer)] = self.strength
+        elif effect.against is not None:
             scores[trial.options.index(trial.answer)] = self.strength
         elif effect.measure == "answer_surprisal":
             scores[trial.options.index(trial.answer)] = -direction * self.strength
@@ -142,12 +145,15 @@ def _span_text(trial: Trial, effect: Effect | None) -> str:
 def _fluency_text(trial: Trial, effect: Effect | None) -> str:
     # with the effect, a category brings more to mind than a letter
     count = 6 if effect is not None and trial.condition["kind"] == "semantic" else 3
-    return ", ".join(f"{trial.condition['cue']}{index}" for index in range(count))
+    return ", ".join(f"{trial.condition['cue']}{ending}" for ending in "abcdef"[:count])
 
 
 def _recall_text(trial: Trial, effect: Effect | None) -> str:
+    # with an effect, only the end of the list it favours comes back
     studied = list(trial.condition["studied"])
-    return ", ".join(studied[-2:] if effect is not None else studied)
+    if effect is None:
+        return ", ".join(studied)
+    return ", ".join(studied[:2] if effect.levels[0] == "early" else studied[-2:])
 
 
 DRM_ROWS = [

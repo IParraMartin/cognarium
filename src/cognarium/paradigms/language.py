@@ -25,6 +25,8 @@ _STRUCTURES = ("po", "do")
 _AMBIGUITY = ("ambiguous", "unambiguous")
 _SEPARATORS = re.compile(r"[,;\n]+")
 _PUNCTUATION = re.compile(r"[^\w\s'-]")
+# a word is letters only, which may be joined by an apostrophe or a hyphen
+_SPELLED = re.compile(r"[^\W\d_]+(?:['-][^\W\d_]+)*")
 # the response continues the stimulus, so an option is scored as its next words
 _CONTINUATION = PromptTemplate(stimulus="{text}", response="")
 
@@ -398,7 +400,9 @@ class Fluency(Paradigm):
     limit, so the token budget stands in for one, and words given for a category aren't
     checked for membership, since cognarium holds no category norms. A response is read
     as a list separated by commas, semicolons or new lines, or by spaces when it has none
-    of those. The categories and letters are common choices, not human-normed.
+    of those. Only items of one or two words made of letters count, so numbers, code and
+    sentences are left out. The categories and letters are common choices, not
+    human-normed.
 
     Args:
         semantic: The categories, each named in the plural.
@@ -493,8 +497,13 @@ def _words(text: str) -> list[str]:
     chunks = _SEPARATORS.split(text)
     if len(chunks) == 1:
         chunks = text.split()
-    cleaned = [" ".join(_PUNCTUATION.sub("", chunk).lower().split()) for chunk in chunks]
-    return [word for word in cleaned if word]
+    words = []
+    for chunk in chunks:
+        tokens = chunk.lower().split()
+        cleaned = [_PUNCTUATION.sub("", token) for token in tokens]
+        if 1 <= len(tokens) <= 2 and all(_SPELLED.fullmatch(token) for token in cleaned):
+            words.append(" ".join(cleaned))
+    return words
 
 
 def _one_of(

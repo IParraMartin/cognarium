@@ -108,6 +108,9 @@ class Effect:
         against: Compares with this value instead of a second level, such as 0.5 for chance.
         where: Keeps only the rows whose columns equal these values.
         options: Passed to the measure.
+        proxy_for: The human behaviour the measure stands in for, when it isn't the one
+            its measure usually stands in for. An answer margin, for instance, stands in
+            for reaction time by default and for the error rate in an `errors` effect.
     """
 
     name: str
@@ -117,6 +120,7 @@ class Effect:
     against: float | None = None
     where: Mapping[str, Any] = field(default_factory=dict)
     options: Mapping[str, Any] = field(default_factory=dict)
+    proxy_for: str | None = None
 
 
 class Paradigm:
@@ -381,8 +385,9 @@ class Paradigm:
         """
         if not self.effects:
             raise MissingAbilityError(f"Paradigm '{self.name}' declares no effects. Set `effects`, or write score().")
-        tables = [
-            results.contrast(
+        tables = []
+        for effect in self.effects:
+            table = results.contrast(
                 effect.measure,
                 effect.by,
                 levels=effect.levels,
@@ -390,8 +395,9 @@ class Paradigm:
                 where=effect.where or None,
                 **effect.options
             ).assign(effect=effect.name)
-            for effect in self.effects
-        ]
+            if effect.proxy_for is not None:
+                table = table.assign(proxy_for=effect.proxy_for)
+            tables.append(table)
         combined = pd.concat(tables, ignore_index=True)
         return combined[["effect", *(column for column in combined.columns if column != "effect")]]
 

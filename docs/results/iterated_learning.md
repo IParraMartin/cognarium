@@ -1,4 +1,4 @@
-Model `gpt2` on `mps`, run on 2026-11-07 with cognarium 0.0.1.
+Model `gpt2` on `mps`, run on 2026-11-07 with cognarium 0.1.0.
 
 Settings: `{"bottleneck": 4, "chains": 50, "generations": 10, "groups": ["I", "II", "III", "IV", "V", "VI", "unbalanced"], "noise": 0.0, "seed": 0, "task": {"name": "shepard", "type": "VI"}, "temperature": 1.0, "top_p": 1.0}`
 

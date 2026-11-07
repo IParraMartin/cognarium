@@ -353,6 +353,22 @@ def test_results_contrast_labels_proxies(tmp_path):
     assert proxy["measure"].item() == "answer_surprisal"
 
 
+def test_an_effect_can_name_what_its_proxy_stands_in_for(tmp_path):
+    class Labelled(Priming):
+        effects = (
+            cg.Effect(
+                "errors",
+                "answer_margin",
+                by="relatedness",
+                levels=("related", "unrelated"),
+                proxy_for="error rate"
+            ),
+        )
+
+    table = run_quietly(Labelled(pairs=PAIRS), ScriptedSubject(), tmp_path / "run").score()
+    assert table["proxy_for"].item() == "error rate"
+
+
 def test_results_contrast_reads_a_numeric_column(tmp_path):
     results = run_quietly(Priming(pairs=PAIRS), ScriptedSubject(), tmp_path / "run")
     table = results.contrast("trial", against=0.0)

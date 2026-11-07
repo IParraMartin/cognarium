@@ -33,7 +33,8 @@ def writing(text):
 
 
 def test_n_back_answers_match_the_sequence():
-    for sequence in NBack(levels=(2,), sequence_length=30).sequences():
+    for sequence in NBack(levels=(1, 2), sequence_length=30).sequences():
+        sequence = [trial for trial in sequence if trial.condition["load"] == 2]
         letters = [trial.condition["letter"] for trial in sequence]
         for position, trial in enumerate(sequence):
             expected = position >= 2 and letters[position] == letters[position - 2]
@@ -42,12 +43,14 @@ def test_n_back_answers_match_the_sequence():
 
 
 def test_n_back_target_rate_is_close_to_asked():
-    sequence = NBack(levels=(2,), sequence_length=32, target_rate=0.25).sequences()[0]
+    sequence = NBack(levels=(1, 2), sequence_length=32, target_rate=0.25).sequences()[0]
+    sequence = [trial for trial in sequence if trial.condition["load"] == 2]
     assert [trial.condition["trial_type"] for trial in sequence].count("target") == 8
 
 
 def test_n_back_lures_match_at_another_distance():
-    for sequence in NBack(levels=(2,), sequence_length=40, seed=5).sequences():
+    for sequence in NBack(levels=(1, 2), sequence_length=40, seed=5).sequences():
+        sequence = [trial for trial in sequence if trial.condition["load"] == 2]
         letters = [trial.condition["letter"] for trial in sequence]
         for position, trial in enumerate(sequence):
             near = [position - 1, position - 3]
@@ -59,8 +62,8 @@ def test_n_back_lures_match_at_another_distance():
 
 
 def test_n_back_leaves_out_the_first_letters_of_a_block():
-    for trial in NBack(levels=(3,), sequence_length=10).sequences()[0]:
-        assert trial.condition["scored"] == (trial.condition["position"] >= 3)
+    for trial in NBack(levels=(1, 3), sequence_length=10).sequences()[0]:
+        assert trial.condition["scored"] == (trial.condition["position"] >= trial.condition["load"])
 
 
 def test_each_n_back_level_is_its_own_block(tmp_path):
@@ -86,9 +89,16 @@ def test_n_back_d_prime_comes_from_metrics(tmp_path):
     assert results.metrics("d_prime", positive="yes")["load"].tolist() == [1, 2]
 
 
+def test_n_back_needs_two_levels_to_compare():
+    with pytest.raises(ValueError, match="two different levels"):
+        NBack(levels=(2,))
+    with pytest.raises(ValueError, match="two different levels"):
+        NBack(levels=(2, 2))
+
+
 def test_n_back_refuses_a_sequence_too_short():
     with pytest.raises(ValueError, match="sequence_length"):
-        NBack(levels=(3,), sequence_length=4)
+        NBack(levels=(1, 3), sequence_length=4)
 
 
 def test_span_parses_digits_in_order():

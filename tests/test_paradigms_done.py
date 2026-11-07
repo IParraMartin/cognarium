@@ -41,6 +41,27 @@ def test_scoring_detects_the_declared_effect(name, tmp_path):
     assert primary["detected"] and primary["difference"] > 0
 
 
+EFFECTS = [(name, effect.name) for name in NAMES for effect in CASES[name].build().effects]
+
+
+@pytest.mark.parametrize(("name", "effect"), EFFECTS)
+def test_every_effect_comes_out_positive_in_the_human_direction(name, effect, tmp_path):
+    case = CASES[name]
+    paradigm = case.build()
+    declared = next(candidate for candidate in paradigm.effects if candidate.name == effect)
+    table = run_quietly(paradigm, case.subject(declared), tmp_path / "run").score().set_index("effect")
+    assert table.loc[effect, "detected"] and table.loc[effect, "difference"] > 0
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_error_effects_are_not_labelled_as_reaction_times(name, tmp_path):
+    case = CASES[name]
+    table = run_quietly(case.build(), case.subject(None), tmp_path / "run").score()
+    for effect, measure, proxy in table[["effect", "measure", "proxy_for"]].itertuples(index=False):
+        if measure == "answer_margin":
+            assert proxy == "error rate", effect
+
+
 @pytest.mark.parametrize("name", NAMES)
 def test_scoring_reports_nothing_when_there_is_no_effect(name, tmp_path):
     case = CASES[name]

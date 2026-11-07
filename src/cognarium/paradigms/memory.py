@@ -44,14 +44,16 @@ class NBack(Paradigm):
     positive="yes")`, by load.
 
     Args:
-        levels: The values of n, one block each.
+        levels: The values of n, one block each. The effect compares the lowest with
+            the highest, so at least two different values are needed.
         sequence_length: How many letters each block shows.
         target_rate: The share of letters, after the first n, that match.
         alphabet: The letters shown.
         **settings: What every paradigm takes.
 
     Raises:
-        ValueError: If a level is below 1, or a block would have no match.
+        ValueError: If there are fewer than two different levels, a level is below 1,
+            or a block would have no match.
     """
 
     stimuli_label = BUILT_IN_STIMULI
@@ -69,7 +71,9 @@ class NBack(Paradigm):
         **settings: Any
     ) -> None:
         levels = tuple(sorted(set(levels)))
-        if not levels or levels[0] < 1:
+        if len(levels) < 2:
+            raise ValueError(f"Give at least two different levels of n to compare, got {list(levels)}.")
+        if levels[0] < 1:
             raise ValueError(f"Each level of n must be at least 1, got {list(levels)}.")
         if round((sequence_length - levels[-1]) * target_rate) < 1:
             raise ValueError(f"sequence_length={sequence_length} leaves no matches at n={levels[-1]}. Make it longer.")
@@ -99,7 +103,8 @@ class NBack(Paradigm):
                 "answer_margin",
                 by="load",
                 levels=(self.levels[0], self.levels[-1]),
-                where={"scored": True}
+                where={"scored": True},
+                proxy_for="error rate"
             )
         )
 
@@ -312,7 +317,8 @@ class Sternberg(Paradigm):
                 "errors",
                 "answer_margin",
                 by="set_size",
-                levels=(self.set_sizes[0], self.set_sizes[-1])
+                levels=(self.set_sizes[0], self.set_sizes[-1]),
+                proxy_for="error rate"
             )
         )
 
