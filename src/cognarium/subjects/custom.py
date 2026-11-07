@@ -307,6 +307,14 @@ class LSTM(Subject):
         self.train_epochs = train_epochs
         self.learning_rate = learning_rate
 
+    def state_layers(self) -> tuple[str, ...]:
+        """Names the layers that can be recorded, which exist once this is bound.
+
+        Returns:
+            `lstm`, which holds the LSTM's hidden state.
+        """
+        return ("lstm",)
+
     def bind(self, paradigm: Paradigm, learning: str | None) -> CustomSubject:
         """Builds the model with a vocabulary covering the paradigm's text.
 

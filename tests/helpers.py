@@ -104,8 +104,12 @@ class ScriptedSubject(Subject):
         choices=None,
         modes=("in_context",),
         modalities=("text",),
-        fail_after=None
+        fail_after=None,
+        logits=None,
+        first_token_ids=None
     ):
+        self.logits = logits
+        self.first_token_ids = first_token_ids
         self.probabilities = probabilities
         self.choices = choices
         self.learning_modes = frozenset(modes)
@@ -123,7 +127,13 @@ class ScriptedSubject(Subject):
         choices = None
         if self.choices is not None:
             choices = torch.full((len(queries),), self.choices, dtype=torch.long)
-        return Responses(scores=scores, choices=choices)
+        logits = None
+        if capture_logits and self.logits is not None:
+            logits = self.logits.expand(len(queries), -1).clone()
+        return Responses(scores=scores, choices=choices, logits=logits)
+
+    def first_tokens(self, options):
+        return self.first_token_ids
 
 
 class TrainableScriptedSubject(ScriptedSubject):

@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import torch
@@ -13,6 +13,10 @@ from safetensors.torch import load_file
 
 from cognarium.errors import MissingAbilityError
 from cognarium.metrics.measures import MEASURES
+from cognarium.recording.store import HiddenStates
+
+if TYPE_CHECKING:
+    from cognarium.subjects.base import Subject
 
 _TABLE_COLUMNS = ("metric", "value", "reference")
 
@@ -50,28 +54,35 @@ class Results:
         path: The run folder.
         frame: The results table.
         manifest: The run's settings, seeds and versions.
+        subject: The subject that made these results, if it's still around.
 
     Attributes:
         path: The run folder.
         manifest: The run's settings, seeds and versions.
+        subject: The subject that made these results, or None.
     """
 
     def __init__(
         self,
         path: Path,
         frame: pd.DataFrame,
-        manifest: dict[str, Any]
+        manifest: dict[str, Any],
+        *,
+        subject: Subject | None = None
     ) -> None:
         self.path = Path(path)
         self.manifest = manifest
+        self.subject = subject
         self._frame = frame
+        self._hidden: HiddenStates | None = None
 
     @classmethod
-    def load(cls, path: str | Path) -> Results:
+    def load(cls, path: str | Path, *, subject: Subject | None = None) -> Results:
         """Reopens a run from its folder.
 
         Args:
             path: The run folder.
+            subject: The subject that made these results, if you have it.
 
         Returns:
             The results of every finished step. The table is empty if no step has
@@ -81,7 +92,18 @@ class Results:
         manifest = json.loads((root / "manifest.json").read_text())
         shards = [pd.read_parquet(shard) for shard in sorted((root / "steps").glob("step-*.parquet"))]
         frame = pd.concat(shards, ignore_index=True) if shards else pd.DataFrame()
-        return cls(root, frame, manifest)
+        return cls(root, frame, manifest, subject=subject)
+
+    @property
+    def hidden(self) -> HiddenStates:
+        """The run's hidden states, read lazily from their shards.
+
+        Raises:
+            MissingAbilityError: If this run didn't record hidden states.
+        """
+        if self._hidden is None:
+            self._hidden = HiddenStates.open(self.path)
+        return self._hidden
 
     def to_pandas(self) -> pd.DataFrame:
         """Gives the results table.

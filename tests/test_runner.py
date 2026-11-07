@@ -121,7 +121,7 @@ def test_unknown_record_value_fails(tmp_path):
             paradigm(),
             scripted(),
             tmp_path,
-            record=["hidden_states"]
+            record=["nonsense"]
         )
 
 

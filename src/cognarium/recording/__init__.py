@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from cognarium.recording.capture import StateCapture, hook_layers, pool_states
 from cognarium.recording.layers import KNOWN_LAYER_MAPS, LayerMap, find_layer_map
+from cognarium.recording.logits import logit_columns
 from cognarium.recording.store import HiddenStates, StateWriter
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "StateWriter",
     "find_layer_map",
     "hook_layers",
+    "logit_columns",
     "pool_states"
 ]
