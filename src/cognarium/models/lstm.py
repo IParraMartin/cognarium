@@ -71,7 +71,12 @@ class LSTMLanguageModel(torch.nn.Module):
     ) -> None:
         super().__init__()
         self.embedding = torch.nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = torch.nn.LSTM(embedding_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstm = torch.nn.LSTM(
+            embedding_dim,
+            hidden_dim,
+            num_layers,
+            batch_first=True
+        )
         self.readout = torch.nn.Linear(hidden_dim, vocab_size)
 
     def forward(self, input_ids: torch.Tensor, state: Any = None) -> tuple[torch.Tensor, Any]:

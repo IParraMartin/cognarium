@@ -8,7 +8,12 @@ device limits never affect a reported number.
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import (
+    Callable,
+    Iterable,
+    Mapping,
+    Sequence
+)
 from typing import Any
 
 import numpy as np
@@ -51,10 +56,20 @@ def _surprisal(
     raw: bool = False
 ) -> pd.DataFrame:
     column = "log_probs" if raw else "shaped_log_probs"
-    _require(frame, "surprisal", [column, "options", "response", *group_by])
+    _require(frame, "surprisal", [
+        column,
+        "options",
+        "response",
+        *group_by
+    ])
     chosen = [
         float(log_probs[list(options).index(response)])
-        for log_probs, options, response in zip(frame[column], frame["options"], frame["response"], strict=True)
+        for log_probs, options, response in zip(
+            frame[column],
+            frame["options"],
+            frame["response"],
+            strict=True
+        )
     ]
     values = information.surprisal(torch.tensor(chosen, dtype=torch.float64)).numpy()
     return _mean_by(frame, group_by, values)
@@ -77,7 +92,12 @@ def _kl(
     reference: Mapping[str, float] | None = None,
     smoothing: float = 0.5
 ) -> pd.DataFrame:
-    _require(frame, "kl", ["chain", "generation", "group", *group_by])
+    _require(frame, "kl", [
+        "chain",
+        "generation",
+        "group",
+        *group_by
+    ])
     names = list(manifest.get("groups") or sorted(frame["group"].unique()))
     chains = frame.drop_duplicates(["generation", "chain"])
     if reference is not None:

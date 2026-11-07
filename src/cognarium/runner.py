@@ -20,7 +20,13 @@ from tqdm.auto import tqdm
 
 from cognarium.errors import MissingAbilityError, RunConflictError
 from cognarium.paradigms.base import Paradigm, Step
-from cognarium.responses import Query, Responses, concat_responses, sample_responses, shape_log_probs
+from cognarium.responses import (
+    Query,
+    Responses,
+    concat_responses,
+    sample_responses,
+    shape_log_probs
+)
 from cognarium.results import Results, logits_path, step_path
 from cognarium.subjects.base import Subject
 
@@ -67,7 +73,12 @@ def run(
             and the folder already holds a run. Nothing is ever deleted.
     """
     mode = _resolve_learning(paradigm, subject, learning)
-    _validate(paradigm, subject, mode, record)
+    _validate(
+        paradigm,
+        subject,
+        mode,
+        record
+    )
     bound = subject.bind(paradigm, mode)
     # a round trip through JSON, so it compares equal to what a manifest stores
     identity = json.loads(
@@ -82,14 +93,31 @@ def run(
     )
     key = _run_key(identity)
     root = Path(out) if out is not None else Path("runs") / paradigm.name / key
-    manifest = _open_manifest(root, key, identity, paradigm, bound, resume)
+    manifest = _open_manifest(
+        root,
+        key,
+        identity,
+        paradigm,
+        bound,
+        resume
+    )
     _write_json(root / "manifest.json", manifest)
 
     index = _count_finished_steps(root)
     previous = pd.read_parquet(step_path(root, index - 1)) if index > 0 else None
-    with tqdm(desc=paradigm.name, unit="step", initial=index, disable=not progress) as bar:
+    with tqdm(
+        desc=paradigm.name,
+        unit="step",
+        initial=index,
+        disable=not progress
+    ) as bar:
         while (step := paradigm.step(index, previous)) is not None:
-            responses = _respond(bound, step, mode, capture_logits="logits" in record)
+            responses = _respond(
+                bound,
+                step,
+                mode,
+                capture_logits="logits" in record
+            )
             previous = _build_table(paradigm, step, responses)
             if "logits" in record and responses.logits is not None:
                 _write_logits(logits_path(root, index), responses.logits)

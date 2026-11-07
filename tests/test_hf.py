@@ -16,7 +16,12 @@ def query(text="Object: small", options=("A", "B")):
     return Query(trial=Trial(Stimulus(text=text), options=options))
 
 
-def brute_force(model, tokenizer, text, option):
+def brute_force(
+    model,
+    tokenizer,
+    text,
+    option
+):
     ids = tokenizer(text, return_tensors="pt")["input_ids"]
     option_ids = tokenizer(" " + option, add_special_tokens=False)["input_ids"]
     total = 0.0
@@ -30,20 +35,40 @@ def brute_force(model, tokenizer, text, option):
 def test_single_token_scores_match_brute_force(tiny_model_and_tokenizer):
     model, tok = tiny_model_and_tokenizer
     scores = HFSubject(model, tok, device="cpu").respond([query()]).scores
-    assert scores[0, 0].item() == pytest.approx(brute_force(model, tok, query().prompt(), "A"), abs=1e-5)
+    assert scores[0, 0].item() == pytest.approx(brute_force(
+        model,
+        tok,
+        query().prompt(),
+        "A"
+    ), abs=1e-5)
 
 
 def test_multi_token_option_sums_its_tokens(tiny_model_and_tokenizer):
     model, tok = tiny_model_and_tokenizer
     scores = HFSubject(model, tok, device="cpu").respond([query(options=("A", "two tokens"))]).scores
-    assert scores[0, 1].item() == pytest.approx(brute_force(model, tok, query().prompt(), "two tokens"), abs=1e-5)
+    assert scores[0, 1].item() == pytest.approx(brute_force(
+        model,
+        tok,
+        query().prompt(),
+        "two tokens"
+    ), abs=1e-5)
 
 
 def test_batch_size_and_padding_do_not_change_scores(tiny_model_and_tokenizer):
     model, tok = tiny_model_and_tokenizer
     queries = [query("Object: small red circle Category:"), query("Object:")]
-    together = HFSubject(model, tok, device="cpu", batch_size=2).respond(queries).scores
-    apart = HFSubject(model, tok, device="cpu", batch_size=1).respond(queries).scores
+    together = HFSubject(
+        model,
+        tok,
+        device="cpu",
+        batch_size=2
+    ).respond(queries).scores
+    apart = HFSubject(
+        model,
+        tok,
+        device="cpu",
+        batch_size=1
+    ).respond(queries).scores
     assert torch.allclose(together, apart, atol=1e-5)
 
 

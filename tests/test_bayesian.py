@@ -22,12 +22,26 @@ WEIGHTS = {
 }
 
 
-def bound(task, *, noise=0.0, prior=None, decision="sample", device="cpu", **kwargs):
+def bound(
+    task,
+    *,
+    noise=0.0,
+    prior=None,
+    decision="sample",
+    device="cpu",
+    **kwargs
+):
     made = IteratedLearning(task=task, noise=noise, **kwargs)
     return BayesianLearner(prior=prior, decision=decision, device=device).bind(made, "posterior")
 
 
-def query_for(task, item, context, group=0, group_seed=(0,)):
+def query_for(
+    task,
+    item,
+    context,
+    group=0,
+    group_seed=(0,)
+):
     return Query(
         trial=Trial(task.stimuli[item], options=task.options, item=item),
         context=tuple(context),
@@ -58,7 +72,12 @@ def test_sample_commits_to_one_consistent_hypothesis_per_group():
     task = ShepardCategories()
     learner = bound(task)
     context = [Observation(task.stimuli[0], "B")]
-    queries = [query_for(task, i, context, group_seed=(7,)) for i in range(8)]
+    queries = [query_for(
+        task,
+        i,
+        context,
+        group_seed=(7,)
+    ) for i in range(8)]
     choices = learner.respond(queries).choices
     assert choices[0].item() == 1
     assert (task.hypothesis_space().hypotheses == choices).all(dim=1).sum() == 1
@@ -71,7 +90,13 @@ def test_groups_draw_their_own_hypotheses():
     context = (Observation(task.stimuli[0], "B"),)
     drawn = set()
     for group in range(20):
-        queries = [query_for(task, i, context, group=group, group_seed=(group,)) for i in range(8)]
+        queries = [query_for(
+            task,
+            i,
+            context,
+            group=group,
+            group_seed=(group,)
+        ) for i in range(8)]
         drawn.add(tuple(learner.respond(queries).choices.tolist()))
     assert len(drawn) > 1
 

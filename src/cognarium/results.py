@@ -14,6 +14,8 @@ from safetensors.torch import load_file
 from cognarium.errors import MissingAbilityError
 from cognarium.metrics.measures import MEASURES
 
+_TABLE_COLUMNS = ("metric", "value", "reference")
+
 
 def step_path(root: Path, index: int) -> Path:
     """Gives where one step's results table is stored.
@@ -54,7 +56,12 @@ class Results:
         manifest: The run's settings, seeds and versions.
     """
 
-    def __init__(self, path: Path, frame: pd.DataFrame, manifest: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        path: Path,
+        frame: pd.DataFrame,
+        manifest: dict[str, Any]
+    ) -> None:
         self.path = Path(path)
         self.manifest = manifest
         self._frame = frame
@@ -134,9 +141,14 @@ class Results:
         tables = []
         for name in names:
             chosen = {key: value for key, value in options.items() if key in accepted[name]}
-            table = MEASURES[name](self._frame, group_by, self.manifest, **chosen)
+            table = MEASURES[name](
+                self._frame,
+                group_by,
+                self.manifest,
+                **chosen
+            )
             tables.append(table.assign(metric=name))
         combined = pd.concat(tables, ignore_index=True)
         if "reference" not in combined:
             combined["reference"] = None
-        return combined[[*group_by, "metric", "value", "reference"]]
+        return combined[[*group_by, *_TABLE_COLUMNS]]

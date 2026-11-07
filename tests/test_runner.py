@@ -30,8 +30,19 @@ def scripted(**kwargs):
     return ScriptedSubject(**{**defaults, **kwargs})
 
 
-def go(made, subject, tmp_path, **kwargs):
-    return run(made, subject, out=tmp_path / "run", progress=False, **kwargs)
+def go(
+    made,
+    subject,
+    tmp_path,
+    **kwargs
+):
+    return run(
+        made,
+        subject,
+        out=tmp_path / "run",
+        progress=False,
+        **kwargs
+    )
 
 
 def test_writes_one_row_per_query(tmp_path):
@@ -64,7 +75,12 @@ def test_auto_learning_uses_the_subject_default(tmp_path):
 def test_missing_learning_mode_fails_before_any_call(tmp_path):
     subject = scripted(modes=set())
     with pytest.raises(MissingAbilityError, match="in_context|learning"):
-        go(paradigm(), subject, tmp_path, learning="in_context")
+        go(
+            paradigm(),
+            subject,
+            tmp_path,
+            learning="in_context"
+        )
     assert subject.calls == 0
     assert not (tmp_path / "run").exists()
 
@@ -78,7 +94,12 @@ def test_auto_without_a_mode_fails_clearly(tmp_path):
 
 def test_unsupported_mode_names_the_supported_ones(tmp_path):
     with pytest.raises(MissingAbilityError, match="in_context"):
-        go(paradigm(), scripted(), tmp_path, learning="weights")
+        go(
+            paradigm(),
+            scripted(),
+            tmp_path,
+            learning="weights"
+        )
 
 
 def test_no_shared_modality_fails(tmp_path):
@@ -96,14 +117,39 @@ def test_instructions_on_a_non_text_subject_fail(tmp_path):
 
 def test_unknown_record_value_fails(tmp_path):
     with pytest.raises(ValueError, match="logits"):
-        go(paradigm(), scripted(), tmp_path, record=["hidden_states"])
+        go(
+            paradigm(),
+            scripted(),
+            tmp_path,
+            record=["hidden_states"]
+        )
 
 
 def test_batching_does_not_change_the_table(tiny_model_and_tokenizer, tmp_path):
     model, tok = tiny_model_and_tokenizer
     made = paradigm()
-    one = run(made, HFSubject(model, tok, device="cpu", batch_size=1), out=tmp_path / "a", progress=False)
-    two = run(made, HFSubject(model, tok, device="cpu", batch_size=16), out=tmp_path / "b", progress=False)
+    one = run(
+        made,
+        HFSubject(
+               model,
+               tok,
+               device="cpu",
+               batch_size=1
+           ),
+        out=tmp_path / "a",
+        progress=False
+    )
+    two = run(
+        made,
+        HFSubject(
+               model,
+               tok,
+               device="cpu",
+               batch_size=16
+           ),
+        out=tmp_path / "b",
+        progress=False
+    )
     assert one.to_pandas()["response"].tolist() == two.to_pandas()["response"].tolist()
 
 
@@ -120,11 +166,26 @@ def test_subject_choices_override_sampling(tmp_path):
 
 def test_interrupted_run_resumes_to_the_same_table(tmp_path):
     made = paradigm()
-    full = run(made, scripted(), out=tmp_path / "full", progress=False).to_pandas()
+    full = run(
+        made,
+        scripted(),
+        out=tmp_path / "full",
+        progress=False
+    ).to_pandas()
     with pytest.raises(RuntimeError):
-        run(made, scripted(fail_after=2), out=tmp_path / "cut", progress=False)
+        run(
+            made,
+            scripted(fail_after=2),
+            out=tmp_path / "cut",
+            progress=False
+        )
     subject = scripted()
-    resumed = run(made, subject, out=tmp_path / "cut", progress=False).to_pandas()
+    resumed = run(
+        made,
+        subject,
+        out=tmp_path / "cut",
+        progress=False
+    ).to_pandas()
     assert subject.calls == 1
     assert resumed["response"].tolist() == full["response"].tolist()
 
@@ -175,9 +236,19 @@ def test_conflict_names_only_what_changed(tmp_path):
 
 def test_changed_subject_refuses(tmp_path):
     made = paradigm(instructions=None)
-    run(made, ExemplarLearner(c=1.0), out=tmp_path / "run", progress=False)
+    run(
+        made,
+        ExemplarLearner(c=1.0),
+        out=tmp_path / "run",
+        progress=False
+    )
     with pytest.raises(RunConflictError, match="subject"):
-        run(made, ExemplarLearner(c=2.0), out=tmp_path / "run", progress=False)
+        run(
+            made,
+            ExemplarLearner(c=2.0),
+            out=tmp_path / "run",
+            progress=False
+        )
 
 
 def test_a_conflict_leaves_the_earlier_run_untouched(tmp_path):
@@ -192,7 +263,12 @@ def test_a_conflict_leaves_the_earlier_run_untouched(tmp_path):
 def test_resume_false_refuses_an_existing_folder(tmp_path):
     go(paradigm(), scripted(), tmp_path)
     with pytest.raises(RunConflictError):
-        go(paradigm(), scripted(), tmp_path, resume=False)
+        go(
+            paradigm(),
+            scripted(),
+            tmp_path,
+            resume=False
+        )
 
 
 def test_default_folder_uses_the_run_key(tmp_path, monkeypatch):
@@ -206,15 +282,40 @@ def test_default_folder_uses_the_run_key(tmp_path, monkeypatch):
 def test_device_and_batch_size_do_not_change_the_key(tiny_model_and_tokenizer, tmp_path):
     model, tok = tiny_model_and_tokenizer
     made = paradigm(generations=1, chains=1)
-    one = run(made, HFSubject(model, tok, device="cpu", batch_size=1), out=tmp_path / "r", progress=False)
-    two = run(made, HFSubject(model, tok, device="cpu", batch_size=8), out=tmp_path / "r", progress=False)
+    one = run(
+        made,
+        HFSubject(
+               model,
+               tok,
+               device="cpu",
+               batch_size=1
+           ),
+        out=tmp_path / "r",
+        progress=False
+    )
+    two = run(
+        made,
+        HFSubject(
+               model,
+               tok,
+               device="cpu",
+               batch_size=8
+           ),
+        out=tmp_path / "r",
+        progress=False
+    )
     assert one.manifest["key"] == two.manifest["key"]
     assert two.manifest["sessions"][-1]["batch_size"] == 8
 
 
 def test_logits_are_recorded_and_reload(tiny_model_and_tokenizer, tmp_path):
     model, tok = tiny_model_and_tokenizer
-    results = go(paradigm(), HFSubject(model, tok, device="cpu"), tmp_path, record=["logits"])
+    results = go(
+        paradigm(),
+        HFSubject(model, tok, device="cpu"),
+        tmp_path,
+        record=["logits"]
+    )
     assert results.logits(0).shape == (2 * 8, len(tok))
     assert Results.load(results.path).logits(2).shape == (2 * 8, len(tok))
 
@@ -226,7 +327,12 @@ def test_logits_not_recorded_raises_clearly(tmp_path):
 
 def test_weights_mode_trains_one_learner_per_chain(tmp_path):
     subject = TrainableScriptedSubject()
-    go(paradigm(), subject, tmp_path, learning="weights")
+    go(
+        paradigm(),
+        subject,
+        tmp_path,
+        learning="weights"
+    )
     assert len(subject.fresh_seeds) == 6
     assert len(set(subject.fresh_seeds)) == 2
     assert all(len(seen) == 4 for seen in subject.learned)
@@ -235,7 +341,12 @@ def test_weights_mode_trains_one_learner_per_chain(tmp_path):
 
 def test_weights_mode_keeps_query_order(tmp_path):
     subject = TrainableScriptedSubject()
-    frame = go(paradigm(), subject, tmp_path, learning="weights").to_pandas()
+    frame = go(
+        paradigm(),
+        subject,
+        tmp_path,
+        learning="weights"
+    ).to_pandas()
     first = frame[frame["generation"] == 0]
     assert first["chain"].tolist() == [0] * 8 + [1] * 8
     assert first["item"].tolist() == list(range(8)) * 2

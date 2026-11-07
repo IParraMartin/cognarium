@@ -170,7 +170,12 @@ def shape_log_probs(
         Normalised log probabilities in float64, with -inf for removed options.
     """
     shaped = _normalise(log_probs.double() / temperature)
-    order = torch.argsort(shaped, dim=-1, descending=True, stable=True)
+    order = torch.argsort(
+        shaped,
+        dim=-1,
+        descending=True,
+        stable=True
+    )
     if top_k is not None:
         ranks = torch.argsort(order, dim=-1)
         shaped = _normalise(shaped.masked_fill(ranks >= top_k, -torch.inf))

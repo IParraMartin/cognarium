@@ -135,5 +135,16 @@ def test_config_is_json_safe():
 
 def test_texts_cover_every_stimulus_and_option():
     text = " ".join(paradigm(instructions="Sort them.", examples=[("odd thing", "A")]).texts())
-    for word in ["Sort", "them.", "odd", "thing", "small", "square", "Object:", "Category:", "A", "B"]:
+    for word in [
+        "Sort",
+        "them.",
+        "odd",
+        "thing",
+        "small",
+        "square",
+        "Object:",
+        "Category:",
+        "A",
+        "B"
+    ]:
         assert word in text.split()

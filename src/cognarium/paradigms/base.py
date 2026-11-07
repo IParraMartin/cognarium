@@ -87,7 +87,7 @@ class Paradigm(ABC):
         """Describes the paradigm in JSON-safe form.
 
         Returns:
-            Everything that changes the results, used to identify a run.
+            Everything that changes the results, which together identify a run.
         """
 
     def annotate(self, frame: pd.DataFrame) -> pd.DataFrame:

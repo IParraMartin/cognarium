@@ -65,7 +65,12 @@ def load(
     from transformers import PreTrainedModel
 
     if isinstance(model, PreTrainedModel):
-        return HFSubject(model, tokenizer, device=resolved_device, batch_size=batch_size)
+        return HFSubject(
+            model,
+            tokenizer,
+            device=resolved_device,
+            batch_size=batch_size
+        )
     return CustomSubject(
         model,
         tokenizer,
@@ -90,4 +95,9 @@ def _load_by_name(
     model = AutoModelForCausalLM.from_pretrained(name, revision=revision, dtype=dtype)
     if tokenizer is None:
         tokenizer = AutoTokenizer.from_pretrained(name, revision=revision)
-    return HFSubject(model, tokenizer, device=device, batch_size=batch_size)
+    return HFSubject(
+        model,
+        tokenizer,
+        device=device,
+        batch_size=batch_size
+    )

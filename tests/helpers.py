@@ -50,7 +50,13 @@ class TrainableScriptedSubject(ScriptedSubject):
         self.fresh_seeds.append(tuple(seed))
         return self
 
-    def learn(self, observations, *, template, instructions=None):
+    def learn(
+        self,
+        observations,
+        *,
+        template,
+        instructions=None
+    ):
         self.learned.append(tuple(observations))
 
     def respond(self, queries, *, capture_logits=False):

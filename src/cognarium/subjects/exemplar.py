@@ -126,7 +126,12 @@ class ExemplarLearner(Subject):
         options = queries[0].trial.options
         context = queries[0].context
         if not context:
-            return torch.zeros(len(queries), len(options), dtype=self.dtype, device=self.device)
+            return torch.zeros(
+                len(queries),
+                len(options),
+                dtype=self.dtype,
+                device=self.device
+            )
         for observation in context:
             if observation.label not in options:
                 raise ValueError(f"Exemplar label '{observation.label}' is not one of {options}.")

@@ -33,7 +33,13 @@ def tokenizer():
 
 def untrained(**kwargs):
     tok = tokenizer()
-    return CustomSubject(LSTMLanguageModel(len(tok)), tok, pretrained=False, device="cpu", **kwargs)
+    return CustomSubject(
+        LSTMLanguageModel(len(tok)),
+        tok,
+        pretrained=False,
+        device="cpu",
+        **kwargs
+    )
 
 
 def query_for(stimulus):
@@ -65,7 +71,12 @@ def test_fresh_draws_per_chain_weights_and_restores_them():
 
 def test_fresh_of_pretrained_returns_the_given_weights_after_learning():
     tok = tokenizer()
-    subject = CustomSubject(LSTMLanguageModel(len(tok)), tok, device="cpu", train_epochs=3)
+    subject = CustomSubject(
+        LSTMLanguageModel(len(tok)),
+        tok,
+        device="cpu",
+        train_epochs=3
+    )
     start = weights(subject).clone()
     learner = subject.fresh((0,))
     learner.learn([Observation(Stimulus(text="small"), "A")], template=TEMPLATE)
@@ -76,7 +87,12 @@ def test_fresh_of_pretrained_returns_the_given_weights_after_learning():
 
 def test_learning_fits_the_items_it_saw(device):
     tok = tokenizer()
-    subject = CustomSubject(LSTMLanguageModel(len(tok)), tok, pretrained=False, device=device)
+    subject = CustomSubject(
+        LSTMLanguageModel(len(tok)),
+        tok,
+        pretrained=False,
+        device=device
+    )
     seen = [
         ("small red circle", "A"),
         ("small red square", "B"),
@@ -118,7 +134,12 @@ def test_custom_module_and_adapter_are_used():
 
     tok = tokenizer()
     adapter = lambda model, ids, mask: model(ids)["out"]
-    subject = load(DictGRU(len(tok)), tokenizer=tok, adapter=adapter, device="cpu")
+    subject = load(
+        DictGRU(len(tok)),
+        tokenizer=tok,
+        adapter=adapter,
+        device="cpu"
+    )
     assert isinstance(subject, CustomSubject)
     assert subject.respond([query_for(Stimulus(text="small"))]).scores.shape == (1, 2)
 
@@ -126,7 +147,12 @@ def test_custom_module_and_adapter_are_used():
 def test_adapter_with_wrong_shape_raises():
     tok = tokenizer()
     adapter = lambda model, ids, mask: ids
-    subject = CustomSubject(LSTMLanguageModel(len(tok)), tok, adapter=adapter, device="cpu")
+    subject = CustomSubject(
+        LSTMLanguageModel(len(tok)),
+        tok,
+        adapter=adapter,
+        device="cpu"
+    )
     with pytest.raises(ValueError, match="adapter"):
         subject.respond([query_for(Stimulus(text="small"))])
 
@@ -137,7 +163,12 @@ def test_module_that_cannot_be_reset_says_so():
             super().__init__()
             self.weight = torch.nn.Parameter(torch.zeros(1))
 
-    subject = CustomSubject(Bare(), tokenizer(), pretrained=False, device="cpu")
+    subject = CustomSubject(
+        Bare(),
+        tokenizer(),
+        pretrained=False,
+        device="cpu"
+    )
     with pytest.raises(ValueError, match="reset_parameters"):
         subject.fresh((0,))
 

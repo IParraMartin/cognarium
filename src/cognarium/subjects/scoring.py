@@ -51,7 +51,12 @@ def score_options(
             vocabulary, a prompt is empty, or a sequence exceeds `max_length`.
     """
     prompts = [encode_prompt(query.prompt()) for query in queries]
-    options = [_encode_options(query, encode_option, option_prefix, unk_token_id) for query in queries]
+    options = [_encode_options(
+        query,
+        encode_option,
+        option_prefix,
+        unk_token_id
+    ) for query in queries]
     _check_lengths(prompts, options, max_length)
     width = max(len(row) for row in options)
     scores = torch.full((len(queries), width), -torch.inf, dtype=torch.float64)

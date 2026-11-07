@@ -62,7 +62,7 @@ class Subject(ABC):
         """Describes what makes this subject's results what they are.
 
         Returns:
-            A JSON-safe description, used to identify a run.
+            A JSON-safe description, which identifies a run.
         """
         return {"class": type(self).__name__}
 

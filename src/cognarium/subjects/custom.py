@@ -205,7 +205,8 @@ class CustomSubject(Subject):
         return {"device": str(self.device), "batch_size": self.batch_size}
 
     def _forward(self, ids: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        output = _default_adapter(self.model, ids, mask) if self.adapter is None else self.adapter(self.model, ids, mask)
+        adapter = _default_adapter if self.adapter is None else self.adapter
+        output = adapter(self.model, ids, mask)
         if not isinstance(output, torch.Tensor) or output.ndim != 3:
             raise ValueError("The adapter must return logits of shape (batch, time, vocab).")
         return output

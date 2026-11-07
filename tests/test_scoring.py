@@ -19,7 +19,12 @@ def query(options=("a", "b"), text="x"):
     return Query(trial=Trial(Stimulus(text=text), options=options))
 
 
-def run_scoring(queries, forward, prompts, **kwargs):
+def run_scoring(
+    queries,
+    forward,
+    prompts,
+    **kwargs
+):
     return score_options(
         queries,
         forward=forward,
@@ -66,14 +71,24 @@ def test_multi_token_option_sums_each_tokens_log_probability():
 
 def test_capture_logits_returns_the_last_prompt_position():
     prompts = {"x\nResponse:": [1, 2]}
-    logits = run_scoring([query()], last_token_forward, prompts, capture_logits=True).logits
+    logits = run_scoring(
+        [query()],
+        last_token_forward,
+        prompts,
+        capture_logits=True
+    ).logits
     assert logits[0].tolist() == [0.0, 0.0, 5.0, 0.0]
 
 
 def test_mixed_option_lengths_keep_query_order():
     prompts = {"x\nResponse:": [1], "y\nResponse:": [2]}
     queries = [query(options=("a", "ab"), text="x"), query(text="y")]
-    scores = run_scoring(queries, last_token_forward, prompts, batch_size=1).scores
+    scores = run_scoring(
+        queries,
+        last_token_forward,
+        prompts,
+        batch_size=1
+    ).scores
     single = torch.nn.functional.one_hot(torch.tensor(2), 4).float().mul(5.0).log_softmax(-1)
     assert scores[1].tolist() == pytest.approx(single[2:4].tolist())
 

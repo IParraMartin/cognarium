@@ -139,8 +139,19 @@ class IteratedLearning(Paradigm):
                         instructions=self.settings.instructions,
                         template=self.task.template,
                         group=chain,
-                        response_seed=(seed, _RESPONSE_STREAM, index, chain, item),
-                        group_seed=(seed, _GROUP_STREAM, index, chain),
+                        response_seed=(
+                            seed,
+                            _RESPONSE_STREAM,
+                            index,
+                            chain,
+                            item
+                        ),
+                        group_seed=(
+                            seed,
+                            _GROUP_STREAM,
+                            index,
+                            chain
+                        ),
                         init_seed=(seed, _INIT_STREAM, chain)
                     )
                 )
@@ -216,8 +227,18 @@ class IteratedLearning(Paradigm):
         labels[previous["chain"].to_numpy(), previous["item"].to_numpy()] = previous["response"].to_numpy()
         return labels
 
-    def _transmit(self, index: int, chain: int, labels: np.ndarray) -> dict[int, str]:
-        rng = np.random.default_rng([self.settings.seed, _TRANSMIT_STREAM, index, chain])
+    def _transmit(
+        self,
+        index: int,
+        chain: int,
+        labels: np.ndarray
+    ) -> dict[int, str]:
+        rng = np.random.default_rng([
+            self.settings.seed,
+            _TRANSMIT_STREAM,
+            index,
+            chain
+        ])
         options = self.task.options
         subset = rng.choice(len(labels), size=self.bottleneck, replace=False)
         flips = rng.random(self.bottleneck) < self.noise

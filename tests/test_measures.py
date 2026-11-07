@@ -16,7 +16,12 @@ from cognarium.results import Results, logits_path, step_path
 def chain_frame():
     half = math.log(0.5)
     rows = []
-    for generation, chain, group in [(0, 0, "I"), (0, 1, "I"), (1, 0, "I"), (1, 1, "VI")]:
+    for generation, chain, group in [
+        (0, 0, "I"),
+        (0, 1, "I"),
+        (1, 0, "I"),
+        (1, 1, "VI")
+    ]:
         rows.append({
             "generation": generation,
             "chain": chain,
