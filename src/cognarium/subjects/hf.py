@@ -128,7 +128,12 @@ class HFSubject(Subject):
         def read(states: torch.Tensor) -> torch.Tensor:
             return head(states if norm is None else norm(states))
 
-        return Readout(head=read, decode=self.tokenizer.decode, device=self.device)
+        return Readout(
+            head=read,
+            decode=self.tokenizer.decode,
+            device=self.device,
+            dtype=next(head.parameters()).dtype
+        )
 
     def first_tokens(self, options: Sequence[str]) -> list[int]:
         """Gives the token each option starts with, after the option prefix.

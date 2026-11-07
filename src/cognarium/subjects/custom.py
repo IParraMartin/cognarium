@@ -140,10 +140,12 @@ class CustomSubject(Subject):
         """
         if self.readout_path is None:
             return None
+        head = self.model.get_submodule(self.readout_path)
         return Readout(
-            head=self.model.get_submodule(self.readout_path),
+            head=head,
             decode=getattr(self.tokenizer, "decode", str),
-            device=self.device
+            device=self.device,
+            dtype=next(head.parameters()).dtype
         )
 
     def first_tokens(self, options: Sequence[str]) -> list[int]:

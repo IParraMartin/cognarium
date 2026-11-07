@@ -27,11 +27,13 @@ class Readout:
         head: Maps recorded states to logits over the vocabulary.
         decode: Turns a token id into text.
         device: Where `head` must run.
+        dtype: The precision `head` expects, which stored states may not have.
     """
 
     head: Callable[[torch.Tensor], torch.Tensor]
     decode: Callable[[int], str]
     device: torch.device
+    dtype: torch.dtype = torch.float32
 
 
 class Subject(ABC):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -13,6 +14,7 @@ from safetensors.torch import load_file
 
 from cognarium.errors import MissingAbilityError
 from cognarium.metrics.measures import MEASURES
+from cognarium.recording.lens import read_layers
 from cognarium.recording.store import HiddenStates
 
 if TYPE_CHECKING:
@@ -132,6 +134,59 @@ class Results:
             )
         return load_file(path)["logits"]
 
+    def lens(
+        self,
+        subject: Subject | None = None,
+        *,
+        layers: Sequence[str] | None = None,
+        batch_size: int = 256
+    ) -> pd.DataFrame:
+        """Reads each layer's states as if they had reached the output head.
+
+        This is the logit lens. It runs each recorded state through the subject's final
+        norm and output head, on the subject's device. Options are represented by their
+        first token, so measures of multi-token options are approximate.
+
+        Args:
+            subject: The subject that made this run. Only needed after `Results.load`.
+            layers: The layers to read. Defaults to every recorded layer.
+            batch_size: How many states go through the head at once.
+
+        Returns:
+            One row per query per layer, with the columns `step`, `query`, which is the
+            row's position in its step, `item`, the paradigm's grouping columns, `layer`,
+            `top_token`, `top_log_prob`, `entropy`, which is in bits over the whole
+            vocabulary, `option_log_probs`, which are normalised over the options,
+            `logit_margin`, `target_rank` and `logit_difference`.
+
+        Raises:
+            MissingAbilityError: If this run didn't record hidden states, its learners
+                were discarded because it trained weights, no subject is available, or
+                the subject has no output head or tokens.
+            ValueError: If the states weren't recorded with `pool="last"`, or `subject`
+                isn't the model this run used.
+        """
+        hidden = self.hidden
+        if hidden.pool != "last":
+            raise ValueError(f"The lens reads one position per query, so it needs pool='last', not {hidden.pool!r}.")
+        if self.manifest.get("learning") == "weights":
+            raise MissingAbilityError(
+                "The lens needs the model that made each state, but learning='weights' discards "
+                "each chain's learner after its generation."
+            )
+        reader = self._lens_subject(subject)
+        readout = reader.readout()
+        if readout is None or reader.first_tokens([]) is None:
+            raise MissingAbilityError(f"{type(reader).__name__} has no output head and tokens for the lens to read.")
+        return read_layers(
+            hidden,
+            readout,
+            reader.first_tokens,
+            group_by=self.manifest.get("group_by", ()),
+            layers=hidden.layers if layers is None else layers,
+            batch_size=batch_size
+        )
+
     def metrics(self, *names: str, **options: Any) -> pd.DataFrame:
         """Computes metrics from the results table.
 
@@ -182,3 +237,22 @@ class Results:
         if "reference" not in combined:
             combined["reference"] = None
         return combined[[*group_by, *_TABLE_COLUMNS]]
+
+    def _lens_subject(self, subject: Subject | None) -> Subject:
+        if subject is None and self.subject is None:
+            raise MissingAbilityError("This run was reopened from disk, so pass its subject: results.lens(subject).")
+        if subject is None or subject is self.subject:
+            return self.subject
+        if subject.readout() is None:
+            return subject
+        current = json.loads(json.dumps(subject.config()))
+        if current.get("pretrained") is False:
+            raise ValueError(
+                "This subject has untrained weights, which aren't part of a run's identity, so "
+                "there's no way to check they are the ones this run used."
+            )
+        stored = self.manifest["subject"]
+        differing = sorted(key for key in stored.keys() | current.keys() if stored.get(key) != current.get(key))
+        if differing:
+            raise ValueError(f"This subject isn't the one this run used. These differ: {differing}.")
+        return subject
