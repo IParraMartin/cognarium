@@ -1,0 +1,61 @@
+site_name: cognarium
+site_description: Run cognitive science experiments on language models and other learners.
+repo_url: https://github.com/IParraMartin/cognarium
+docs_dir: docs
+exclude_docs: |
+  superpowers/
+  results/
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: false
+            members_order: source
+            show_root_heading: true
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: docs
+      check_paths: true
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Quickstart: quickstart.md
+  - Concepts: concepts.md
+  - Custom paradigms: custom-paradigms.md
+  - Recording: recording.md
+  - Metrics: metrics.md
+  - Data: data.md
+  - Reproducibility: reproducibility.md
+  - Paradigms:
+      - Cognitive control: paradigms/control.md
+      - Memory: paradigms/memory.md
+      - Learning and transmission: paradigms/learning.md
+      - Language and semantics: paradigms/language.md
+      - Judgment and reasoning: paradigms/judgment.md
+  - API reference: api.md

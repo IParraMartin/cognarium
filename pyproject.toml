@@ -33,6 +33,10 @@ dev = [
     "scikit-learn",
     "scipy"
 ]
+docs = [
+    "mkdocs-material>=9.8.1",
+    "mkdocstrings[python]>=1.0.8"
+]
 all = []
 
 [tool.hatch.version]
