@@ -14,6 +14,7 @@ from cognarium.metrics.classification import (
     precision,
     recall
 )
+from cognarium.metrics.comparison import effect_comparison, item_correlation, split_half_ceiling
 from cognarium.metrics.detection import a_prime, criterion, d_prime
 from cognarium.metrics.geometry import (
     GEOMETRY,
@@ -66,12 +67,14 @@ __all__ = [
     "cross_entropy",
     "d_prime",
     "ece",
+    "effect_comparison",
     "entropy",
     "f1",
     "fdr",
     "hedges_g",
     "information_bottleneck",
     "intrinsic_dimension",
+    "item_correlation",
     "joint_entropy",
     "js_divergence",
     "kl_divergence",
@@ -90,6 +93,7 @@ __all__ = [
     "rbf_cka",
     "recall",
     "rsa",
+    "split_half_ceiling",
     "surprisal",
     "svcca"
 ]

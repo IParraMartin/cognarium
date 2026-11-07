@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import warnings
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -14,6 +15,7 @@ import torch
 from safetensors.torch import load_file
 
 from cognarium.errors import MissingAbilityError
+from cognarium.metrics.comparison import item_correlation
 from cognarium.metrics.measures import MEASURES, PROXIES, ROW_MEASURES
 from cognarium.metrics.statistics import contrast_table
 from cognarium.recording.lens import read_layers
@@ -308,17 +310,7 @@ class Results:
                 "have zero width. Use ci_by='item', or give participants context or personas."
             )
         rows = _matching(self._frame, where)
-        if measure in ROW_MEASURES:
-            values = ROW_MEASURES[measure](rows, **options)
-        elif measure in rows.columns and pd.api.types.is_numeric_dtype(rows[measure]):
-            values = rows[measure].to_numpy(dtype=np.float64)
-        else:
-            raise ValueError(f"Choose a measure from {sorted(ROW_MEASURES)} or a numeric column, got '{measure}'.")
-        if not np.isfinite(values).all() and not options.get("raw", False):
-            raise ValueError(
-                f"Some values of '{measure}' aren't finite, since top-k or top-p removed an option "
-                "they read. Use raw=True for the distribution before those settings."
-            )
+        values = _row_values(rows, measure, options)
         table = contrast_table(
             rows.assign(contrasted=values),
             "contrasted",
@@ -331,6 +323,82 @@ class Results:
             seed=seed
         )
         return table.assign(measure=measure, proxy_for=PROXIES.get(measure))
+
+    def compare_to_human(
+        self,
+        human: pd.DataFrame,
+        measure: str,
+        *,
+        on: str = "item",
+        value: str = "value",
+        where: Mapping[str, Any] | None = None,
+        method: str = "pearson",
+        ceiling: float | None = None,
+        **options: Any
+    ) -> pd.DataFrame:
+        """Correlates the model's item means of a measure with people's.
+
+        The measure is averaged over every row of each `on` level, and so is the human
+        table's `value`. Only levels on both sides are compared, and a warning counts
+        the ones dropped.
+
+        Args:
+            human: People's data, with one or more rows per level of `on`.
+            measure: A measure that `contrast` takes, or a numeric column.
+            on: The column both tables share, such as `item`.
+            value: The human table's column of values.
+            where: Keeps only the result rows whose columns equal these values.
+            method: `pearson` or `spearman`.
+            ceiling: A noise ceiling to report beside the correlation, such as
+                `cognarium.metrics.split_half_ceiling(ratings)["ceiling"]`.
+            **options: Passed to the measure, such as `option` for `option_probability`.
+
+        Returns:
+            One row with `measure`, `correlation`, its interval over items as `ci_low`
+            and `ci_high`, `n`, the number of shared items, `ceiling`, and `proxy_for`,
+            which names the human behaviour a proxy measure stands in for and is None
+            for any other measure.
+
+        Raises:
+            ValueError: If a column is missing, the human values aren't numbers, fewer
+                than 3 items are shared, or either side is constant.
+        """
+        for column in (on, value):
+            if column not in human.columns:
+                raise ValueError(f"The human table needs a column '{column}'. It has {list(human.columns)}.")
+        if not pd.api.types.is_numeric_dtype(human[value]):
+            raise ValueError(f"The human column '{value}' must hold numbers.")
+        rows = _matching(self._frame, where)
+        if on not in rows.columns:
+            raise ValueError(f"The results have no column '{on}'. They have {list(rows.columns)}.")
+        model = rows.assign(compared=_row_values(rows, measure, options)).groupby(on)["compared"].mean()
+        people = human.groupby(on)[value].mean()
+        shared = [level for level in model.index if level in people.index]
+        only_model, only_human = len(model) - len(shared), len(people) - len(shared)
+        if only_model or only_human:
+            warnings.warn(
+                f"{only_model} items are only in the results and {only_human} items are only in the human "
+                "table, so they were dropped.",
+                UserWarning,
+                stacklevel=2
+            )
+        if len(shared) < 3:
+            raise ValueError(
+                f"A correlation needs at least 3 items in both tables, and {len(shared)} are shared. Check "
+                f"that '{on}' holds the same values, of the same type, in both."
+            )
+        found = item_correlation(model[shared].to_numpy(), people[shared].to_numpy(), method=method)
+        return pd.DataFrame([
+            {
+                "measure": measure,
+                "correlation": found["correlation"],
+                "ci_low": found["ci_low"],
+                "ci_high": found["ci_high"],
+                "n": found["n"],
+                "ceiling": ceiling,
+                "proxy_for": PROXIES.get(measure)
+            }
+        ])
 
     def score(self) -> pd.DataFrame:
         """Reports the effects the paradigm declares.
@@ -377,3 +445,18 @@ def _matching(frame: pd.DataFrame, where: Mapping[str, Any] | None) -> pd.DataFr
     if rows.empty:
         raise ValueError(f"There are no rows where {dict(where or {})}.")
     return rows
+
+
+def _row_values(rows: pd.DataFrame, measure: str, options: Mapping[str, Any]) -> np.ndarray:
+    if measure in ROW_MEASURES:
+        values = ROW_MEASURES[measure](rows, **options)
+    elif measure in rows.columns and pd.api.types.is_numeric_dtype(rows[measure]):
+        values = rows[measure].to_numpy(dtype=np.float64)
+    else:
+        raise ValueError(f"Choose a measure from {sorted(ROW_MEASURES)} or a numeric column, got '{measure}'.")
+    if not np.isfinite(values).all() and not options.get("raw", False):
+        raise ValueError(
+            f"Some values of '{measure}' aren't finite, since top-k or top-p removed an option "
+            "they read. Use raw=True for the distribution before those settings."
+        )
+    return values
