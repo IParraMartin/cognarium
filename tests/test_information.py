@@ -39,3 +39,8 @@ def test_surprisal_in_bits():
 def test_base_changes_the_unit():
     even = torch.log(torch.tensor([0.5, 0.5], dtype=torch.float64))
     assert entropy(even, base=math.e).item() == pytest.approx(math.log(2))
+
+
+def test_entropy_of_a_certain_outcome_is_positive_zero():
+    certain = torch.tensor([0.0, -math.inf], dtype=torch.float64)
+    assert math.copysign(1.0, entropy(certain).item()) == 1.0

@@ -20,7 +20,8 @@ def entropy(log_probs: torch.Tensor, *, dim: int = -1, base: float = 2.0) -> tor
     """
     probs = log_probs.exp()
     terms = torch.where(probs > 0, probs * log_probs, torch.zeros_like(probs))
-    return -terms.sum(dim=dim) / math.log(base)
+    # adding zero turns -0.0 into 0.0, which would otherwise show up in printed tables
+    return -terms.sum(dim=dim) / math.log(base) + 0.0
 
 
 def kl_divergence(
