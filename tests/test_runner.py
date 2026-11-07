@@ -382,7 +382,12 @@ def test_steps_without_a_manifest_are_refused(tmp_path):
     shard.write_bytes((tmp_path / "run" / "steps" / "step-00000.parquet").read_bytes())
     subject = scripted()
     with pytest.raises(RunConflictError, match="manifest"):
-        run(made, subject, out=tmp_path / "foreign", progress=False)
+        run(
+            made,
+            subject,
+            out=tmp_path / "foreign",
+            progress=False
+        )
     assert subject.calls == 0
     assert shard.exists()
 

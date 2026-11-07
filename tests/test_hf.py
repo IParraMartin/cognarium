@@ -174,7 +174,12 @@ def test_load_records_the_revision(tiny_model_and_tokenizer, tmp_path, monkeypat
 
 def test_weights_still_count_when_there_is_a_revision(tiny_model_and_tokenizer):
     model, tok = tiny_model_and_tokenizer
-    subject = HFSubject(model, tok, device="cpu", revision="abc123")
+    subject = HFSubject(
+        model,
+        tok,
+        device="cpu",
+        revision="abc123"
+    )
     before = subject.config()
     assert before["revision"] == "abc123"
     with torch.no_grad():
