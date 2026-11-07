@@ -116,3 +116,13 @@ def test_runs_on_every_device(device):
     task = ShepardCategories(type="I")
     scores = ExemplarLearner(device=device).respond([query_for(task, 0, all_items(task))]).scores
     assert scores.device.type == "cpu"
+
+
+def test_attention_must_have_one_weight_per_feature():
+    task = ShepardCategories(type="I")
+    query = Query(
+        trial=Trial(task.stimuli[0], options=task.options, item=0),
+        context=(Observation(task.stimuli[1], "A"),)
+    )
+    with pytest.raises(ValueError, match="attention"):
+        ExemplarLearner(attention=[1.0]).respond([query])

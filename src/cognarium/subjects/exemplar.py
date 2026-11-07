@@ -159,6 +159,9 @@ class ExemplarLearner(Subject):
 
     def _weights(self, n_features: int) -> torch.Tensor:
         values = [1.0] * n_features if self.attention is None else self.attention
+        # a single weight would broadcast across every feature without complaint
+        if len(values) != n_features:
+            raise ValueError(f"attention needs one weight per feature: {n_features}, got {len(values)}.")
         weights = torch.tensor(values, dtype=self.dtype, device=self.device)
         return weights / weights.sum()
 
