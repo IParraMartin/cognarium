@@ -1,0 +1,149 @@
+{
+  "note": "Characters, objects and places written for cognarium. Both forms of each story come from one template. Not taken from a published task and not human-normed.",
+  "rows": [
+    {
+      "name": "Mira",
+      "object": "ball",
+      "first_place": "basket",
+      "second_place": "box"
+    },
+    {
+      "name": "Theo",
+      "object": "key",
+      "first_place": "drawer",
+      "second_place": "cupboard"
+    },
+    {
+      "name": "Ravi",
+      "object": "book",
+      "first_place": "bag",
+      "second_place": "bookcase"
+    },
+    {
+      "name": "Nadia",
+      "object": "scarf",
+      "first_place": "wardrobe",
+      "second_place": "suitcase"
+    },
+    {
+      "name": "Felix",
+      "object": "coin",
+      "first_place": "jar",
+      "second_place": "tin"
+    },
+    {
+      "name": "Leila",
+      "object": "apple",
+      "first_place": "bowl",
+      "second_place": "fridge"
+    },
+    {
+      "name": "Jonas",
+      "object": "toy car",
+      "first_place": "toy box",
+      "second_place": "chest"
+    },
+    {
+      "name": "Ines",
+      "object": "pencil",
+      "first_place": "pencil case",
+      "second_place": "desk drawer"
+    },
+    {
+      "name": "Malik",
+      "object": "phone",
+      "first_place": "coat pocket",
+      "second_place": "backpack"
+    },
+    {
+      "name": "Greta",
+      "object": "cake",
+      "first_place": "cupboard",
+      "second_place": "oven"
+    },
+    {
+      "name": "Arjun",
+      "object": "ring",
+      "first_place": "jewellery box",
+      "second_place": "sock drawer"
+    },
+    {
+      "name": "Elif",
+      "object": "letter",
+      "first_place": "envelope",
+      "second_place": "folder"
+    },
+    {
+      "name": "Sami",
+      "object": "hat",
+      "first_place": "closet",
+      "second_place": "trunk"
+    },
+    {
+      "name": "Olga",
+      "object": "doll",
+      "first_place": "crate",
+      "second_place": "basket"
+    },
+    {
+      "name": "Pablo",
+      "object": "marble",
+      "first_place": "cup",
+      "second_place": "bucket"
+    },
+    {
+      "name": "Hana",
+      "object": "bracelet",
+      "first_place": "purse",
+      "second_place": "tray"
+    },
+    {
+      "name": "Viktor",
+      "object": "glove",
+      "first_place": "locker",
+      "second_place": "sports bag"
+    },
+    {
+      "name": "Chloe",
+      "object": "sandwich",
+      "first_place": "lunchbox",
+      "second_place": "fridge"
+    },
+    {
+      "name": "Tariq",
+      "object": "map",
+      "first_place": "glovebox",
+      "second_place": "rucksack"
+    },
+    {
+      "name": "Lena",
+      "object": "shell",
+      "first_place": "jar",
+      "second_place": "tin"
+    },
+    {
+      "name": "Diego",
+      "object": "torch",
+      "first_place": "rucksack",
+      "second_place": "tent"
+    },
+    {
+      "name": "Anya",
+      "object": "notebook",
+      "first_place": "desk",
+      "second_place": "bookcase"
+    },
+    {
+      "name": "Kenji",
+      "object": "remote control",
+      "first_place": "drawer",
+      "second_place": "basket"
+    },
+    {
+      "name": "Saoirse",
+      "object": "brush",
+      "first_place": "cabinet",
+      "second_place": "washbag"
+    }
+  ]
+}

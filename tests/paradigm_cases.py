@@ -10,6 +10,7 @@ import torch
 
 from cognarium.paradigms import (
     control,
+    judgment,
     language,
     learning,
     memory
@@ -204,5 +205,9 @@ CASES: dict[str, Case] = {
     "lexical_decision": Case(language.LexicalDecision),
     "garden_path": Case(language.GardenPath),
     "minimal_pairs": Case(language.MinimalPairs),
-    "fluency": Case(language.Fluency, _fluency_text)
+    "fluency": Case(language.Fluency, _fluency_text),
+    "anchoring": Case(judgment.Anchoring),
+    "framing": Case(judgment.Framing),
+    "conjunction_fallacy": Case(judgment.ConjunctionFallacy),
+    "false_belief": Case(judgment.FalseBelief)
 }
