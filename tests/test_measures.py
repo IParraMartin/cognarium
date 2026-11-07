@@ -9,6 +9,7 @@ import pytest
 import torch
 from safetensors.torch import save_file
 
+from cognarium import metrics
 from cognarium.errors import MissingAbilityError
 from cognarium.results import Results, logits_path, step_path
 
@@ -170,3 +171,167 @@ def test_logits_are_read_back(tmp_path):
     logits_path(tmp_path, 1).parent.mkdir()
     save_file({"logits": expected}, logits_path(tmp_path, 1))
     assert torch.equal(Results(tmp_path, chain_frame(), MANIFEST).logits(1), expected)
+
+
+def log_pairs(first_option):
+    return [[math.log(p), math.log(1 - p)] for p in first_option]
+
+
+def scored_frame():
+    return pd.DataFrame(
+        {
+            "generation": 0,
+            "options": [["A", "B"] for _ in range(6)],
+            "answer": ["A", "A", "A", "B", "B", "B"],
+            "response": ["A", "B", "A", "B", "B", "A"],
+            "log_probs": log_pairs([0.9, 0.4, 0.7, 0.2, 0.3, 0.6]),
+            "shaped_log_probs": log_pairs([0.99, 0.1, 0.8, 0.3, 0.2, 0.7])
+        }
+    )
+
+
+def predictions():
+    return torch.tensor([0, 1, 0, 1, 1, 0])
+
+
+def targets():
+    return torch.tensor([0, 0, 0, 1, 1, 1])
+
+
+def probabilities(column):
+    return torch.tensor(scored_frame()[column].tolist(), dtype=torch.float64).exp()
+
+
+@pytest.mark.parametrize("name", ["balanced_accuracy", "precision", "recall", "f1", "mcc"])
+def test_label_measures_use_response_and_answer(name):
+    table = results(frame=scored_frame()).metrics(name)
+    expected = getattr(metrics, name)(predictions(), targets())
+    assert values(table, name)[0] == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("name", ["precision", "recall", "f1"])
+def test_positive_names_an_option(name):
+    table = results(frame=scored_frame()).metrics(name, positive="B")
+    expected = getattr(metrics, name)(predictions(), targets(), positive=1)
+    assert values(table, name)[0] == pytest.approx(expected)
+
+
+def test_label_measures_skip_rows_without_an_answer():
+    frame = pd.concat([scored_frame(), scored_frame().head(1).assign(answer=None, response="B")], ignore_index=True)
+    table = results(frame=frame).metrics("balanced_accuracy")
+    assert values(table, "balanced_accuracy")[0] == pytest.approx(metrics.balanced_accuracy(predictions(), targets()))
+
+
+@pytest.mark.parametrize("name", ["auroc", "auprc", "brier", "ece"])
+def test_probability_measures_use_shaped_unless_raw(name):
+    plain = getattr(metrics, name)
+    shaped = values(results(frame=scored_frame()).metrics(name), name)[0]
+    raw = values(results(frame=scored_frame()).metrics(name, raw=True), name)[0]
+    assert shaped == pytest.approx(plain(probabilities("shaped_log_probs"), targets()))
+    assert raw == pytest.approx(plain(probabilities("log_probs"), targets()))
+    assert shaped != pytest.approx(raw)
+
+
+def test_ece_takes_its_bin_count():
+    table = results(frame=scored_frame()).metrics("ece", n_bins=2)
+    expected = metrics.ece(probabilities("shaped_log_probs"), targets(), n_bins=2)
+    assert values(table, "ece")[0] == pytest.approx(expected)
+
+
+def test_probability_measures_accept_a_rounded_up_probability():
+    frame = scored_frame()
+    frame["shaped_log_probs"] = [[1e-16, -math.inf]] * 3 + [[-math.inf, 1e-16]] * 3
+    assert values(results(frame=frame).metrics("auroc"), "auroc")[0] == pytest.approx(1.0)
+
+
+def test_cross_entropy_and_perplexity():
+    table = results(frame=scored_frame()).metrics("cross_entropy", "perplexity", raw=True)
+    answer_probabilities = torch.tensor([0.9, 0.4, 0.7, 0.8, 0.7, 0.4], dtype=torch.float64)
+    expected = -answer_probabilities.log2().mean().item()
+    assert values(table, "cross_entropy")[0] == pytest.approx(expected)
+    assert values(table, "perplexity")[0] == pytest.approx(2**expected)
+
+
+def test_cross_entropy_is_infinite_for_an_impossible_answer():
+    frame = scored_frame()
+    frame["shaped_log_probs"] = [[-math.inf, 0.0]] * 6
+    table = results(frame=frame).metrics("cross_entropy", "perplexity")
+    assert values(table, "cross_entropy")[0] == math.inf
+    assert values(table, "perplexity")[0] == math.inf
+
+
+def test_detection_measures_use_the_first_option_by_default():
+    frame = scored_frame()
+    assert values(results(frame=frame).metrics("d_prime"), "d_prime")[0] == pytest.approx(metrics.d_prime(2, 1, 1, 2))
+    for name in ["d_prime", "criterion", "a_prime"]:
+        default = values(results(frame=frame).metrics(name), name)[0]
+        assert default == pytest.approx(values(results(frame=frame).metrics(name, positive="A"), name)[0])
+
+
+def test_swapping_the_positive_option_flips_only_the_bias():
+    frame = pd.concat([scored_frame(), scored_frame().head(3).assign(response="A")], ignore_index=True)
+    measured = {
+        (name, positive): values(results(frame=frame).metrics(name, positive=positive), name)[0]
+        for name in ["d_prime", "criterion", "a_prime"]
+        for positive in ["A", "B"]
+    }
+    assert measured["criterion", "A"] != pytest.approx(0.0)
+    assert measured["criterion", "B"] == pytest.approx(-measured["criterion", "A"])
+    assert measured["d_prime", "B"] == pytest.approx(measured["d_prime", "A"])
+    assert measured["a_prime", "B"] == pytest.approx(measured["a_prime", "A"])
+
+
+@pytest.mark.parametrize("name", ["precision", "d_prime"])
+def test_unknown_positive_option_raises(name):
+    with pytest.raises(ValueError, match="'C'"):
+        results(frame=scored_frame()).metrics(name, positive="C")
+
+
+@pytest.mark.parametrize("name", ["logit_margin", "logit_difference", "target_rank", "vocab_entropy"])
+def test_logit_measures_average_their_column_and_drop_empty_rows(name):
+    frame = scored_frame().assign(**{name: [1.0, 2.0, 3.0, None, None, 6.0]})
+    assert values(results(frame=frame).metrics(name), name)[0] == pytest.approx(3.0)
+
+
+def test_logit_measures_need_recorded_logits():
+    with pytest.raises(MissingAbilityError, match="logit_margin"):
+        results().metrics("logit_margin")
+
+
+def test_logit_measure_with_no_values_raises():
+    frame = scored_frame().assign(target_rank=None)
+    with pytest.raises(MissingAbilityError, match="target_rank"):
+        results(frame=frame).metrics("target_rank")
+
+
+def test_mixed_option_lists_raise():
+    frame = scored_frame()
+    frame["options"] = [["A", "C"]] + [["A", "B"] for _ in range(5)]
+    for name in ["f1", "auroc", "cross_entropy", "d_prime"]:
+        with pytest.raises(ValueError, match=name):
+            results(frame=frame).metrics(name)
+
+
+def test_answer_outside_the_options_raises():
+    frame = scored_frame().assign(answer=["C", "A", "A", "B", "B", "B"])
+    with pytest.raises(ValueError, match="'C'"):
+        results(frame=frame).metrics("f1")
+
+
+def test_one_class_group_names_the_group():
+    frame = pd.concat([scored_frame(), scored_frame().assign(generation=1, answer="A")], ignore_index=True)
+    with pytest.raises(ValueError, match="generation=1"):
+        results(frame=frame).metrics("auroc")
+
+
+@pytest.mark.parametrize("name", ["f1", "auroc", "cross_entropy", "d_prime"])
+def test_measures_need_an_answer(name):
+    with pytest.raises(MissingAbilityError, match=name):
+        results(frame=scored_frame().assign(answer=None)).metrics(name)
+
+
+def test_measures_read_the_arrays_parquet_gives_back(tmp_path):
+    scored_frame().to_parquet(tmp_path / "frame.parquet")
+    frame = pd.read_parquet(tmp_path / "frame.parquet")
+    table = results(frame=frame).metrics("f1", "auroc", "cross_entropy", "d_prime")
+    assert table["value"].notna().all()

@@ -114,18 +114,26 @@ class Results:
         """Computes metrics from the results table.
 
         Args:
-            *names: The metrics to compute: accuracy, fidelity, entropy, surprisal,
-                chain_entropy or kl.
-            **options: Passed to the metrics that accept them. `raw=True` makes
-                entropy and surprisal use the distribution before temperature and
-                top-p. `reference` and `smoothing` configure kl.
+            *names: The metrics to compute. From the responses and answers: accuracy,
+                balanced_accuracy, precision, recall, f1, mcc, d_prime, criterion or
+                a_prime. From the probabilities: entropy, surprisal, auroc, auprc,
+                brier, ece, cross_entropy or perplexity. From iterated learning:
+                fidelity, chain_entropy or kl. With recorded logits: logit_margin,
+                logit_difference, target_rank or vocab_entropy.
+            **options: Passed to the metrics that accept them. `raw=True` makes a
+                probability metric use the distribution before temperature and top-p.
+                `positive` names the option treated as the positive class. It defaults
+                to the macro average for precision, recall and f1, and to the first
+                option for the detection metrics. `n_bins` configures ece, and
+                `reference` and `smoothing` configure kl.
 
         Returns:
             A table with the paradigm's grouping columns, then `metric`, `value` and
             `reference`, which names what kl compared against.
 
         Raises:
-            ValueError: If no names are given, or a name is unknown.
+            ValueError: If no names are given, a name is unknown, or a metric is
+                undefined for a group, which the message names.
             TypeError: If an option isn't accepted by any requested metric.
             MissingAbilityError: If this run lacks the columns a metric needs.
         """

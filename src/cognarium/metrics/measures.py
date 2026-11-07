@@ -21,7 +21,7 @@ import pandas as pd
 import torch
 
 from cognarium.errors import MissingAbilityError
-from cognarium.metrics import information
+from cognarium.metrics import classification, detection, information
 
 
 def _accuracy(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
@@ -115,13 +115,153 @@ def _kl(
     return _apply_by(chains, group_by, divergence).assign(reference=source)
 
 
+def _label_measure(name: str, metric: Callable[..., float]) -> Callable[..., pd.DataFrame]:
+    def measure(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
+        scored, options = _answered(frame, name, ["response"], group_by)
+        return _apply_by(scored, group_by, lambda part: metric(*_classes(part, options)))
+
+    return measure
+
+
+def _one_class_measure(name: str, metric: Callable[..., float]) -> Callable[..., pd.DataFrame]:
+    def measure(
+        frame: pd.DataFrame,
+        group_by: Sequence[str],
+        manifest: Mapping[str, Any],
+        positive: str | None = None
+    ) -> pd.DataFrame:
+        scored, options = _answered(frame, name, ["response"], group_by)
+        chosen = None if positive is None else options.index(_check_positive(positive, options))
+        return _apply_by(scored, group_by, lambda part: metric(*_classes(part, options), positive=chosen))
+
+    return measure
+
+
+def _probability_measure(name: str, metric: Callable[..., float]) -> Callable[..., pd.DataFrame]:
+    def measure(
+        frame: pd.DataFrame,
+        group_by: Sequence[str],
+        manifest: Mapping[str, Any],
+        raw: bool = False
+    ) -> pd.DataFrame:
+        column = "log_probs" if raw else "shaped_log_probs"
+        scored, options = _answered(frame, name, [column], group_by)
+        return _apply_by(scored, group_by, lambda part: metric(_probabilities(part, column), _answers(part, options)))
+
+    return measure
+
+
+def _ece(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    raw: bool = False,
+    n_bins: int = 15
+) -> pd.DataFrame:
+    column = "log_probs" if raw else "shaped_log_probs"
+    scored, options = _answered(frame, "ece", [column], group_by)
+    return _apply_by(
+        scored,
+        group_by,
+        lambda part: classification.ece(
+            _probabilities(part, column),
+            _answers(part, options),
+            n_bins=n_bins
+        )
+    )
+
+
+def _cross_entropy(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    raw: bool = False
+) -> pd.DataFrame:
+    column = "log_probs" if raw else "shaped_log_probs"
+    scored, options = _answered(frame, "cross_entropy", [column], group_by)
+    return _apply_by(
+        scored,
+        group_by,
+        lambda part: information.surprisal(_answer_log_probs(part, column, options)).mean().item()
+    )
+
+
+def _perplexity(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    raw: bool = False
+) -> pd.DataFrame:
+    column = "log_probs" if raw else "shaped_log_probs"
+    scored, options = _answered(frame, "perplexity", [column], group_by)
+    return _apply_by(
+        scored,
+        group_by,
+        lambda part: information.perplexity(_answer_log_probs(part, column, options)).item()
+    )
+
+
+def _detection_measure(name: str, metric: Callable[..., float]) -> Callable[..., pd.DataFrame]:
+    def measure(
+        frame: pd.DataFrame,
+        group_by: Sequence[str],
+        manifest: Mapping[str, Any],
+        positive: str | None = None
+    ) -> pd.DataFrame:
+        scored, options = _answered(frame, name, ["response"], group_by)
+        signal = options[0] if positive is None else _check_positive(positive, options)
+
+        def score(part: pd.DataFrame) -> float:
+            is_signal = part["answer"] == signal
+            said_signal = part["response"] == signal
+            return metric(
+                int((is_signal & said_signal).sum()),
+                int((is_signal & ~said_signal).sum()),
+                int((~is_signal & said_signal).sum()),
+                int((~is_signal & ~said_signal).sum())
+            )
+
+        return _apply_by(scored, group_by, score)
+
+    return measure
+
+
+def _column_mean(name: str) -> Callable[..., pd.DataFrame]:
+    def measure(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
+        _require(frame, name, [name, *group_by])
+        present = frame[frame[name].notna()]
+        if present.empty:
+            raise MissingAbilityError(f"Measure '{name}' has no values in this run.")
+        return _mean_by(present, group_by, present[name].to_numpy(dtype=float))
+
+    return measure
+
+
 MEASURES: dict[str, Callable[..., pd.DataFrame]] = {
     "accuracy": _accuracy,
     "fidelity": _fidelity,
     "entropy": _entropy,
     "surprisal": _surprisal,
     "chain_entropy": _chain_entropy,
-    "kl": _kl
+    "kl": _kl,
+    "balanced_accuracy": _label_measure("balanced_accuracy", classification.balanced_accuracy),
+    "precision": _one_class_measure("precision", classification.precision),
+    "recall": _one_class_measure("recall", classification.recall),
+    "f1": _one_class_measure("f1", classification.f1),
+    "mcc": _label_measure("mcc", classification.mcc),
+    "auroc": _probability_measure("auroc", classification.auroc),
+    "auprc": _probability_measure("auprc", classification.auprc),
+    "brier": _probability_measure("brier", classification.brier),
+    "ece": _ece,
+    "cross_entropy": _cross_entropy,
+    "perplexity": _perplexity,
+    "d_prime": _detection_measure("d_prime", detection.d_prime),
+    "criterion": _detection_measure("criterion", detection.criterion),
+    "a_prime": _detection_measure("a_prime", detection.a_prime),
+    "logit_margin": _column_mean("logit_margin"),
+    "logit_difference": _column_mean("logit_difference"),
+    "target_rank": _column_mean("target_rank"),
+    "vocab_entropy": _column_mean("vocab_entropy")
 }
 
 
@@ -129,6 +269,51 @@ def _require(frame: pd.DataFrame, name: str, columns: Iterable[str]) -> None:
     missing = sorted(set(columns) - set(frame.columns))
     if missing:
         raise MissingAbilityError(f"Measure '{name}' needs columns {missing}, which this run doesn't have.")
+
+
+def _answered(
+    frame: pd.DataFrame,
+    name: str,
+    columns: Iterable[str],
+    group_by: Sequence[str]
+) -> tuple[pd.DataFrame, list[str]]:
+    _require(frame, name, ["answer", "options", *columns, *group_by])
+    scored = frame[frame["answer"].notna()]
+    if scored.empty:
+        raise MissingAbilityError(f"Measure '{name}' needs trials with a correct answer.")
+    lists = {tuple(options) for options in scored["options"]}
+    if len(lists) > 1:
+        raise ValueError(f"Measure '{name}' needs one option list, but this run has {sorted(lists)}.")
+    options = [str(option) for option in lists.pop()]
+    outside = sorted(set(scored["answer"]) - set(options))
+    if outside:
+        raise ValueError(f"Measure '{name}' found answers {outside} outside the options {options}.")
+    return scored, options
+
+
+def _check_positive(positive: str, options: Sequence[str]) -> str:
+    if positive not in options:
+        raise ValueError(f"The positive option '{positive}' isn't one of {list(options)}.")
+    return positive
+
+
+def _answers(part: pd.DataFrame, options: Sequence[str]) -> torch.Tensor:
+    return torch.tensor([options.index(answer) for answer in part["answer"]])
+
+
+def _classes(part: pd.DataFrame, options: Sequence[str]) -> tuple[torch.Tensor, torch.Tensor]:
+    predicted = torch.tensor([options.index(response) for response in part["response"]])
+    return predicted, _answers(part, options)
+
+
+def _probabilities(part: pd.DataFrame, column: str) -> torch.Tensor:
+    # a log probability can round up to just above 0
+    return _stack(part[column]).exp().clamp(0, 1)
+
+
+def _answer_log_probs(part: pd.DataFrame, column: str, options: Sequence[str]) -> torch.Tensor:
+    rows = _stack(part[column])
+    return rows[torch.arange(len(rows)), _answers(part, options)]
 
 
 def _apply_by(
@@ -140,7 +325,12 @@ def _apply_by(
         return pd.DataFrame({"value": [function(frame)]})
     rows = []
     for key, part in frame.groupby(list(group_by), sort=True):
-        rows.append({**dict(zip(group_by, key, strict=True)), "value": function(part)})
+        labels = dict(zip(group_by, key, strict=True))
+        try:
+            rows.append({**labels, "value": function(part)})
+        except ValueError as error:
+            described = ", ".join(f"{column}={value}" for column, value in labels.items())
+            raise ValueError(f"For {described}: {error}") from error
     return pd.DataFrame(rows)
 
 
