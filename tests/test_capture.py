@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from types import SimpleNamespace
 
 import pytest
@@ -77,14 +78,18 @@ def test_a_head_without_a_list_of_blocks_explains():
 
 def test_a_passed_layer_map_wins(tiny_model_and_tokenizer):
     model, tok = tiny_model_and_tokenizer
+    model = copy.deepcopy(model)
+    model.other_head = copy.deepcopy(model.lm_head)
     subject = HFSubject(
         model,
         tok,
         device="cpu",
-        layer_map=LayerMap("transformer.h", None, "lm_head")
+        layer_map=LayerMap("transformer.h", "transformer.ln_f", "other_head")
     )
-    states = torch.zeros(1, 16)
-    assert torch.equal(subject.readout().head(states), model.lm_head(states))
+    readout = subject.readout()
+    with torch.no_grad():
+        model.other_head.weight.zero_()
+    assert readout.head(torch.ones(1, 16)).abs().max() == 0
 
 
 def test_last_pool_takes_the_last_real_token_under_padding(tiny_model_and_tokenizer):

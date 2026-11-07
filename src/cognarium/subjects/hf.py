@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from typing import Any
 
 import torch
 
 from cognarium.device import resolve_device
-from cognarium.recording.capture import StateCapture, hook_layers
+from cognarium.errors import MissingAbilityError
+from cognarium.recording.capture import StateCapture, hook_layers, pool_states
 from cognarium.recording.layers import LayerMap, find_layer_map
 from cognarium.responses import Query, Responses
 from cognarium.subjects.base import Readout, Subject, weights_digest
 from cognarium.subjects.scoring import score_options
+
+_CHECK_TOKENS = 8
+_READOUT_TOLERANCE = 1e-3
 
 
 class HFSubject(Subject):
@@ -116,18 +120,24 @@ class HFSubject(Subject):
         """Gives the model's final norm and output head.
 
         Returns:
-            A readout whose head computes `head(norm(states))`.
+            A readout whose head computes `head(norm(states))`, followed by the soft
+            cap that some models put on their logits.
 
         Raises:
-            MissingAbilityError: If the model's head can't be found.
+            MissingAbilityError: If the model's head can't be found, or reading its
+                last block doesn't give its own logits, as when a model rescales them
+                after the head or the layer map is wrong.
         """
         layer_map = self._layer_map()
         head = self.model.get_submodule(layer_map.head)
         norm = None if layer_map.norm is None else self.model.get_submodule(layer_map.norm)
+        cap = getattr(self.model.config, "final_logit_softcapping", None)
 
         def read(states: torch.Tensor) -> torch.Tensor:
-            return head(states if norm is None else norm(states))
+            logits = head(states if norm is None else norm(states))
+            return logits if cap is None else torch.tanh(logits / cap) * cap
 
+        self._check_readout(read)
         return Readout(
             head=read,
             decode=self.tokenizer.decode,
@@ -177,6 +187,34 @@ class HFSubject(Subject):
 
     def _encode_option(self, text: str) -> list[int]:
         return self.tokenizer(text, add_special_tokens=False)["input_ids"]
+
+    def _check_readout(self, read: Callable[[torch.Tensor], torch.Tensor]) -> None:
+        # a model can do anything to its logits after the head, so this looks at the result
+        vocabulary = self.model.get_input_embeddings().num_embeddings
+        ids = (torch.arange(_CHECK_TOKENS, device=self.device) % vocabulary)[None]
+        mask = torch.ones_like(ids)
+        states = []
+        last_block = list(self._blocks().values())[-1]
+        handle = last_block.register_forward_hook(
+            lambda _module, _inputs, output: states.append(pool_states(output, mask, None)[0])
+        )
+        try:
+            with torch.inference_mode():
+                logits = self._forward(ids, mask)
+                try:
+                    gap = (read(states[0]) - logits).abs().max().item()
+                except RuntimeError as error:
+                    raise MissingAbilityError(
+                        f"The head of {type(self.model).__name__} doesn't fit its last block's states, "
+                        f"so the logit lens can't read them: {error}"
+                    ) from error
+        finally:
+            handle.remove()
+        if gap > _READOUT_TOLERANCE * logits.abs().max().item():
+            raise MissingAbilityError(
+                f"Reading the last block of {type(self.model).__name__} misses its own logits by {gap:.3g}, so the "
+                "logit lens would be wrong. The model may change its logits after its head, or its layer map is wrong."
+            )
 
     def _layer_map(self) -> LayerMap:
         return self.layer_map if self.layer_map is not None else find_layer_map(self.model)

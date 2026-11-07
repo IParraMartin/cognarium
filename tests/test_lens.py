@@ -5,11 +5,12 @@ import copy
 import pandas as pd
 import pytest
 import torch
-from helpers import tiny_architecture
+from helpers import TINY_ARCHITECTURES, tiny_architecture
 
 from cognarium.errors import MissingAbilityError
 from cognarium.models.lstm import LSTMLanguageModel, SimpleTokenizer
 from cognarium.paradigms.learning import IteratedLearning
+from cognarium.recording.layers import LayerMap
 from cognarium.results import Results
 from cognarium.runner import run
 from cognarium.subjects.bayesian import BayesianLearner
@@ -40,7 +41,7 @@ def recorded(
     )
 
 
-@pytest.mark.parametrize("name", ["gpt2", "llama", "gpt_neox", "opt"])
+@pytest.mark.parametrize("name", sorted(TINY_ARCHITECTURES))
 def test_final_layer_reproduces_the_models_own_logits(name, tiny_tokenizer, tmp_path):
     model = tiny_architecture(name, tiny_tokenizer)
     subject = HFSubject(model, tiny_tokenizer, device="cpu")
@@ -53,6 +54,67 @@ def test_final_layer_reproduces_the_models_own_logits(name, tiny_tokenizer, tmp_
     table = results.lens()
     final = table[table["layer"] == "layer_01"]
     assert final["top_token"].tolist() == [tiny_tokenizer.decode([i]) for i in logits.argmax(dim=-1).tolist()]
+
+
+def test_final_layer_reproduces_soft_capped_logits(tiny_tokenizer, tmp_path):
+    model = tiny_architecture("gemma2", tiny_tokenizer)
+    model.config.final_logit_softcapping = 30.0
+    # random weights keep logits far below the cap, where it changes nothing
+    with torch.no_grad():
+        model.lm_head.weight.mul_(400)
+    subject = HFSubject(model, tiny_tokenizer, device="cpu")
+    results = recorded(subject, tmp_path, state_dtype="float32")
+    logits = torch.cat([results.logits(step) for step in range(3)])
+    assert logits.abs().max() > 20
+    with torch.inference_mode():
+        read = subject.readout().head(results.hidden.to_tensor("layer_01").to(subject.device))
+    assert torch.allclose(read, logits, atol=1e-3)
+
+
+def test_readout_refuses_a_model_that_changes_logits_after_its_head(tiny_tokenizer):
+    from transformers import AutoConfig, AutoModelForCausalLM
+
+    config = AutoConfig.for_model(
+        "cohere",
+        vocab_size=len(tiny_tokenizer),
+        hidden_size=16,
+        intermediate_size=32,
+        num_hidden_layers=2,
+        num_attention_heads=2
+    )
+    subject = HFSubject(AutoModelForCausalLM.from_config(config), tiny_tokenizer, device="cpu")
+    with pytest.raises(MissingAbilityError, match="logits"):
+        subject.readout()
+
+
+def test_readout_refuses_a_head_that_does_not_fit_the_blocks(tiny_tokenizer):
+    from transformers import AutoConfig, AutoModelForCausalLM
+
+    config = AutoConfig.for_model(
+        "opt",
+        vocab_size=len(tiny_tokenizer),
+        hidden_size=16,
+        word_embed_proj_dim=8,
+        ffn_dim=32,
+        num_hidden_layers=2,
+        num_attention_heads=2
+    )
+    subject = HFSubject(AutoModelForCausalLM.from_config(config), tiny_tokenizer, device="cpu")
+    with pytest.raises(MissingAbilityError, match="fit"):
+        subject.readout()
+
+
+def test_readout_refuses_a_layer_map_that_misses_the_norm(tiny_model_and_tokenizer):
+    model, tok = tiny_model_and_tokenizer
+    wrong = LayerMap(layers="transformer.h", norm=None, head="lm_head")
+    subject = HFSubject(
+        model,
+        tok,
+        device="cpu",
+        layer_map=wrong
+    )
+    with pytest.raises(MissingAbilityError, match="logits"):
+        subject.readout()
 
 
 def test_lens_table_shape_and_values(tiny_model_and_tokenizer, tmp_path):
