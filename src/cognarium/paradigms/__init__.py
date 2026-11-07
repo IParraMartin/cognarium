@@ -17,6 +17,13 @@ from cognarium.paradigms.control import (
     TaskSwitching
 )
 from cognarium.paradigms.learning import IteratedLearning
+from cognarium.paradigms.memory import (
+    DRM,
+    FreeRecall,
+    NBack,
+    Span,
+    Sternberg
+)
 
 PARADIGMS: dict[str, type[Paradigm]] = {
     paradigm.name: paradigm
@@ -27,20 +34,30 @@ PARADIGMS: dict[str, type[Paradigm]] = {
         Simon,
         GoNoGo,
         StopSignal,
-        TaskSwitching
+        TaskSwitching,
+        NBack,
+        Span,
+        Sternberg,
+        FreeRecall,
+        DRM
     )
 }
 
 __all__ = [
+    "DRM",
     "PARADIGMS",
     "Effect",
     "Flanker",
+    "FreeRecall",
     "GoNoGo",
     "HypothesisSpace",
     "IteratedLearning",
+    "NBack",
     "Paradigm",
     "Simon",
+    "Span",
     "Step",
+    "Sternberg",
     "StopSignal",
     "Stroop",
     "TaskSwitching"

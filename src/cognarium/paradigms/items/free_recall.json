@@ -1,0 +1,434 @@
+{
+  "note": "Common concrete nouns chosen for cognarium. They are not a published word pool and are not human-normed.",
+  "rows": [
+    {
+      "word": "anchor"
+    },
+    {
+      "word": "apple"
+    },
+    {
+      "word": "arrow"
+    },
+    {
+      "word": "badge"
+    },
+    {
+      "word": "basket"
+    },
+    {
+      "word": "bell"
+    },
+    {
+      "word": "blanket"
+    },
+    {
+      "word": "boat"
+    },
+    {
+      "word": "bottle"
+    },
+    {
+      "word": "bracelet"
+    },
+    {
+      "word": "bread"
+    },
+    {
+      "word": "brick"
+    },
+    {
+      "word": "bridge"
+    },
+    {
+      "word": "broom"
+    },
+    {
+      "word": "brush"
+    },
+    {
+      "word": "bucket"
+    },
+    {
+      "word": "button"
+    },
+    {
+      "word": "cabin"
+    },
+    {
+      "word": "camera"
+    },
+    {
+      "word": "candle"
+    },
+    {
+      "word": "canoe"
+    },
+    {
+      "word": "carpet"
+    },
+    {
+      "word": "carrot"
+    },
+    {
+      "word": "castle"
+    },
+    {
+      "word": "chair"
+    },
+    {
+      "word": "cheese"
+    },
+    {
+      "word": "chimney"
+    },
+    {
+      "word": "clock"
+    },
+    {
+      "word": "cloud"
+    },
+    {
+      "word": "coin"
+    },
+    {
+      "word": "collar"
+    },
+    {
+      "word": "comb"
+    },
+    {
+      "word": "compass"
+    },
+    {
+      "word": "cookie"
+    },
+    {
+      "word": "cotton"
+    },
+    {
+      "word": "crayon"
+    },
+    {
+      "word": "crown"
+    },
+    {
+      "word": "cup"
+    },
+    {
+      "word": "curtain"
+    },
+    {
+      "word": "cushion"
+    },
+    {
+      "word": "desk"
+    },
+    {
+      "word": "diamond"
+    },
+    {
+      "word": "dish"
+    },
+    {
+      "word": "door"
+    },
+    {
+      "word": "drum"
+    },
+    {
+      "word": "eagle"
+    },
+    {
+      "word": "elbow"
+    },
+    {
+      "word": "engine"
+    },
+    {
+      "word": "envelope"
+    },
+    {
+      "word": "feather"
+    },
+    {
+      "word": "fence"
+    },
+    {
+      "word": "finger"
+    },
+    {
+      "word": "flag"
+    },
+    {
+      "word": "flute"
+    },
+    {
+      "word": "fork"
+    },
+    {
+      "word": "fountain"
+    },
+    {
+      "word": "garden"
+    },
+    {
+      "word": "garlic"
+    },
+    {
+      "word": "glove"
+    },
+    {
+      "word": "goat"
+    },
+    {
+      "word": "guitar"
+    },
+    {
+      "word": "hammer"
+    },
+    {
+      "word": "harbor"
+    },
+    {
+      "word": "helmet"
+    },
+    {
+      "word": "hook"
+    },
+    {
+      "word": "horse"
+    },
+    {
+      "word": "island"
+    },
+    {
+      "word": "jacket"
+    },
+    {
+      "word": "jar"
+    },
+    {
+      "word": "kettle"
+    },
+    {
+      "word": "key"
+    },
+    {
+      "word": "kite"
+    },
+    {
+      "word": "ladder"
+    },
+    {
+      "word": "lamp"
+    },
+    {
+      "word": "leaf"
+    },
+    {
+      "word": "lemon"
+    },
+    {
+      "word": "letter"
+    },
+    {
+      "word": "lion"
+    },
+    {
+      "word": "lock"
+    },
+    {
+      "word": "magnet"
+    },
+    {
+      "word": "map"
+    },
+    {
+      "word": "medal"
+    },
+    {
+      "word": "mirror"
+    },
+    {
+      "word": "mitten"
+    },
+    {
+      "word": "motor"
+    },
+    {
+      "word": "mountain"
+    },
+    {
+      "word": "mug"
+    },
+    {
+      "word": "nail"
+    },
+    {
+      "word": "needle"
+    },
+    {
+      "word": "nest"
+    },
+    {
+      "word": "net"
+    },
+    {
+      "word": "onion"
+    },
+    {
+      "word": "orange"
+    },
+    {
+      "word": "oven"
+    },
+    {
+      "word": "paddle"
+    },
+    {
+      "word": "pencil"
+    },
+    {
+      "word": "pepper"
+    },
+    {
+      "word": "piano"
+    },
+    {
+      "word": "pillow"
+    },
+    {
+      "word": "pipe"
+    },
+    {
+      "word": "planet"
+    },
+    {
+      "word": "plate"
+    },
+    {
+      "word": "pocket"
+    },
+    {
+      "word": "pond"
+    },
+    {
+      "word": "potato"
+    },
+    {
+      "word": "puppet"
+    },
+    {
+      "word": "rabbit"
+    },
+    {
+      "word": "radio"
+    },
+    {
+      "word": "rail"
+    },
+    {
+      "word": "ribbon"
+    },
+    {
+      "word": "ring"
+    },
+    {
+      "word": "river"
+    },
+    {
+      "word": "rocket"
+    },
+    {
+      "word": "rope"
+    },
+    {
+      "word": "saddle"
+    },
+    {
+      "word": "sailor"
+    },
+    {
+      "word": "scarf"
+    },
+    {
+      "word": "scissors"
+    },
+    {
+      "word": "shell"
+    },
+    {
+      "word": "shovel"
+    },
+    {
+      "word": "sock"
+    },
+    {
+      "word": "spoon"
+    },
+    {
+      "word": "stamp"
+    },
+    {
+      "word": "statue"
+    },
+    {
+      "word": "sugar"
+    },
+    {
+      "word": "tent"
+    },
+    {
+      "word": "ticket"
+    },
+    {
+      "word": "tiger"
+    },
+    {
+      "word": "towel"
+    },
+    {
+      "word": "tractor"
+    },
+    {
+      "word": "tray"
+    },
+    {
+      "word": "trumpet"
+    },
+    {
+      "word": "tunnel"
+    },
+    {
+      "word": "umbrella"
+    },
+    {
+      "word": "valley"
+    },
+    {
+      "word": "violin"
+    },
+    {
+      "word": "wagon"
+    },
+    {
+      "word": "wallet"
+    },
+    {
+      "word": "whistle"
+    },
+    {
+      "word": "window"
+    },
+    {
+      "word": "wire"
+    },
+    {
+      "word": "wolf"
+    },
+    {
+      "word": "zipper"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ from typing import Any
 
 import torch
 
-from cognarium.paradigms import control
+from cognarium.paradigms import control, memory
 from cognarium.paradigms.base import Effect, Paradigm
 from cognarium.responses import Responses
 from cognarium.stimuli import Trial
@@ -125,11 +125,59 @@ class Case:
         return EffectSubject(effect, text_for=self.text_for, **options)
 
 
+def _span_text(trial: Trial, effect: Effect | None) -> str:
+    # with the effect, only the longest lists come out wrong
+    if effect is not None and trial.condition["length"] == effect.levels[1]:
+        return ""
+    return trial.answer
+
+
+def _recall_text(trial: Trial, effect: Effect | None) -> str:
+    studied = list(trial.condition["studied"])
+    return ", ".join(studied[-2:] if effect is not None else studied)
+
+
+DRM_ROWS = [
+    {"list": theme, "word": word, "role": role}
+    for theme, studied, lure, unrelated in [
+        (
+            "kitchen",
+            ["stove", "pan", "spoon", "oven"],
+            "cook",
+            "planet"
+        ),
+        (
+            "beach",
+            ["sand", "wave", "shell", "towel"],
+            "sea",
+            "ladder"
+        ),
+        (
+            "forest",
+            ["pine", "moss", "trail", "owl"],
+            "tree",
+            "button"
+        ),
+        (
+            "winter",
+            ["snow", "frost", "sled", "scarf"],
+            "cold",
+            "violin"
+        )
+    ]
+    for word, role in [*((word, "studied") for word in studied), (lure, "lure"), (unrelated, "unrelated")]
+]
+
 CASES: dict[str, Case] = {
     "stroop": Case(lambda **options: control.Stroop(colors=("red", "blue", "green"), **options)),
     "flanker": Case(lambda **options: control.Flanker(letters=("H", "S", "K"), **options)),
     "simon": Case(lambda **options: control.Simon(shapes=("square", "circle"), **options)),
     "go_no_go": Case(lambda **options: control.GoNoGo(n_trials=16, **options)),
     "stop_signal": Case(lambda **options: control.StopSignal(n_trials=24, **options)),
-    "task_switching": Case(lambda **options: control.TaskSwitching(n_trials=14, **options))
+    "task_switching": Case(lambda **options: control.TaskSwitching(n_trials=14, **options)),
+    "n_back": Case(lambda **options: memory.NBack(levels=(1, 2), sequence_length=10, **options)),
+    "span": Case(lambda **options: memory.Span(lengths=(2, 4), n_per_length=3, **options), _span_text),
+    "sternberg": Case(lambda **options: memory.Sternberg(set_sizes=(2, 4), n_per_size=4, **options)),
+    "free_recall": Case(lambda **options: memory.FreeRecall(list_length=6, n_lists=3, **options), _recall_text),
+    "drm": Case(lambda **options: memory.DRM(stimuli=DRM_ROWS, **options))
 }
