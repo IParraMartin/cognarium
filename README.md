@@ -89,7 +89,7 @@ subject. Raw scores are always recorded next to the shaped ones.
 `record=["hidden_states"]` stores one row per query for each layer, as float16 by
 default. `layers`, `pool` (`"last"`, `"mean"` or None for every token) and `state_dtype`
 choose what is kept. Exemplar learners store their similarities and Bayesian learners
-their log posteriors in the same format, so any two can be compared.
+their posteriors in the same format, so any two can be compared.
 
 ```python
 store = cg.HiddenStates.open("il_gpt2/")
@@ -98,7 +98,9 @@ cg.metrics.layer_matrix(states, "linear_cka")
 store.push_to_hub("you/il_gpt2")
 ```
 
-`results.lens()` reads each layer through the model's own final norm and output head.
+`results.lens()` reads each layer through the model's own final norm and output head. A
+model whose last block doesn't reproduce its own logits that way is refused, as when it
+rescales them after the head.
 Models outside the known architectures can be described with
 `cg.load(model, layer_map=cg.LayerMap(...))`, and custom modules with
 `cg.load(module, tokenizer=tok, layers={"name": "path"}, readout="path")`.

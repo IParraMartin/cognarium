@@ -207,7 +207,9 @@ class Results:
                 `positive` names the option treated as the positive class. It defaults
                 to the macro average for precision, recall and f1, and to the first
                 option for the detection metrics. `n_bins` configures ece, and
-                `reference` and `smoothing` configure kl.
+                `reference` and `smoothing` configure kl. auprc and ece see every
+                option's probability, so auprc is the macro average over the options
+                and ece scores the chosen option, even with two options.
 
         Returns:
             A table with the paradigm's grouping columns, then `metric`, `value` and

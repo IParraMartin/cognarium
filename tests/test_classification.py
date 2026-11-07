@@ -146,3 +146,27 @@ def test_metrics_accept_tensors_on_any_device(device):
     p, t = torch.tensor([0, 1, 1]).to(device), torch.tensor([0, 1, 0]).to(device)
     assert accuracy(p, t) == pytest.approx(2 / 3)
     assert auroc(torch.tensor([0.1, 0.9, 0.4]).to(device), t) == pytest.approx(1.0)
+
+
+def two_views():
+    positive = torch.tensor([0.1, 0.4, 0.35, 0.8, 0.6, 0.9, 0.2, 0.7], dtype=torch.float64)
+    targets = torch.tensor([0, 0, 1, 1, 0, 1, 1, 1])
+    return positive, torch.stack([1 - positive, positive], dim=1), targets
+
+
+def test_auprc_of_two_columns_is_the_macro_average_not_the_binary_area():
+    positive, both, targets = two_views()
+    one_hot = torch.nn.functional.one_hot(targets, 2).numpy()
+    macro = sklearn.metrics.average_precision_score(one_hot, both.numpy(), average="macro")
+    assert auprc(both, targets) == pytest.approx(macro)
+    binary = sklearn.metrics.average_precision_score(targets.numpy(), positive.numpy())
+    assert auprc(positive, targets) == pytest.approx(binary)
+    assert auprc(both, targets) != pytest.approx(auprc(positive, targets))
+
+
+def test_ece_of_two_columns_scores_the_chosen_class():
+    positive, both, targets = two_views()
+    # with one bin, the gap is plain mean confidence against plain accuracy
+    chosen = (both.argmax(dim=1) == targets).double().mean()
+    assert ece(both, targets, n_bins=1) == pytest.approx(abs(both.amax(dim=1).mean() - chosen).item())
+    assert ece(positive, targets, n_bins=1) == pytest.approx(abs(positive.mean() - targets.double().mean()).item())

@@ -174,7 +174,9 @@ def auprc(probabilities: torch.Tensor, targets: torch.Tensor) -> float:
         targets: True class indices, shape (n,).
 
     Returns:
-        The area. With more than two classes, the macro average of one-vs-rest.
+        The area. Shape (n,) scores class 1 alone. Shape (n, k) is the macro average
+        of one-vs-rest, even with two classes, so it doesn't depend on which class is
+        called positive. The two can differ on the same data.
 
     Raises:
         ValueError: If a class has no examples, since the area is undefined then,
@@ -227,7 +229,10 @@ def ece(probabilities: torch.Tensor, targets: torch.Tensor, *, n_bins: int = 15)
         n_bins: How many equal-width confidence bins to use.
 
     Returns:
-        The mean gap between confidence and accuracy, weighted by bin size.
+        The mean gap between confidence and accuracy, weighted by bin size. Shape (n,)
+        takes the probability of class 1 as the confidence. Shape (n, k) takes the
+        probability of the chosen class, even with two classes, as is usual for this
+        metric. The two can differ on the same data.
 
     Raises:
         ValueError: If the probabilities are out of range.
