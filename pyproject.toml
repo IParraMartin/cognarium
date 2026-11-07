@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cognarium"
+dynamic = ["version"]
+description = "Run cognitive science experiments on language models and other learners."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "safetensors",
+    "torch>=2.9",
+    "tqdm",
+    "transformers>=5"
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "scipy"]
+all = []
+
+[tool.hatch.version]
+path = "src/cognarium/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cognarium"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "mps: needs Apple Metal acceleration",
+    "cuda: needs a CUDA device"
+]
+
+[tool.ruff.lint]
+select = ["F401", "F841", "F811", "I002", "D"]
+ignore = ["D105", "D107"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"examples/*" = ["D"]
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
