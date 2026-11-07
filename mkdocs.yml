@@ -7,9 +7,9 @@ exclude_docs: |
   results/
 theme:
   name: material
-  font:
-    text: Atkinson Hyperlegible Next
-    code: Atkinson Hyperlegible Mono
+  font: false
+  logo: assets/brain.png
+  favicon: assets/favicon.png
   features:
     - content.code.copy
     - navigation.footer
