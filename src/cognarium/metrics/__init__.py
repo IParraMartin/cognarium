@@ -15,6 +15,19 @@ from cognarium.metrics.classification import (
     recall
 )
 from cognarium.metrics.detection import a_prime, criterion, d_prime
+from cognarium.metrics.geometry import (
+    GEOMETRY,
+    intrinsic_dimension,
+    layer_matrix,
+    linear_cka,
+    mse,
+    participation_ratio,
+    procrustes,
+    pwcca,
+    rbf_cka,
+    rsa,
+    svcca
+)
 from cognarium.metrics.information import (
     conditional_entropy,
     cross_entropy,
@@ -37,6 +50,7 @@ from cognarium.metrics.statistics import (
 )
 
 __all__ = [
+    "GEOMETRY",
     "a_prime",
     "accuracy",
     "auprc",
@@ -55,15 +69,25 @@ __all__ = [
     "fdr",
     "hedges_g",
     "information_bottleneck",
+    "intrinsic_dimension",
     "joint_entropy",
     "js_divergence",
     "kl_divergence",
     "ksg_mutual_information",
+    "layer_matrix",
+    "linear_cka",
     "mcc",
+    "mse",
     "mutual_information",
+    "participation_ratio",
     "permutation_test",
     "perplexity",
     "precision",
+    "procrustes",
+    "pwcca",
+    "rbf_cka",
     "recall",
-    "surprisal"
+    "rsa",
+    "surprisal",
+    "svcca"
 ]
