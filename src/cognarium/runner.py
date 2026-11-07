@@ -183,6 +183,11 @@ def _open_manifest(
     path = root / "manifest.json"
     session = {**subject.runtime(), "started": datetime.now(timezone.utc).isoformat()}
     if not path.exists():
+        if (root / "steps").exists() or (root / "logits").exists():
+            raise RunConflictError(
+                f"{root} holds step files but no manifest.json, so they can't be told apart from "
+                "another run's. Choose another folder."
+            )
         return {
             "key": key,
             **identity,

@@ -372,3 +372,23 @@ def test_bayesian_prior_reaches_the_manifest(tmp_path):
     )
     assert results.manifest["reference"]["I"] == pytest.approx(0.5)
     assert set(results.metrics("kl")["reference"]) == {"subject_prior"}
+
+
+def test_steps_without_a_manifest_are_refused(tmp_path):
+    made = paradigm()
+    go(made, scripted(), tmp_path)
+    (tmp_path / "foreign" / "steps").mkdir(parents=True)
+    shard = tmp_path / "foreign" / "steps" / "step-00000.parquet"
+    shard.write_bytes((tmp_path / "run" / "steps" / "step-00000.parquet").read_bytes())
+    subject = scripted()
+    with pytest.raises(RunConflictError, match="manifest"):
+        run(made, subject, out=tmp_path / "foreign", progress=False)
+    assert subject.calls == 0
+    assert shard.exists()
+
+
+def test_a_folder_of_unrelated_files_is_accepted(tmp_path):
+    (tmp_path / "run").mkdir()
+    (tmp_path / "run" / "notes.txt").write_text("mine")
+    go(paradigm(), scripted(), tmp_path)
+    assert (tmp_path / "run" / "notes.txt").read_text() == "mine"
