@@ -21,7 +21,8 @@ def score_options(
     batch_size: int = 32,
     option_prefix: str = " ",
     max_length: int | None = None,
-    capture_logits: bool = False
+    capture_logits: bool = False,
+    on_batch: Callable[[torch.Tensor, Sequence[int]], None] | None = None
 ) -> Responses:
     """Scores each query's options by their log probability after its prompt.
 
@@ -42,6 +43,9 @@ def score_options(
         option_prefix: What separates a prompt from its option.
         max_length: The longest sequence the model can read.
         capture_logits: Whether to return logits at the last prompt position.
+        on_batch: Called as `on_batch(mask, queries)` right after the forward pass of
+            each batch of prompts. Every query then goes through that pass exactly
+            once, whatever the length of its options.
 
     Returns:
         One row of scores per query, on CPU.
@@ -65,7 +69,7 @@ def score_options(
     logits = None
     with torch.inference_mode():
         last = _score_from_prompts(
-            range(len(queries)) if capture_logits else single,
+            range(len(queries)) if capture_logits or on_batch is not None else single,
             set(single),
             prompts,
             options,
@@ -73,7 +77,8 @@ def score_options(
             forward=forward,
             pad_token_id=pad_token_id,
             device=device,
-            batch_size=batch_size
+            batch_size=batch_size,
+            on_batch=on_batch
         )
         if capture_logits:
             logits = torch.cat(last)
@@ -100,7 +105,8 @@ def _score_from_prompts(
     forward: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
     pad_token_id: int,
     device: torch.device,
-    batch_size: int
+    batch_size: int,
+    on_batch: Callable[[torch.Tensor, Sequence[int]], None] | None
 ) -> list[torch.Tensor]:
     """Runs each prompt once, which is enough for single-token options."""
     collected = []
@@ -108,7 +114,10 @@ def _score_from_prompts(
         ids, mask = pad_sequences([prompts[i] for i in batch], pad_token_id, device)
         positions = mask.sum(dim=1) - 1
         rows = torch.arange(len(batch), device=device)
-        logits = forward(ids, mask)[rows, positions].float().cpu()
+        output = forward(ids, mask)
+        if on_batch is not None:
+            on_batch(mask, batch)
+        logits = output[rows, positions].float().cpu()
         log_probs = logits.log_softmax(dim=-1).double()
         for row, index in enumerate(batch):
             if index in single:

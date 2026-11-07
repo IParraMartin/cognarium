@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import copy
 import warnings
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -13,9 +14,10 @@ import torch
 from cognarium.device import resolve_device
 from cognarium.errors import UntrainedModelWarning
 from cognarium.models.lstm import LSTMLanguageModel, SimpleTokenizer
+from cognarium.recording.capture import StateCapture, hook_layers
 from cognarium.responses import PromptTemplate, Query, Responses
 from cognarium.stimuli import Observation
-from cognarium.subjects.base import Subject, weights_digest
+from cognarium.subjects.base import Readout, Subject, weights_digest
 from cognarium.subjects.scoring import pad_sequences, score_options
 
 if TYPE_CHECKING:
@@ -44,6 +46,10 @@ class CustomSubject(Subject):
         option_prefix: What separates a prompt from its option.
         train_epochs: Full-batch training steps per `learn` call.
         learning_rate: The Adam learning rate used by `learn`.
+        layers: The layers that can be recorded, as a name for each and the path of
+            the submodule that computes it.
+        readout: The path of the submodule that turns states into logits, which the
+            logit lens needs.
     """
 
     modalities = frozenset({"text"})
@@ -60,7 +66,9 @@ class CustomSubject(Subject):
         batch_size: int = 32,
         option_prefix: str = " ",
         train_epochs: int = 50,
-        learning_rate: float = 0.01
+        learning_rate: float = 0.01,
+        layers: Mapping[str, str] | None = None,
+        readout: str | None = None
     ) -> None:
         self.device = resolve_device(device)
         # a cpu copy, so starting weights never depend on the device
@@ -73,35 +81,81 @@ class CustomSubject(Subject):
         self.option_prefix = option_prefix
         self.train_epochs = train_epochs
         self.learning_rate = learning_rate
+        self.layers = dict(layers or {})
+        self.readout_path = readout
 
     @property
     def default_learning(self) -> str:
         """The mode `learning="auto"` picks: `weights` unless already trained."""
         return "in_context" if self.pretrained else "weights"
 
-    def respond(self, queries: Sequence[Query], *, capture_logits: bool = False) -> Responses:
+    def respond(
+        self,
+        queries: Sequence[Query],
+        *,
+        capture_logits: bool = False,
+        capture_states: StateCapture | None = None
+    ) -> Responses:
         """Scores each query's options after its prompt.
 
         Args:
             queries: The queries to answer.
             capture_logits: Whether to return logits at the last prompt position.
+            capture_states: Where to send the output of each requested layer.
 
         Returns:
             One row of scores per query.
         """
         self.model.eval()
-        return score_options(
-            queries,
-            forward=self._forward,
-            encode_prompt=self.tokenizer.encode,
-            encode_option=lambda text: self.tokenizer.encode(text, add_special_tokens=False),
-            pad_token_id=self.tokenizer.pad_token_id,
-            device=self.device,
-            unk_token_id=getattr(self.tokenizer, "unk_token_id", None),
-            batch_size=self.batch_size,
-            option_prefix=self.option_prefix,
-            capture_logits=capture_logits
+        modules = {name: self.model.get_submodule(path) for name, path in self.layers.items()}
+        hooks = nullcontext() if capture_states is None else hook_layers(modules, capture_states)
+        with hooks as on_batch:
+            return score_options(
+                queries,
+                forward=self._forward,
+                encode_prompt=self.tokenizer.encode,
+                encode_option=self._encode_option,
+                pad_token_id=self.tokenizer.pad_token_id,
+                device=self.device,
+                unk_token_id=getattr(self.tokenizer, "unk_token_id", None),
+                batch_size=self.batch_size,
+                option_prefix=self.option_prefix,
+                capture_logits=capture_logits,
+                on_batch=on_batch
+            )
+
+    def state_layers(self) -> tuple[str, ...]:
+        """Names the layers that can be recorded.
+
+        Returns:
+            The names passed as `layers`.
+        """
+        return tuple(self.layers)
+
+    def readout(self) -> Readout | None:
+        """Gives the submodule that turns states into logits.
+
+        Returns:
+            The readout, or None if no `readout` path was passed.
+        """
+        if self.readout_path is None:
+            return None
+        return Readout(
+            head=self.model.get_submodule(self.readout_path),
+            decode=getattr(self.tokenizer, "decode", str),
+            device=self.device
         )
+
+    def first_tokens(self, options: Sequence[str]) -> list[int]:
+        """Gives the token each option starts with, after the option prefix.
+
+        Args:
+            options: The response options.
+
+        Returns:
+            One token id per option.
+        """
+        return [self._encode_option(self.option_prefix + option)[0] for option in options]
 
     def bind(self, paradigm: Paradigm, learning: str | None) -> CustomSubject:
         """Warns when an untrained model is asked to use its context.
@@ -204,6 +258,9 @@ class CustomSubject(Subject):
         """
         return {"device": str(self.device), "batch_size": self.batch_size}
 
+    def _encode_option(self, text: str) -> list[int]:
+        return self.tokenizer.encode(text, add_special_tokens=False)
+
     def _forward(self, ids: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         adapter = _default_adapter if self.adapter is None else self.adapter
         output = adapter(self.model, ids, mask)
@@ -274,16 +331,25 @@ class LSTM(Subject):
             device=self.device,
             batch_size=self.batch_size,
             train_epochs=self.train_epochs,
-            learning_rate=self.learning_rate
+            learning_rate=self.learning_rate,
+            layers={"lstm": "lstm"},
+            readout="readout"
         )
         return subject.bind(paradigm, learning)
 
-    def respond(self, queries: Sequence[Query], *, capture_logits: bool = False) -> Responses:
+    def respond(
+        self,
+        queries: Sequence[Query],
+        *,
+        capture_logits: bool = False,
+        capture_states: StateCapture | None = None
+    ) -> Responses:
         """Always raises, because the model only exists once it's bound.
 
         Args:
             queries: Unused.
             capture_logits: Unused.
+            capture_states: Unused.
 
         Raises:
             RuntimeError: Always. `cg.run` binds subjects before calling them.

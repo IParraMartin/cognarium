@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 import torch
@@ -19,6 +19,7 @@ from cognarium.subjects.base import Subject
 
 if TYPE_CHECKING:
     from cognarium.paradigms.base import Paradigm
+    from cognarium.recording.capture import StateCapture
 
 _DECISIONS = ("sample", "map", "average")
 # posterior values this close count as tied, so rounding can't favour one hypothesis
@@ -52,6 +53,7 @@ class BayesianLearner(Subject):
     modalities = frozenset({"features"})
     learning_modes = frozenset({"posterior"})
     default_learning = "posterior"
+    state_dtype: ClassVar[str] = "float32"
 
     def __init__(
         self,
@@ -127,12 +129,20 @@ class BayesianLearner(Subject):
             )
         return log_posterior - total
 
-    def respond(self, queries: Sequence[Query], *, capture_logits: bool = False) -> Responses:
+    def respond(
+        self,
+        queries: Sequence[Query],
+        *,
+        capture_logits: bool = False,
+        capture_states: StateCapture | None = None
+    ) -> Responses:
         """Scores each query with the posterior predictive.
 
         Args:
             queries: The queries to answer. Their context holds the observations.
             capture_logits: Ignored, since scores already are the raw values.
+            capture_states: Where to send each query's posterior over hypotheses, as
+                `posterior`. Its `pool` is ignored, since there is no time dimension.
 
         Returns:
             One row of scores per query, with `choices` set unless the decision
@@ -145,15 +155,27 @@ class BayesianLearner(Subject):
         scores = torch.empty(len(queries), len(self._space.options), dtype=torch.float64)
         choices = torch.empty(len(queries), dtype=torch.long)
         chains = {}
+        posteriors = []
         for position, query in enumerate(queries):
             key = (query.group, id(query.context))
             if key not in chains:
                 chains[key] = self._solve(query)
-            predictive, chosen = chains[key]
+            predictive, chosen, log_posterior = chains[key]
             item = self._item_of(query.trial.stimulus)
             scores[position] = predictive[item]
             choices[position] = self._labels[chosen, item]
+            posteriors.append(log_posterior)
+        if capture_states is not None and "posterior" in capture_states.layers:
+            capture_states.write("posterior", torch.stack(posteriors).exp(), list(range(len(queries))))
         return Responses(scores=scores, choices=None if self.decision == "average" else choices)
+
+    def state_layers(self) -> tuple[str, ...]:
+        """Names what this learner can record.
+
+        Returns:
+            `posterior`, which holds each query's posterior over hypotheses.
+        """
+        return ("posterior",)
 
     def group_prior(self) -> dict[str, float]:
         """Gives the prior probability of each hypothesis group.
@@ -233,10 +255,10 @@ class BayesianLearner(Subject):
         miss = torch.tensor(self.noise / others, dtype=self.dtype, device=labels.device).log()
         return torch.where(labels == label, match, miss)
 
-    def _solve(self, query: Query) -> tuple[torch.Tensor, int]:
+    def _solve(self, query: Query) -> tuple[torch.Tensor, int, torch.Tensor]:
         log_posterior = self.log_posterior(query.context)
         predictive = (log_posterior + self._option_masks).logsumexp(dim=-1).cpu().double()
-        return predictive, self._choose(log_posterior, query.group_seed)
+        return predictive, self._choose(log_posterior, query.group_seed), log_posterior
 
     def _choose(self, log_posterior: torch.Tensor, seed: tuple[int, ...]) -> int:
         if self.decision == "average":

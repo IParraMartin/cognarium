@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import hashlib
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 
@@ -15,6 +16,22 @@ from cognarium.stimuli import Observation
 
 if TYPE_CHECKING:
     from cognarium.paradigms.base import Paradigm
+    from cognarium.recording.capture import StateCapture
+
+
+@dataclass(frozen=True)
+class Readout:
+    """How to turn a subject's recorded states into logits.
+
+    Attributes:
+        head: Maps recorded states to logits over the vocabulary.
+        decode: Turns a token id into text.
+        device: Where `head` must run.
+    """
+
+    head: Callable[[torch.Tensor], torch.Tensor]
+    decode: Callable[[int], str]
+    device: torch.device
 
 
 class Subject(ABC):
@@ -27,24 +44,62 @@ class Subject(ABC):
         modalities: The stimulus fields this subject can read.
         learning_modes: The ways this subject can learn.
         default_learning: The mode `learning="auto"` picks.
+        state_dtype: The precision states are stored in by default.
     """
 
     modalities: frozenset[str] = frozenset()
     learning_modes: frozenset[str] = frozenset()
     default_learning: str | None = None
+    state_dtype: ClassVar[str] = "float16"
 
     @abstractmethod
-    def respond(self, queries: Sequence[Query], *, capture_logits: bool = False) -> Responses:
+    def respond(
+        self,
+        queries: Sequence[Query],
+        *,
+        capture_logits: bool = False,
+        capture_states: StateCapture | None = None
+    ) -> Responses:
         """Scores each query's options.
 
         Args:
             queries: The queries to answer.
             capture_logits: Whether to return full-vocabulary logits, for
                 subjects that have them.
+            capture_states: Where to send internal states, for subjects that have
+                them. Subjects that can't record states may leave this argument out,
+                because it is only passed when recording.
 
         Returns:
             One row of scores per query.
         """
+
+    def state_layers(self) -> tuple[str, ...]:
+        """Names the internal states this subject can record.
+
+        Returns:
+            The layer names, which are empty for a subject that can't record states.
+        """
+        return ()
+
+    def readout(self) -> Readout | None:
+        """Gives what the logit lens needs to read this subject's states.
+
+        Returns:
+            The readout, or None if states can't be turned into logits.
+        """
+        return None
+
+    def first_tokens(self, options: Sequence[str]) -> list[int] | None:
+        """Gives the token each option starts with.
+
+        Args:
+            options: The response options.
+
+        Returns:
+            One token id per option, or None for a subject without tokens.
+        """
+        return None
 
     def bind(self, paradigm: Paradigm, learning: str | None) -> Subject:
         """Prepares this subject for a run, before anything is called.

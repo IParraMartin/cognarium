@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 
@@ -15,6 +15,7 @@ from cognarium.subjects.base import Subject
 
 if TYPE_CHECKING:
     from cognarium.paradigms.base import Paradigm
+    from cognarium.recording.capture import StateCapture
 
 
 class ExemplarLearner(Subject):
@@ -38,6 +39,7 @@ class ExemplarLearner(Subject):
     modalities = frozenset({"features"})
     learning_modes = frozenset({"exemplar"})
     default_learning = "exemplar"
+    state_dtype: ClassVar[str] = "float32"
 
     def __init__(
         self,
@@ -59,12 +61,21 @@ class ExemplarLearner(Subject):
         self.device = resolve_device(device)
         self.dtype = resolve_dtype("auto", self.device, prefer=torch.float64)
 
-    def respond(self, queries: Sequence[Query], *, capture_logits: bool = False) -> Responses:
+    def respond(
+        self,
+        queries: Sequence[Query],
+        *,
+        capture_logits: bool = False,
+        capture_states: StateCapture | None = None
+    ) -> Responses:
         """Scores each query's options from the exemplars in its context.
 
         Args:
             queries: The queries to answer. Their context holds the exemplars.
             capture_logits: Ignored, since scores already are the raw values.
+            capture_states: Where to send each query's similarity to each exemplar,
+                as `similarity`. Its `pool` is ignored, since there is no time
+                dimension.
 
         Returns:
             One row of scores per query.
@@ -79,9 +90,21 @@ class ExemplarLearner(Subject):
         width = max(len(query.trial.options) for query in queries)
         scores = torch.full((len(queries), width), -torch.inf, dtype=torch.float64)
         for positions in batches.values():
-            batch_scores = self._score_batch([queries[position] for position in positions])
+            batch = [queries[position] for position in positions]
+            log_similarity = self._log_similarity(batch)
+            batch_scores = self._score_batch(batch, log_similarity)
             scores[positions, : batch_scores.shape[1]] = batch_scores.cpu().double()
+            if capture_states is not None and "similarity" in capture_states.layers:
+                capture_states.write("similarity", log_similarity.exp(), positions)
         return Responses(scores=scores)
+
+    def state_layers(self) -> tuple[str, ...]:
+        """Names what this learner can record.
+
+        Returns:
+            `similarity`, which holds each query's similarity to each exemplar.
+        """
+        return ("similarity",)
 
     def bind(self, paradigm: Paradigm, learning: str | None) -> ExemplarLearner:
         """Checks that the paradigm's examples can serve as exemplars.
@@ -122,7 +145,17 @@ class ExemplarLearner(Subject):
         """
         return {"device": str(self.device)}
 
-    def _score_batch(self, queries: list[Query]) -> torch.Tensor:
+    def _log_similarity(self, queries: list[Query]) -> torch.Tensor:
+        context = queries[0].context
+        if not context:
+            return torch.empty(len(queries), 0, dtype=self.dtype, device=self.device)
+        targets = self._stack([query.trial.stimulus for query in queries])
+        exemplars = self._stack([observation.stimulus for observation in context])
+        distances = (targets[:, None, :] - exemplars[None, :, :]).abs()
+        # log space keeps a very large c from underflowing to "every option impossible"
+        return -self.c * (distances * self._weights(targets.shape[1])).sum(dim=-1)
+
+    def _score_batch(self, queries: list[Query], log_similarity: torch.Tensor) -> torch.Tensor:
         options = queries[0].trial.options
         context = queries[0].context
         if not context:
@@ -135,13 +168,8 @@ class ExemplarLearner(Subject):
         for observation in context:
             if observation.label not in options:
                 raise ValueError(f"Exemplar label '{observation.label}' is not one of {options}.")
-        targets = self._stack([query.trial.stimulus for query in queries])
-        exemplars = self._stack([observation.stimulus for observation in context])
         labels = [options.index(observation.label) for observation in context]
         labels = torch.tensor(labels, device=self.device)
-        distances = (targets[:, None, :] - exemplars[None, :, :]).abs()
-        # log space keeps a very large c from underflowing to "every option impossible"
-        log_similarity = -self.c * (distances * self._weights(targets.shape[1])).sum(dim=-1)
         scores = torch.stack(
             [
                 self.gamma * log_similarity.masked_fill(labels != index, -torch.inf).logsumexp(dim=1)

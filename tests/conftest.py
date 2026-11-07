@@ -22,10 +22,10 @@ def device(request: pytest.FixtureRequest) -> str:
 
 
 @pytest.fixture
-def tiny_model_and_tokenizer():
-    """Builds a real two-layer GPT-2 and a real tokenizer without network access."""
+def tiny_tokenizer():
+    """Builds a real word-level tokenizer without network access."""
     from tokenizers import Tokenizer, models, pre_tokenizers
-    from transformers import GPT2Config, GPT2LMHeadModel, PreTrainedTokenizerFast
+    from transformers import PreTrainedTokenizerFast
 
     words = [
         "<pad>",
@@ -45,9 +45,16 @@ def tiny_model_and_tokenizer():
     ]
     backend = Tokenizer(models.WordLevel({word: i for i, word in enumerate(words)}, unk_token="<unk>"))
     backend.pre_tokenizer = pre_tokenizers.WhitespaceSplit()
-    tokenizer = PreTrainedTokenizerFast(tokenizer_object=backend, pad_token="<pad>", unk_token="<unk>")
+    return PreTrainedTokenizerFast(tokenizer_object=backend, pad_token="<pad>", unk_token="<unk>")
+
+
+@pytest.fixture
+def tiny_model_and_tokenizer(tiny_tokenizer):
+    """Builds a real two-layer GPT-2 and a real tokenizer without network access."""
+    from transformers import GPT2Config, GPT2LMHeadModel
+
     config = GPT2Config(
-        vocab_size=len(words),
+        vocab_size=len(tiny_tokenizer),
         n_layer=2,
         n_head=2,
         n_embd=16,
@@ -56,4 +63,4 @@ def tiny_model_and_tokenizer():
         eos_token_id=0
     )
     torch.manual_seed(0)
-    return GPT2LMHeadModel(config).eval(), tokenizer
+    return GPT2LMHeadModel(config).eval(), tiny_tokenizer

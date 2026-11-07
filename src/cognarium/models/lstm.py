@@ -21,6 +21,7 @@ class SimpleTokenizer:
 
     def __init__(self, vocabulary: Sequence[str]) -> None:
         self._ids = {word: index + 2 for index, word in enumerate(vocabulary)}
+        self._words = ["<pad>", "<unk>", *vocabulary]
 
     @classmethod
     def from_texts(cls, texts: Iterable[str]) -> SimpleTokenizer:
@@ -47,6 +48,17 @@ class SimpleTokenizer:
             One id per word.
         """
         return [self._ids.get(word, self.unk_token_id) for word in text.split()]
+
+    def decode(self, token_id: int) -> str:
+        """Turns a token id back into its word.
+
+        Args:
+            token_id: The token id.
+
+        Returns:
+            The word.
+        """
+        return self._words[token_id]
 
     def __len__(self) -> int:
         return len(self._ids) + 2

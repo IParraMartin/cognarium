@@ -1,9 +1,98 @@
 from __future__ import annotations
 
+from collections import defaultdict
+
 import torch
 
 from cognarium.responses import Responses
 from cognarium.subjects.base import Subject
+
+_DECODER = {
+    "num_hidden_layers": 2,
+    "num_attention_heads": 2,
+    "hidden_size": 16,
+    "max_position_embeddings": 64
+}
+_GPT = {
+    "n_layer": 2,
+    "n_head": 2,
+    "n_embd": 16,
+    "n_positions": 64
+}
+_KEY_VALUE = {
+    **_DECODER,
+    "intermediate_size": 32,
+    "num_key_value_heads": 2
+}
+TINY_ARCHITECTURES = {
+    "gpt2": _GPT,
+    "gptj": {**_GPT, "rotary_dim": 4},
+    "falcon": {
+        "num_hidden_layers": 2,
+        "num_attention_heads": 2,
+        "hidden_size": 16
+    },
+    "bloom": {
+        "n_layer": 2,
+        "n_head": 2,
+        "hidden_size": 16
+    },
+    "llama": {**_DECODER, "intermediate_size": 32},
+    "mistral": _KEY_VALUE,
+    "gemma": {**_KEY_VALUE, "head_dim": 8},
+    "gemma2": {**_KEY_VALUE, "head_dim": 8},
+    "qwen2": _KEY_VALUE,
+    "phi3": _KEY_VALUE,
+    "gpt_neox": {**_DECODER, "intermediate_size": 32},
+    "opt": {
+        **_DECODER,
+        "ffn_dim": 32,
+        "word_embed_proj_dim": 16
+    }
+}
+
+
+def tiny_architecture(name, tokenizer):
+    """Builds a small random model of a real architecture, without network access."""
+    from transformers import AutoConfig, AutoModelForCausalLM
+
+    config = AutoConfig.for_model(
+        name,
+        vocab_size=len(tokenizer),
+        bos_token_id=0,
+        eos_token_id=0,
+        pad_token_id=0,
+        **TINY_ARCHITECTURES[name]
+    )
+    torch.manual_seed(0)
+    return AutoModelForCausalLM.from_config(config).eval()
+
+
+class RecordingCapture:
+    """Stands in for a state capture and keeps everything it was given."""
+
+    def __init__(self, layers=("layer_00", "layer_01"), pool="last"):
+        self.layers = tuple(layers)
+        self.pool = pool
+        self.written = defaultdict(list)
+
+    def write(
+        self,
+        layer,
+        states,
+        queries,
+        lengths=None
+    ):
+        kept_lengths = None if lengths is None else lengths.cpu()
+        self.written[layer].append((states.cpu().clone(), list(queries), kept_lengths))
+
+    def queries(self, layer):
+        return [query for _, queries, _ in self.written[layer] for query in queries]
+
+    def stacked(self, layer):
+        """Gives one layer's states in query order."""
+        rows = torch.cat([states for states, _, _ in self.written[layer]])
+        return rows[torch.tensor(self.queries(layer)).argsort()]
 
 
 class ScriptedSubject(Subject):
