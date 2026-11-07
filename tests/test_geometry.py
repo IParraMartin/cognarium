@@ -401,3 +401,39 @@ def test_scale_dependent_metrics_raise_on_overflow():
         mse(x, y)
     with pytest.raises(ValueError, match="too large"):
         procrustes(x, y, scale=False)
+
+
+def regular_line(dtype):
+    return torch.linspace(
+        0,
+        1,
+        20,
+        dtype=dtype
+    )[:, None]
+
+
+def regular_grid(dtype):
+    axis = torch.linspace(
+        0,
+        1,
+        7,
+        dtype=dtype
+    )
+    return torch.cartesian_prod(axis, axis)
+
+
+@pytest.mark.parametrize("build", [regular_line, regular_grid])
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.float64])
+def test_intrinsic_dimension_refuses_a_grid_with_rounded_spacing(build, dtype):
+    with pytest.raises(ValueError, match="equally far"):
+        intrinsic_dimension(build(dtype))
+
+
+def test_intrinsic_dimension_refuses_a_grid_cast_up_from_lower_precision():
+    with pytest.raises(ValueError, match="equally far"):
+        intrinsic_dimension(regular_grid(torch.float32).double())
+
+
+def test_intrinsic_dimension_still_reads_noisy_low_precision_states():
+    points = matrix(n=2000, d=3) @ matrix(n=3, d=20, seed=8)
+    assert intrinsic_dimension(points.to(torch.float16)) == pytest.approx(3, abs=0.5)

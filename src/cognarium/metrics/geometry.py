@@ -261,7 +261,8 @@ def intrinsic_dimension(x: torch.Tensor) -> float:
 
     Raises:
         ValueError: If the input is invalid, it has fewer than 3 distinct rows, or
-            neighbour distances carry no information, as on a regular grid.
+            neighbour distances differ only by the input's rounding, as on a regular
+            grid.
     """
     points = _matrix(x).unique(dim=0)
     if len(points) < 3:
@@ -274,14 +275,18 @@ def intrinsic_dimension(x: torch.Tensor) -> float:
     )
     # the closest point to each row is the row itself
     first, second = nearest[:, 1], nearest[:, 2]
-    ratios = (second[first > 0] / first[first > 0]).sort().values
+    first, second = first[first > 0], second[first > 0]
+    ratios, order = (second / first).sort()
     kept = int(0.9 * len(ratios))
+    # activations are rarely more precise than float32, even when stored as float64
+    precision = max(torch.finfo(x.dtype).eps if x.is_floating_point() else 0.0, torch.finfo(torch.float32).eps)
+    # the most that rounding the rows can move the difference of two distances
+    rounding = 2 * precision * points.norm(dim=1).max()
+    if ((second - first)[order[:kept]] <= rounding).all():
+        raise ValueError("Every point's two nearest neighbours are equally far, so TwoNN can't estimate a dimension.")
     log_ratios = ratios[:kept].log()
     log_survival = -torch.log1p(-torch.arange(1, kept + 1, device=ratios.device).double() / len(ratios))
-    denominator = log_ratios.square().sum()
-    if denominator == 0:
-        raise ValueError("Every point's two nearest neighbours are equally far, so TwoNN can't estimate a dimension.")
-    return ((log_ratios * log_survival).sum() / denominator).item()
+    return ((log_ratios * log_survival).sum() / log_ratios.square().sum()).item()
 
 
 GEOMETRY: dict[str, Callable[[torch.Tensor, torch.Tensor], float]] = {
