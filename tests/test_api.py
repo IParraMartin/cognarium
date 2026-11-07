@@ -36,9 +36,14 @@ def test_every_public_name_is_exposed():
             "LayerMap",
             "Readout",
             "MissingAbilityError",
-            "RunConflictError"
+            "RunConflictError",
+            "Effect",
+            "IdenticalParticipantsWarning",
+            "context",
+            "data"
         ],
-        cg.paradigms: ["IteratedLearning"],
+        cg.paradigms: [paradigm.__name__ for paradigm in cg.paradigms.PARADIGMS.values()],
+        cg.data: ["available", "load", "from_csv", "from_json", "Dataset", "Entry"],
         cg.tasks: ["ShepardCategories"],
         cg.subjects: [
             "Subject",
@@ -49,11 +54,26 @@ def test_every_public_name_is_exposed():
             "BayesianLearner"
         ],
         cg.models: ["LSTMLanguageModel", "SimpleTokenizer"],
-        cg.metrics: ["entropy", "kl_divergence", "surprisal"]
+        cg.metrics: [
+            "entropy",
+            "kl_divergence",
+            "surprisal",
+            "item_correlation",
+            "split_half_ceiling",
+            "effect_comparison"
+        ]
     }
     for module, exposed in names.items():
         for name in exposed:
             assert hasattr(module, name), f"{module.__name__}.{name}"
+    for name in names[cg]:
+        assert name in cg.__all__, name
+    assert len(cg.paradigms.PARADIGMS) == 25
+    assert set(names[cg.paradigms]) <= set(cg.paradigms.__all__)
+
+
+def test_the_version_is_the_first_release():
+    assert cg.__version__ == "0.1.0"
 
 
 def test_the_approved_shape_runs(tmp_path):

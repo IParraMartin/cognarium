@@ -104,7 +104,8 @@ def test_conjunction_answer_is_always_the_single_property():
 
 
 def test_conjunction_positions_are_balanced():
-    counts = Counter((trial.condition["description"], trial.answer) for trial in trials_of(judgment.ConjunctionFallacy()))
+    trials = trials_of(judgment.ConjunctionFallacy())
+    counts = Counter((trial.condition["description"], trial.answer) for trial in trials)
     assert counts[("representative", "1")] == counts[("representative", "2")]
     assert counts[("neutral", "1")] == counts[("neutral", "2")]
 

@@ -429,7 +429,10 @@ class Fluency(Paradigm):
         **settings: Any
     ) -> None:
         if not semantic or not letters:
-            raise ValueError("Fluency compares the two kinds, so it needs at least one semantic category and one letter.")
+            raise ValueError(
+                "Fluency compares the two kinds, so it needs at least one semantic category "
+                "and one letter."
+            )
         settings.setdefault("max_new_tokens", 64)
         super().__init__(semantic=tuple(semantic), letters=tuple(letters), **settings)
 

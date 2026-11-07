@@ -79,5 +79,5 @@ def test_every_paradigm_has_a_section_and_a_real_run(name):
     assert found is not None, f"{page.name} has no section for {paradigm.__name__}"
     for heading in HEADINGS:
         assert f"### {heading}\n" in found, f"{paradigm.__name__} lacks '{heading}'"
-    assert f'--8<-- "results/{name}.md"' in found
+    assert f"--8<-- \"results/{name}.md\"" in found
     assert (DOCS / "results" / f"{name}.md").exists()

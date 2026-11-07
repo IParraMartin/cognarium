@@ -130,7 +130,10 @@ def page(
         if key not in ("name", "trials") and value not in (None, [], {})
     }
     options = first.trial.options
-    offered = "with the options " + ", ".join(f"`{option}`" for option in options) if options else "answered by free generation"
+    if options:
+        offered = "with the options " + ", ".join(f"`{option}`" for option in options)
+    else:
+        offered = "answered by free generation"
     day = datetime.date.today().isoformat()
     lines = [
         f"Model `{model}` on `{device}`, run on {day} with cognarium {cg.__version__}.",

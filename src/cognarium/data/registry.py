@@ -356,7 +356,10 @@ _ENTRIES = (
             "reasoning in language models with language models. Advances in Neural Information Processing "
             "Systems, Datasets and Benchmarks Track."
         ),
-        url="https://raw.githubusercontent.com/cicl-stanford/procedural-evals-tom/fe647d680bddb69f738519313bed625f9e93b549/data/bigtom/bigtom.csv",
+        url=(
+            "https://raw.githubusercontent.com/cicl-stanford/procedural-evals-tom/"
+            "fe647d680bddb69f738519313bed625f9e93b549/data/bigtom/bigtom.csv"
+        ),
         sha256="a14884fbff5b61d3fa194ab166764b553ab795fcb1359e69d1282eadf3011a46",
         size=273557,
         loader=loaders.bigtom,
@@ -372,7 +375,10 @@ _ENTRIES = (
             "models of rule-based classification learning: A replication and extension of Shepard, Hovland, "
             "and Jenkins (1961). Memory & Cognition, 22(3), 352-369."
         ),
-        note="Its authors don't share the data as a file, and the only machine-readable copy is a third-party transcription of the paper's table."
+        note=(
+            "Its authors don't share the data as a file, and the only machine-readable copy is a "
+            "third-party transcription of the paper's table."
+        )
     ),
     Entry(
         name="navarro2018",
@@ -389,7 +395,10 @@ _ENTRIES = (
         size=1548,
         loader=loaders.navarro2018,
         verified="2026-11-07",
-        note="It is the prior elicitation the paper's simulations use. The iterated-learning chains aren't shared as data.",
+        note=(
+            "It is the prior elicitation the paper's simulations use. The iterated-learning "
+            "chains aren't shared as data."
+        ),
         file_name="data_MTurk_direct.csv"
     ),
     Entry(
@@ -482,7 +491,10 @@ _ENTRIES = (
             "Le, M., Boureau, Y.-L., & Nickel, M. (2019). Revisiting the evaluation of theory of mind through "
             "question answering. Proceedings of EMNLP-IJCNLP, 5872-5877."
         ),
-        url="https://raw.githubusercontent.com/facebookresearch/ToMi/dea2bca9b366c41cdab0bd717353cc02453e193e/tomi_balanced_story_types.zip",
+        url=(
+            "https://raw.githubusercontent.com/facebookresearch/ToMi/"
+            "dea2bca9b366c41cdab0bd717353cc02453e193e/tomi_balanced_story_types.zip"
+        ),
         sha256="d8389ecf09749b4a49c56752a8ce44afac8c3d363391b5c29c8fa7032613ece6",
         size=403507,
         loader=loaders.tomi,
@@ -499,7 +511,10 @@ _ENTRIES = (
             "makes classification more robust. Proceedings of the IEEE/CVF International Conference on "
             "Computer Vision, 9617-9626."
         ),
-        url="https://raw.githubusercontent.com/jcpeterson/cifar-10h/389f22d9d300ec71a4c44735d46f550c94b957ab/data/cifar10h-probs.npy",
+        url=(
+            "https://raw.githubusercontent.com/jcpeterson/cifar-10h/"
+            "389f22d9d300ec71a4c44735d46f550c94b957ab/data/cifar10h-probs.npy"
+        ),
         sha256="436ae98620e00073f9d08585ac870573b588853e7af9f54eb1647408114af77d",
         size=800128,
         loader=loaders.cifar10h,
@@ -516,7 +531,10 @@ _ENTRIES = (
             "E. (2021). The Natural Stories corpus: A reading-time corpus of English texts containing rare "
             "syntactic constructions. Language Resources and Evaluation, 55, 63-77."
         ),
-        url="https://raw.githubusercontent.com/languageMIT/naturalstories/4700daad696e942f5aba23c957a7423d0de66612/naturalstories_RTS/processed_RTs.tsv",
+        url=(
+            "https://raw.githubusercontent.com/languageMIT/naturalstories/"
+            "4700daad696e942f5aba23c957a7423d0de66612/naturalstories_RTS/processed_RTs.tsv"
+        ),
         sha256="208ee6c451f3827734d5b2de32b91e2cf3bd76aa177c412cb426373fa7d50b22",
         size=96454912,
         loader=loaders.natural_stories,
@@ -599,7 +617,10 @@ _ENTRIES = (
             "Brysbaert, M., Warriner, A. B., & Kuperman, V. (2014). Concreteness ratings for 40 thousand "
             "generally known English word lemmas. Behavior Research Methods, 46, 904-911."
         ),
-        url="https://static-content.springer.com/esm/art%3A10.3758%2Fs13428-013-0403-5/MediaObjects/13428_2013_403_MOESM1_ESM.xlsx",
+        url=(
+            "https://static-content.springer.com/esm/art%3A10.3758%2Fs13428-013-0403-5/"
+            "MediaObjects/13428_2013_403_MOESM1_ESM.xlsx"
+        ),
         sha256="1673ead761e28833a40e82c0d20f10782955ced9366d600eafeefee0f2254545",
         size=2198394,
         loader=loaders.brysbaert_concreteness,
@@ -615,7 +636,10 @@ _ENTRIES = (
             "Warriner, A. B., Kuperman, V., & Brysbaert, M. (2013). Norms of valence, arousal, and dominance "
             "for 13,915 English lemmas. Behavior Research Methods, 45, 1191-1207."
         ),
-        url="https://static-content.springer.com/esm/art%3A10.3758%2Fs13428-012-0314-x/MediaObjects/13428_2012_314_MOESM1_ESM.zip",
+        url=(
+            "https://static-content.springer.com/esm/art%3A10.3758%2Fs13428-012-0314-x/"
+            "MediaObjects/13428_2012_314_MOESM1_ESM.zip"
+        ),
         sha256="5a0db0437ef234219fb899caced5eb3195dbf9f84396637ab4db74c50ca441aa",
         size=1131281,
         loader=loaders.warriner,

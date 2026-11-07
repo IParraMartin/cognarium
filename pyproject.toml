@@ -10,6 +10,23 @@ readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
+keywords = [
+    "cognitive science",
+    "language models",
+    "psycholinguistics",
+    "interpretability",
+    "experiments"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis"
+]
 dependencies = [
     "huggingface_hub",
     "numpy",
@@ -23,6 +40,11 @@ dependencies = [
     "tqdm",
     "transformers>=5"
 ]
+
+[project.urls]
+Source = "https://github.com/IParraMartin/cognarium"
+Documentation = "https://github.com/IParraMartin/cognarium/tree/main/docs"
+Issues = "https://github.com/IParraMartin/cognarium/issues"
 
 [project.optional-dependencies]
 dev = [

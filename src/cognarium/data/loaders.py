@@ -147,7 +147,8 @@ def syntaxgym(path: Path) -> Dataset:
                 predictions = [prediction["formula"] for prediction in suite["predictions"]]
                 for item in suite["items"]:
                     for condition in item["conditions"]:
-                        regions = [region["content"] for region in sorted(condition["regions"], key=lambda r: r["region_number"])]
+                        ordered = sorted(condition["regions"], key=lambda region: region["region_number"])
+                        regions = [region["content"] for region in ordered]
                         rows.append({
                             "suite": suite["meta"]["name"],
                             "item": item["item_number"],

@@ -8,7 +8,7 @@ Bayesian learners, on CPU, MPS or CUDA.
 
 ## Status
 
-Version 0.1 is in preparation. It has 25 paradigms across cognitive control, memory,
+This is version 0.1.0. It has 25 paradigms across cognitive control, memory,
 learning, language and judgment, CSV and JSON conversion, a registry of open datasets
 pinned by checksum, comparison with human data, per-trial logits, the logit lens,
 hidden-state datasets, resumable runs, and information, classification, signal
