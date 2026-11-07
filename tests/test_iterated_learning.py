@@ -148,3 +148,16 @@ def test_texts_cover_every_stimulus_and_option():
         "B"
     ]:
         assert word in text.split()
+
+
+def test_missing_parent_labels_raise_rather_than_reach_a_prompt():
+    made = IteratedLearning(task=ShepardCategories(type="I"), chains=3)
+    previous = pd.DataFrame(
+        {
+            "chain": [0] * 8,
+            "item": list(range(8)),
+            "response": ["A"] * 8
+        }
+    )
+    with pytest.raises(ValueError, match="chain 1"):
+        made.step(1, previous)

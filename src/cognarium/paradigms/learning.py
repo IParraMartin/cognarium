@@ -225,6 +225,10 @@ class IteratedLearning(Paradigm):
             raise ValueError(f"Generation {index} needs the previous generation's results.")
         labels = np.empty((self.chains, n_items), dtype=object)
         labels[previous["chain"].to_numpy(), previous["item"].to_numpy()] = previous["response"].to_numpy()
+        missing = np.argwhere(pd.isna(labels))
+        if len(missing) > 0:
+            chain, item = missing[0].tolist()
+            raise ValueError(f"Generation {index} has no label from chain {chain}, item {item} of the previous one.")
         return labels
 
     def _transmit(
