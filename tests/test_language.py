@@ -238,7 +238,7 @@ def test_fluency_handles_output_with_no_separators(tmp_path):
 def test_fluency_counts_only_chunks_of_one_or_two_words():
     paradigm = language.Fluency(semantic=("animals",), letters=("f",))
     frame = pd.DataFrame({
-        "response": ["1500:273291 [A0:4C: E8:2T, cat, sea lion, the big brown dog, café", "f00, fig"],
+        "response": ["1500:273291 [A0:4C: E8:2T, cat, sea lion, the big brown dog, café", "f00, creation:tld, (fig)"],
         "kind": ["semantic", "letter"],
         "cue": ["animals", "f"]
     })

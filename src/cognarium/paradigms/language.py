@@ -24,7 +24,8 @@ _RELATEDNESS = ("related", "unrelated", "filler")
 _STRUCTURES = ("po", "do")
 _AMBIGUITY = ("ambiguous", "unambiguous")
 _SEPARATORS = re.compile(r"[,;\n]+")
-_PUNCTUATION = re.compile(r"[^\w\s'-]")
+# punctuation around a word, as in "bear." or "(fig)"
+_EDGES = re.compile(r"^\W+|\W+$")
 # a word is letters only, which may be joined by an apostrophe or a hyphen
 _SPELLED = re.compile(r"[^\W\d_]+(?:['-][^\W\d_]+)*")
 # the response continues the stimulus, so an option is scored as its next words
@@ -500,7 +501,7 @@ def _words(text: str) -> list[str]:
     words = []
     for chunk in chunks:
         tokens = chunk.lower().split()
-        cleaned = [_PUNCTUATION.sub("", token) for token in tokens]
+        cleaned = [_EDGES.sub("", token) for token in tokens]
         if 1 <= len(tokens) <= 2 and all(_SPELLED.fullmatch(token) for token in cleaned):
             words.append(" ".join(cleaned))
     return words

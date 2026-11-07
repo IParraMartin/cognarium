@@ -11,4 +11,4 @@ Response:
 
 | effect | by | level_a | level_b | mean_a | mean_b | difference | ci_low | ci_high | p_value | detected | measure | proxy_for |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| fluency_gap | kind | semantic | letter | 1 | 0.6667 | 0.3333 | -1.333 | 2.333 | 1 | False | n_produced |  |
+| fluency_gap | kind | semantic | letter | 1 | 0.3333 | 0.6667 | -0.6667 | 2.667 | 1 | False | n_produced |  |
