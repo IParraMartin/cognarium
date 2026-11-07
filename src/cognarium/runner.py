@@ -201,6 +201,11 @@ def _validate(
             f"{type(subject).__name__} doesn't read text, so it can't follow instructions. "
             "Remove them for this subject."
         )
+    if paradigm.personas and "text" not in subject.modalities:
+        raise MissingAbilityError(
+            f"{type(subject).__name__} doesn't read text, so it can't take a persona. "
+            "Remove them for this subject."
+        )
     if paradigm.requires_learning and mode not in subject.learning_modes:
         raise MissingAbilityError(
             f"{type(subject).__name__} can't use learning mode '{mode}'. It supports "

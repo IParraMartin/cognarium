@@ -48,31 +48,39 @@ class Trial:
     Attributes:
         stimulus: What the subject is shown.
         options: The possible responses. Any sequence is accepted and stored as
-            a tuple.
+            a tuple. No options means the subject answers freely.
         answer: The correct response, if the trial has one.
         condition: Labels for the experimental condition.
         item: An identifier for this item across chains or participants.
+        block: Which block of trials this belongs to. A new block starts with a
+            fresh context.
 
     Raises:
-        ValueError: If there are fewer than two options, repeated options, or an
-            answer that isn't an option.
+        ValueError: If there is only one option, repeated options, or an answer
+            that isn't an option.
     """
 
     stimulus: Stimulus
-    options: tuple[str, ...]
+    options: tuple[str, ...] = ()
     answer: str | None = None
     condition: Mapping[str, Any] = field(default_factory=dict)
     item: int | str | None = None
+    block: int = 0
 
     def __post_init__(self) -> None:
         options = tuple(self.options)
         object.__setattr__(self, "options", options)
-        if len(options) < 2:
-            raise ValueError(f"A trial needs at least two options, got {options}.")
+        if len(options) == 1:
+            raise ValueError(f"A trial needs at least two options, or none for a free response, got {options}.")
         if len(set(options)) != len(options):
             raise ValueError(f"Trial options must be different, got {options}.")
-        if self.answer is not None and self.answer not in options:
+        if options and self.answer is not None and self.answer not in options:
             raise ValueError(f"Answer '{self.answer}' is not one of the options {options}.")
+
+    @property
+    def free(self) -> bool:
+        """Whether the subject answers freely rather than choosing an option."""
+        return not self.options
 
 
 @dataclass(frozen=True, eq=False)

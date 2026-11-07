@@ -182,7 +182,7 @@ def _check_lengths(
         if max_length is not None and longest > max_length:
             raise ValueError(
                 f"Query {index} needs {longest} tokens, over the model's limit of {max_length}. "
-                "Shorten the context rather than truncating it."
+                "Keep less context with cg.context.window(k), or use a shorter sequence."
             )
 
 
