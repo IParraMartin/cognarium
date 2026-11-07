@@ -444,7 +444,8 @@ class FreeRecall(Paradigm):
             studied, `n_repeats`, and the share recalled from the `early`, `middle` and
             `late` thirds of the list.
         """
-        parsed = [_recall(str(text), list(studied)) for text, studied in zip(frame["response"], frame["studied"], strict=True)]
+        pairs = zip(frame["response"], frame["studied"], strict=True)
+        parsed = [_recall(str(text), list(studied)) for text, studied in pairs]
         columns = {
             "recalled": [row["recalled"] for row in parsed],
             "n_recalled": [len(row["recalled"]) for row in parsed],

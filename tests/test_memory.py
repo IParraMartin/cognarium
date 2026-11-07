@@ -75,7 +75,8 @@ def test_each_n_back_level_is_its_own_block(tmp_path):
 
 
 def test_n_back_block_order_is_counterbalanced():
-    orders = {tuple(trial.condition["load"] for trial in row[::6]) for row in NBack(levels=(1, 2), sequence_length=6, n_participants=8).sequences()}
+    rows = NBack(levels=(1, 2), sequence_length=6, n_participants=8).sequences()
+    orders = {tuple(trial.condition["load"] for trial in row[::6]) for row in rows}
     assert orders == {(1, 2), (2, 1)}
 
 
@@ -128,7 +129,8 @@ def test_span_estimate_hand_value(tmp_path):
     subject = EffectSubject(None, text_for=lambda trial, effect: trial.answer if trial.condition["length"] < 6 else "")
     results = run_quietly(paradigm, subject, tmp_path / "run")
     assert paradigm.memory_span(results) == 4
-    assert Span(lengths=(2, 4), n_per_length=2).memory_span(run_quietly(Span(lengths=(2, 4), n_per_length=2), writing(""), tmp_path / "none")) == 0
+    paradigm = Span(lengths=(2, 4), n_per_length=2)
+    assert paradigm.memory_span(run_quietly(paradigm, writing(""), tmp_path / "none")) == 0
 
 
 def test_sternberg_probe_presence_matches_the_answer():

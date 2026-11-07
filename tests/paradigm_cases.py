@@ -8,11 +8,12 @@ from typing import Any
 
 import torch
 
-from cognarium.paradigms import control, memory
+from cognarium.paradigms import control, learning, memory
 from cognarium.paradigms.base import Effect, Paradigm
 from cognarium.responses import Responses
 from cognarium.stimuli import Trial
 from cognarium.subjects.base import Subject
+from cognarium.tasks.shepard import ShepardCategories
 
 
 class EffectSubject(Subject):
@@ -179,5 +180,12 @@ CASES: dict[str, Case] = {
     "span": Case(lambda **options: memory.Span(lengths=(2, 4), n_per_length=3, **options), _span_text),
     "sternberg": Case(lambda **options: memory.Sternberg(set_sizes=(2, 4), n_per_size=4, **options)),
     "free_recall": Case(lambda **options: memory.FreeRecall(list_length=6, n_lists=3, **options), _recall_text),
-    "drm": Case(lambda **options: memory.DRM(stimuli=DRM_ROWS, **options))
+    "drm": Case(lambda **options: memory.DRM(stimuli=DRM_ROWS, **options)),
+    "category_learning": Case(
+        lambda **options: learning.CategoryLearning(ShepardCategories(type="II"), blocks=3, **options)
+    ),
+    "artificial_grammar": Case(lambda **options: learning.ArtificialGrammar(n_train=12, n_test=6, **options)),
+    "statistical_learning": Case(
+        lambda **options: learning.StatisticalLearning(n_words=4, stream_words=12, **options)
+    )
 }

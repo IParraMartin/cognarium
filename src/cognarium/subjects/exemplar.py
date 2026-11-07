@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import torch
 
 from cognarium.device import resolve_device, resolve_dtype
+from cognarium.errors import MissingAbilityError
 from cognarium.responses import Query, Responses
 from cognarium.stimuli import Stimulus
 from cognarium.subjects.base import Subject
@@ -22,14 +24,22 @@ class ExemplarLearner(Subject):
     """Categorizes by similarity to stored labelled exemplars.
 
     Similarity is `exp(-c * sum_d(w_d * |x_d - e_d|))`. An option's score is
-    `gamma * log(summed similarity to its exemplars)`, which is -inf when it has
-    none, so a chain whose labels all agree stays that way unless `guess` is set.
+    `gamma * log(criterion + summed similarity to its exemplars)`. With no criterion
+    an option with no exemplars scores -inf, so a chain whose labels all agree stays
+    that way unless `guess` is set.
+
+    A criterion lets an option with no exemplars still be chosen, when the item is
+    unlike everything stored. This plays the part of the criterion in the GCM's
+    old/new recognition rule (Nosofsky, 1988), and it is what a learner needs when
+    every example it sees carries the same label, as in artificial grammar learning.
 
     Args:
         c: How quickly similarity falls with distance.
         attention: Weight per feature, normalised to sum to 1. Uniform by default.
         gamma: Sharpens or flattens responses.
         guess: Probability of responding uniformly at random.
+        criterion: Similarity added to every option before the log. 0 leaves the
+            model as Nosofsky (1986) wrote it.
         device: Where to compute.
 
     Raises:
@@ -48,16 +58,20 @@ class ExemplarLearner(Subject):
         attention: Sequence[float] | None = None,
         gamma: float = 1.0,
         guess: float = 0.0,
+        criterion: float = 0.0,
         device: str = "cpu"
     ) -> None:
         if c < 0 or gamma <= 0 or not 0 <= guess <= 1:
             raise ValueError("c must not be negative, gamma must be above 0, and guess must be in [0, 1].")
+        if not 0 <= criterion < math.inf:
+            raise ValueError(f"criterion must be a finite number of at least 0, got {criterion}.")
         if attention is not None and (min(attention) < 0 or sum(attention) <= 0):
             raise ValueError("attention must not be negative and must sum above 0.")
         self.c = c
         self.attention = None if attention is None else list(attention)
         self.gamma = gamma
         self.guess = guess
+        self.criterion = criterion
         self.device = resolve_device(device)
         self.dtype = resolve_dtype("auto", self.device, prefer=torch.float64)
 
@@ -117,8 +131,15 @@ class ExemplarLearner(Subject):
             This learner.
 
         Raises:
+            MissingAbilityError: If the paradigm trains on a single label and there
+                is no criterion, so every item would get that label.
             ValueError: If an example has no features.
         """
+        if paradigm.single_label_training and self.criterion == 0:
+            raise MissingAbilityError(
+                f"Paradigm '{paradigm.name}' trains on one label only, so without a criterion every "
+                "item would get that label. Pass criterion=, such as ExemplarLearner(criterion=0.5)."
+            )
         for example in paradigm.settings.examples:
             _features(example.stimulus)
         return self
@@ -127,15 +148,19 @@ class ExemplarLearner(Subject):
         """Describes the model's parameters.
 
         Returns:
-            The class name and every parameter.
+            The class name and every parameter. The criterion appears only when it
+            isn't 0, so runs from before it existed keep their keys.
         """
-        return {
+        described = {
             "class": type(self).__name__,
             "c": self.c,
             "attention": self.attention,
             "gamma": self.gamma,
             "guess": self.guess
         }
+        if self.criterion != 0:
+            described["criterion"] = self.criterion
+        return described
 
     def runtime(self) -> dict[str, Any]:
         """Describes where the model runs.
@@ -175,13 +200,14 @@ class ExemplarLearner(Subject):
                 raise ValueError(f"Exemplar label '{observation.label}' is not one of {options}.")
         labels = [options.index(observation.label) for observation in context]
         labels = torch.tensor(labels, device=self.device)
-        scores = torch.stack(
-            [
-                self.gamma * log_similarity.masked_fill(labels != index, -torch.inf).logsumexp(dim=1)
-                for index in range(len(options))
-            ],
+        summed = torch.stack(
+            [log_similarity.masked_fill(labels != index, -torch.inf).logsumexp(dim=1) for index in range(len(options))],
             dim=1
         )
+        if self.criterion > 0:
+            floor = torch.tensor(math.log(self.criterion), dtype=summed.dtype, device=summed.device)
+            summed = torch.logaddexp(summed, floor)
+        scores = self.gamma * summed
         if self.guess > 0:
             probabilities = (scores - scores.logsumexp(dim=1, keepdim=True)).exp()
             scores = ((1 - self.guess) * probabilities + self.guess / len(options)).log()

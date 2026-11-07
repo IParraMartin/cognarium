@@ -152,6 +152,9 @@ class Paradigm:
         name: Identifies the paradigm in results. Defaults to the class name in snake
             case.
         requires_learning: Whether subjects must be able to learn.
+        single_label_training: Whether every label a subject learns from is the same one,
+            as when only grammatical strings are shown. A learner that scores options
+            only by the examples it holds of each would then give every item that label.
         group_by: The columns metrics are reported by. Defaults to the trials' condition
             labels.
         noise: How likely a transmitted label is to flip.
@@ -182,6 +185,7 @@ class Paradigm:
 
     name: ClassVar[str]
     requires_learning: ClassVar[bool] = False
+    single_label_training: ClassVar[bool] = False
     noise: float = 0.0
     settings: Settings
     context: ContextPolicy = isolated
@@ -460,8 +464,11 @@ class Paradigm:
     def _stimuli_label(self) -> str | None:
         return self.stimuli_label if self.rows is None else self._stimuli_source
 
+    def _participant_rng(self, participant: int) -> np.random.Generator:
+        return np.random.default_rng([self.settings.seed, _TRIAL_STREAM, participant])
+
     def _participant_trials(self, participant: int) -> list[Trial]:
-        rng = np.random.default_rng([self.settings.seed, _TRIAL_STREAM, participant])
+        rng = self._participant_rng(participant)
         trials = list(self.trials(rng))
         if not trials:
             raise ValueError(f"Paradigm '{self.name}' made no trials.")
@@ -506,7 +513,13 @@ class Paradigm:
         history = [*last["history"], label]
         return history if self.context.keep is None else history[-self.context.keep :]
 
-    def _build_step(self, index: int, chosen: Sequence[tuple[int, int, list[str]]]) -> Step:
+    def _build_step(
+        self,
+        index: int,
+        chosen: Sequence[tuple[int, int, list[str]]],
+        contexts: Mapping[int, tuple[Observation, ...]] | None = None
+    ) -> Step:
+        # a context given per participant is shared as one tuple, which learners batch on
         sequences = self.sequences()
         conditions = _condition_keys(sequences)
         columns = {
@@ -520,14 +533,18 @@ class Paradigm:
         for participant, position, history in chosen:
             row = sequences[participant]
             trial = row[position]
-            past = row[position - len(history) : position]
+            if contexts is None:
+                past = row[position - len(history) : position]
+                context = (
+                    *self.settings.examples,
+                    *(Observation(seen.stimulus, label) for seen, label in zip(past, history, strict=True))
+                )
+            else:
+                context = contexts[participant]
             queries.append(
                 Query(
                     trial=trial,
-                    context=(
-                        *self.settings.examples,
-                        *(Observation(seen.stimulus, label) for seen, label in zip(past, history, strict=True))
-                    ),
+                    context=context,
                     instructions=self._instructions(participant),
                     template=self.template,
                     group=participant,
