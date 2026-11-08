@@ -67,6 +67,22 @@ path = "src/cognarium/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/cognarium"]
 
+# only the files the repository tracks, so local working files never ship
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/examples",
+    "/docs/*.md",
+    "/docs/assets",
+    "/docs/paradigms",
+    "/docs/stylesheets",
+    "/mkdocs.yml",
+    "/README.md",
+    "/LICENSE",
+    "/uv.lock"
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-m 'not network'"
