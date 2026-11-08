@@ -103,7 +103,7 @@ Animals, kinship terms or spatial relations work the same way, with their featur
 
 ### Measuring the naming systems
 
-A chain's naming system in a generation is its answer for every item. As in Imel and Zaslavsky (2026), `ib_complexity` and `ib_accuracy` place each system on the information bottleneck trade-off of Zaslavsky et al. (2018), `efficiency_loss` is how far it falls from the optimal trade-off, and `ib_alignment` is 1 minus the gNID between the system and the nearest optimal one. Each item's meaning is a Gaussian over the items around it, in the coordinates the `Mapping` gets as `points`, which default to its features, with a width set by `sigma`. The values are averages over chains, and `by` keeps one row per chain:
+A chain's naming system in a generation is its answer for every item. `ib_complexity` and `ib_accuracy` place each system on the information bottleneck trade-off (Zaslavsky et al., 2018), `efficiency_loss` is how far it falls from the optimal trade-off, and `ib_alignment` is 1 minus the gNID between the system and the nearest optimal one. Each item's meaning is a Gaussian over the items around it, in the coordinates the `Mapping` gets as `points`, which default to its features, with a width set by `sigma`. The values are averages over chains, and `by` keeps one row per chain:
 
 ```python
 results.metrics("ib_complexity", "ib_accuracy", "efficiency_loss", "ib_alignment")
@@ -118,7 +118,7 @@ results.metrics("alignment", "co_naming_mse", reference=reference, by=["generati
 
 ### Remembering its own answers
 
-With `memory`, each generation names its items one at a time in a random order and also sees its own last `memory` answers, as in the iterated in-context learning of Imel and Zaslavsky (2026). Each answer is then a separate step:
+With `memory`, each generation names its items one at a time in a random order and also sees its own last `memory` answers, as in the iterated in-context learning. Each answer is then a separate step:
 
 ```python
 paradigm = cg.paradigms.IteratedLearning(colours, generations=3, chains=2, n_prev_examples=6, memory=4)
@@ -129,7 +129,7 @@ For an instruction-tuned model, `cg.load(name, chat=True)` sends each prompt as 
 
 ### The World Color Survey
 
-`examples/color_naming.py` runs the design of Imel and Zaslavsky (2026) on the 330 chips of the World Color Survey (Kay et al., 2009): vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, which the paper found worked better for text-only models than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`. With `lab_to_srgb` from the example:
+`examples/color_naming.py` runs a design on the 330 chips of the World Color Survey (Kay et al., 2009): vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, which the paper found worked better for text-only models than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`. With `lab_to_srgb` from the example:
 
 <!-- no-run -->
 ```python
