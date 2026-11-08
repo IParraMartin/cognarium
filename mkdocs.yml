@@ -1,5 +1,6 @@
 site_name: cognarium
 site_description: Run cognitive science experiments on language models and other learners.
+site_url: https://iparramartin.github.io/cognarium/
 repo_url: https://github.com/IParraMartin/cognarium
 docs_dir: docs
 exclude_docs: |
