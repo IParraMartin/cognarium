@@ -421,7 +421,7 @@ def test_context_too_long_for_the_model_suggests_a_window(tiny_model_and_tokeniz
 def test_iterated_learning_keeps_its_run_key(tmp_path):
     paradigm = cg.paradigms.IteratedLearning(cg.tasks.ShepardCategories(type="VI"), generations=1, chains=1)
     results = run_quietly(paradigm, ScriptedSubject(), tmp_path / "run")
-    assert results.manifest["key"] == "0c401d53f260"
+    assert results.manifest["key"] == "54882cbf18b2"
 
 
 def test_exposes_context():

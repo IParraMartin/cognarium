@@ -209,7 +209,7 @@ class Results:
             batch_size=batch_size
         )
 
-    def metrics(self, *names: str, **options: Any) -> pd.DataFrame:
+    def metrics(self, *names: str, by: Sequence[str] | None = None, **options: Any) -> pd.DataFrame:
         """Computes metrics from the results table.
 
         Args:
@@ -218,18 +218,31 @@ class Results:
                 a_prime. From the probabilities: entropy, surprisal, auroc, auprc,
                 brier, ece, cross_entropy or perplexity. From iterated learning:
                 fidelity, chain_entropy or kl. With recorded logits: logit_margin,
-                logit_difference, target_rank or vocab_entropy.
+                logit_difference, target_rank or vocab_entropy. From naming systems
+                in iterated learning, where a chain's system in a generation is its
+                answers, one label per item: ib_complexity, ib_accuracy,
+                efficiency_loss and ib_alignment, which need a `cg.tasks.Mapping`
+                with numeric features, and alignment and co_naming_mse, which
+                compare with `reference`. With numeric labels, as in function
+                learning: mse and correlation against `reference`. These score each
+                chain's system, then average over the chains in a group.
+            by: A column or columns to group by, in place of the paradigm's own. With
+                `["generation", "chain"]` the naming measures give one value per
+                chain.
             **options: Passed to the metrics that accept them. `raw=True` makes a
                 probability metric use the distribution before temperature and top-p.
                 `positive` names the option treated as the positive class. It defaults
                 to the macro average for precision, recall and f1, and to the first
                 option for the detection metrics. `n_bins` configures ece, and
-                `reference` and `smoothing` configure kl. auprc and ece see every
+                `reference` and `smoothing` configure kl. For alignment and
+                co_naming_mse, `reference` is one label per item or an items x labels
+                table of probabilities. For mse and correlation, it is one number per
+                item or a function of an item's features. auprc and ece see every
                 option's probability, so auprc is the macro average over the options
                 and ece scores the chosen option, even with two options.
 
         Returns:
-            A table with the paradigm's grouping columns, then `metric`, `value` and
+            A table with the grouping columns, then `metric`, `value` and
             `reference`, which names what kl compared against.
 
         Raises:
@@ -246,7 +259,9 @@ class Results:
         unused = set(options) - set().union(*accepted.values())
         if unused:
             raise TypeError(f"No requested metric accepts the options {sorted(unused)}.")
-        group_by = list(self.manifest.get("group_by", ()))
+        if isinstance(by, str):
+            by = [by]
+        group_by = list(self.manifest.get("group_by", ()) if by is None else by)
         tables = []
         for name in names:
             chosen = {key: value for key, value in options.items() if key in accepted[name]}

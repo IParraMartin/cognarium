@@ -42,6 +42,16 @@ from cognarium.metrics.information import (
     perplexity,
     surprisal
 )
+from cognarium.metrics.naming import (
+    Frontier,
+    co_naming_mse,
+    efficiency_loss,
+    gnid,
+    ib_accuracy,
+    ib_complexity,
+    ib_frontier,
+    meanings
+)
 from cognarium.metrics.statistics import (
     bootstrap_ci,
     cohens_d,
@@ -53,6 +63,7 @@ from cognarium.metrics.statistics import (
 
 __all__ = [
     "GEOMETRY",
+    "Frontier",
     "a_prime",
     "accuracy",
     "auprc",
@@ -60,6 +71,7 @@ __all__ = [
     "balanced_accuracy",
     "bootstrap_ci",
     "brier",
+    "co_naming_mse",
     "cohens_d",
     "conditional_entropy",
     "contrast_table",
@@ -68,10 +80,15 @@ __all__ = [
     "d_prime",
     "ece",
     "effect_comparison",
+    "efficiency_loss",
     "entropy",
     "f1",
     "fdr",
+    "gnid",
     "hedges_g",
+    "ib_accuracy",
+    "ib_complexity",
+    "ib_frontier",
     "information_bottleneck",
     "intrinsic_dimension",
     "item_correlation",
@@ -82,6 +99,7 @@ __all__ = [
     "layer_matrix",
     "linear_cka",
     "mcc",
+    "meanings",
     "mse",
     "mutual_information",
     "participation_ratio",

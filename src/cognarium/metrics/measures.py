@@ -7,6 +7,8 @@ device limits never affect a reported number.
 
 from __future__ import annotations
 
+import functools
+import json
 import math
 from collections.abc import (
     Callable,
@@ -21,7 +23,8 @@ import pandas as pd
 import torch
 
 from cognarium.errors import MissingAbilityError
-from cognarium.metrics import classification, detection, information
+from cognarium.metrics import classification, detection, information, naming
+from cognarium.tasks.mapping import Mapping as MappingTask
 
 _NO_PROBABILITIES = (
     "This measure reads probabilities over options, and free responses have none. "
@@ -245,6 +248,92 @@ def _column_mean(name: str) -> Callable[..., pd.DataFrame]:
     return measure
 
 
+def _ib_complexity(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
+    prior, _ = _meaning_space(_task_key(manifest))
+    return _by_system(frame, manifest, "ib_complexity", group_by, lambda system: naming.ib_complexity(system, prior))
+
+
+def _ib_accuracy(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
+    prior, meanings = _meaning_space(_task_key(manifest))
+    return _by_system(frame, manifest, "ib_accuracy", group_by, lambda system: naming.ib_accuracy(system, prior, meanings))
+
+
+def _efficiency_loss(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
+    key = _task_key(manifest)
+    prior, meanings = _meaning_space(key)
+    frontier = _frontier(key)
+    return _by_system(
+        frame,
+        manifest,
+        "efficiency_loss",
+        group_by,
+        lambda system: naming.efficiency_loss(system, prior, meanings, frontier)[0]
+    )
+
+
+def _ib_alignment(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
+    key = _task_key(manifest)
+    prior, meanings = _meaning_space(key)
+    frontier = _frontier(key)
+
+    def closeness(system: torch.Tensor) -> float:
+        _, beta = naming.efficiency_loss(system, prior, meanings, frontier)
+        return 1.0 - naming.gnid(system, frontier.encoder_at(beta), prior)
+
+    return _by_system(frame, manifest, "ib_alignment", group_by, closeness)
+
+
+def _alignment(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    reference: Any = None
+) -> pd.DataFrame:
+    n_items = _item_count(frame, manifest)
+    target = _reference_system(reference, n_items, "alignment")
+    prior = _item_prior(manifest, n_items)
+    return _by_system(frame, manifest, "alignment", group_by, lambda system: 1.0 - naming.gnid(system, target, prior))
+
+
+def _co_naming_mse(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    reference: Any = None
+) -> pd.DataFrame:
+    target = _reference_system(reference, _item_count(frame, manifest), "co_naming_mse")
+    return _by_system(frame, manifest, "co_naming_mse", group_by, lambda system: naming.co_naming_mse(system, target))
+
+
+def _numeric_mse(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    reference: Any = None
+) -> pd.DataFrame:
+    values = _label_values(frame, "mse")
+    target = _reference_values(reference, frame, manifest, "mse")
+    return _by_system(frame, manifest, "mse", group_by, lambda system: ((system @ values - target) ** 2).mean().item())
+
+
+def _correlation(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    reference: Any = None
+) -> pd.DataFrame:
+    values = _label_values(frame, "correlation")
+    target = _reference_values(reference, frame, manifest, "correlation")
+
+    def pearson(system: torch.Tensor) -> float:
+        answers = system @ values
+        if answers.std() == 0 or target.std() == 0:
+            return math.nan
+        return torch.corrcoef(torch.stack([answers, target]))[0, 1].item()
+
+    return _by_system(frame, manifest, "correlation", group_by, pearson)
+
+
 MEASURES: dict[str, Callable[..., pd.DataFrame]] = {
     "accuracy": _accuracy,
     "fidelity": _fidelity,
@@ -269,7 +358,15 @@ MEASURES: dict[str, Callable[..., pd.DataFrame]] = {
     "logit_margin": _column_mean("logit_margin"),
     "logit_difference": _column_mean("logit_difference"),
     "target_rank": _column_mean("target_rank"),
-    "vocab_entropy": _column_mean("vocab_entropy")
+    "vocab_entropy": _column_mean("vocab_entropy"),
+    "ib_complexity": _ib_complexity,
+    "ib_accuracy": _ib_accuracy,
+    "efficiency_loss": _efficiency_loss,
+    "ib_alignment": _ib_alignment,
+    "alignment": _alignment,
+    "co_naming_mse": _co_naming_mse,
+    "mse": _numeric_mse,
+    "correlation": _correlation
 }
 
 
@@ -485,3 +582,127 @@ def _final_third(chains: pd.DataFrame, names: Sequence[str], smoothing: float) -
     last = chains[chains["generation"] >= generations - math.ceil(generations / 3)]
     counts = _count_groups(last, names) + smoothing
     return counts / counts.sum()
+
+
+def _by_system(
+    frame: pd.DataFrame,
+    manifest: Mapping[str, Any],
+    name: str,
+    group_by: Sequence[str],
+    score: Callable[[torch.Tensor], float]
+) -> pd.DataFrame:
+    """Scores each chain's naming system in each generation, then averages over chains in a group."""
+    _require(frame, name, [
+        "item",
+        "options",
+        "response",
+        "generation",
+        "chain",
+        *group_by
+    ])
+    _refuse_free(frame)
+    labels = [str(label) for label in frame["options"].iloc[0]]
+    n_items = _item_count(frame, manifest)
+    keys = list(dict.fromkeys([*group_by, "generation", "chain"]))
+    rows = []
+    for key, part in frame.groupby(keys, sort=True):
+        counts = torch.zeros(n_items, len(labels), dtype=torch.float64)
+        for item, response in zip(part["item"], part["response"], strict=True):
+            counts[int(item), labels.index(str(response))] += 1
+        named = counts.sum(dim=1, keepdim=True)
+        if (named == 0).any():
+            described = ", ".join(f"{column}={value}" for column, value in zip(keys, key, strict=True))
+            raise ValueError(
+                f"Measure '{name}' needs every item named, but for {described} only "
+                f"{int((named > 0).sum())} of {n_items} were."
+            )
+        rows.append({**dict(zip(keys, key, strict=True)), "value": score(counts / named)})
+    return _apply_by(pd.DataFrame(rows), group_by, lambda part: float(part["value"].mean()))
+
+
+def _task_key(manifest: Mapping[str, Any]) -> str:
+    return json.dumps(manifest.get("paradigm", {}).get("task", {}), sort_keys=True)
+
+
+@functools.lru_cache(maxsize=8)
+def _meaning_space(task: str) -> tuple[torch.Tensor, torch.Tensor]:
+    """Rebuilds the item prior and meanings from a run's task description."""
+    config = json.loads(task)
+    if "features" not in config or "labels" not in config:
+        raise MissingAbilityError(
+            "The bottleneck measures need a cg.tasks.Mapping task, whose items are described by numbers."
+        )
+    points, sigma, prior = MappingTask(
+        config["features"],
+        config["labels"],
+        sigma=config.get("sigma"),
+        prior=config.get("prior")
+    ).meaning_space()
+    return prior, naming.meanings(points, sigma)
+
+
+@functools.lru_cache(maxsize=8)
+def _frontier(task: str) -> naming.Frontier:
+    return naming.ib_frontier(*_meaning_space(task))
+
+
+def _item_count(frame: pd.DataFrame, manifest: Mapping[str, Any]) -> int:
+    features = manifest.get("paradigm", {}).get("task", {}).get("features")
+    return len(features) if features is not None else int(frame["item"].max()) + 1
+
+
+def _item_prior(manifest: Mapping[str, Any], n_items: int) -> torch.Tensor:
+    weights = manifest.get("paradigm", {}).get("task", {}).get("prior")
+    prior = torch.ones(n_items, dtype=torch.float64) if weights is None else torch.tensor(weights, dtype=torch.float64)
+    return prior / prior.sum()
+
+
+def _reference_system(reference: Any, n_items: int, name: str) -> torch.Tensor:
+    """Turns a reference labelling, or a table of label probabilities, into an encoder."""
+    if reference is None:
+        raise ValueError(
+            f"Measure '{name}' compares each system with reference=: one label per item, "
+            "or an items x labels table of probabilities."
+        )
+    array = np.asarray(reference.cpu() if isinstance(reference, torch.Tensor) else reference)
+    if array.ndim == 2:
+        table = torch.as_tensor(array.astype(np.float64))
+        if len(table) != n_items or (table < 0).any() or (table.sum(dim=1) <= 0).any():
+            raise ValueError(
+                f"A reference table needs {n_items} rows of label probabilities, none negative, "
+                f"got shape {tuple(table.shape)}."
+            )
+        return table / table.sum(dim=1, keepdim=True)
+    labels = [str(label) for label in array.tolist()] if array.ndim == 1 else []
+    if len(labels) != n_items:
+        raise ValueError(f"A reference labelling needs one label for each of the {n_items} items, got {len(labels)}.")
+    words = sorted(set(labels))
+    return torch.tensor([[float(label == word) for word in words] for label in labels], dtype=torch.float64)
+
+
+def _label_values(frame: pd.DataFrame, name: str) -> torch.Tensor:
+    _require(frame, name, ["options"])
+    labels = list(frame["options"].iloc[0])
+    try:
+        return torch.tensor([float(label) for label in labels], dtype=torch.float64)
+    except (TypeError, ValueError):
+        raise MissingAbilityError(f"Measure '{name}' needs labels that are numbers, got {labels}.") from None
+
+
+def _reference_values(reference: Any, frame: pd.DataFrame, manifest: Mapping[str, Any], name: str) -> torch.Tensor:
+    """Gives the reference answer for each item, from a list or a function of the item's features."""
+    n_items = _item_count(frame, manifest)
+    if reference is None:
+        raise ValueError(
+            f"Measure '{name}' compares answers with reference=: one number per item, "
+            "or a function of an item's features."
+        )
+    if callable(reference):
+        features = manifest.get("paradigm", {}).get("task", {}).get("features")
+        if features is None:
+            raise MissingAbilityError(f"Measure '{name}' needs a task that records its items' features.")
+        reference = [reference(feature) for feature in features]
+    values = torch.tensor([float(value) for value in reference], dtype=torch.float64)
+    if len(values) != n_items:
+        raise ValueError(f"The reference needs one number for each of the {n_items} items, got {len(values)}.")
+    return values
