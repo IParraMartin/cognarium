@@ -23,7 +23,7 @@ sweeps come next.
 | `CategoryLearning` | Learns the Shepard structures, any category system or a function from corrective feedback, block by block | Shepard, Hovland and Jenkins (1961); Nosofsky et al. (1994) |
 | `ArtificialGrammar` | Studies strings from a finite-state grammar, then judges new ones, with grammaticality and chunk strength crossed, or compares them by string probability | Reber (1967); Knowlton and Squire (1996); Hu and Levy (2023) |
 
-The [paradigms page](docs/paradigms/learning.md) explains each one, how it maps onto the
+The [paradigms page](https://iparramartin.github.io/cognarium/paradigms/learning/) explains each one, how it maps onto the
 human task, what it can't capture, and results on GPT-2 and Qwen3.5-4B-Base, with full
 references.
 
@@ -64,7 +64,7 @@ the last saved step, and a folder that holds a different run is refused.
 
 ## Documentation
 
-The [docs](docs/index.md) cover installing, a longer quickstart, the concepts, writing
+The [docs](https://iparramartin.github.io/cognarium/) cover installing, a longer quickstart, the concepts, writing
 your own paradigm, recording hidden states, metrics, data and reproducibility. Each
 paradigm's section says how it maps onto the human task, the work it builds on, and
 what it can't capture.

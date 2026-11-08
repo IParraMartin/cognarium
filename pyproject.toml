@@ -43,7 +43,7 @@ dependencies = [
 
 [project.urls]
 Source = "https://github.com/IParraMartin/cognarium"
-Documentation = "https://github.com/IParraMartin/cognarium/tree/main/docs"
+Documentation = "https://iparramartin.github.io/cognarium/"
 Issues = "https://github.com/IParraMartin/cognarium/issues"
 
 [project.optional-dependencies]
