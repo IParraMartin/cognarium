@@ -7,6 +7,7 @@ import pytest
 
 from cognarium.paradigms.learning import IteratedLearning
 from cognarium.stimuli import Observation
+from cognarium.tasks.mapping import Mapping
 from cognarium.tasks.shepard import ShepardCategories
 
 
@@ -168,3 +169,93 @@ def test_missing_parent_labels_raise_rather_than_reach_a_prompt():
     )
     with pytest.raises(ValueError, match="chain 1"):
         made.step(1, previous)
+
+
+def remembering(**settings):
+    defaults = {
+        "task": Mapping([[value] for value in range(6)], ("wug", "dax"), start=["wug"] * 3 + ["dax"] * 3),
+        "generations": 2,
+        "chains": 2,
+        "n_prev_examples": 3,
+        "memory": 2
+    }
+    return IteratedLearning(**{**defaults, **settings})
+
+
+def answered(step, answer):
+    return pd.DataFrame({
+        **step.columns,
+        "item": [query.trial.item for query in step.queries],
+        "response": [answer(query) for query in step.queries]
+    })
+
+
+def walk(made, answer):
+    steps, previous, index = [], None, 0
+    while (step := made.step(index, previous)) is not None:
+        steps.append(step)
+        previous = made.annotate(answered(step, answer))
+        index += 1
+    return steps, previous
+
+
+def test_with_memory_each_chain_names_one_item_per_step_in_its_own_order():
+    steps, _ = walk(remembering(), lambda query: "dax")
+    assert len(steps) == 2 * 6
+    for generation in range(2):
+        for chain in range(2):
+            named = [
+                query.trial.item
+                for step in steps[generation * 6:(generation + 1) * 6]
+                for query, owner in zip(step.queries, step.columns["chain"], strict=True)
+                if owner == chain
+            ]
+            assert sorted(named) == list(range(6))
+    orders = [[step.queries[chain].trial.item for step in steps[:6]] for chain in range(2)]
+    assert orders[0] != orders[1]
+
+
+def test_memory_shows_the_chains_own_latest_answers_after_the_examples():
+    steps, _ = walk(remembering(), lambda query: f"{'wug' if query.trial.item % 2 else 'dax'}")
+    query = steps[4].queries[0]
+    shots, remembered = query.context[:3], query.context[3:]
+    assert len(remembered) == 2
+    earlier = [step.queries[0].trial.item for step in steps[2:4]]
+    assert [observation.stimulus.text for observation in remembered] == [f"[{item}]" for item in earlier]
+    assert [observation.label for observation in remembered] == ["wug" if item % 2 else "dax" for item in earlier]
+    written = [(observation.stimulus.text, observation.label) for observation in shots]
+    assert all(
+        [(observation.stimulus.text, observation.label) for observation in step.queries[0].context[:3]] == written
+        for step in steps[:6]
+    )
+
+
+def test_the_next_generation_learns_from_the_labelling_just_made():
+    steps, _ = walk(remembering(), lambda query: "dax")
+    later = [observation.label for step in steps[6:] for query in step.queries for observation in query.context]
+    assert set(later) == {"dax"}
+    assert set(steps[6].columns["parent_label"]) == {"dax"}
+
+
+def test_with_memory_a_chains_group_is_set_once_its_labelling_is_complete():
+    made = remembering()
+    steps, last = walk(made, lambda query: "dax")
+    assert set(last["group"]) == {"1 label"}
+    middle = made.annotate(answered(steps[3], lambda query: "dax"))
+    assert middle["group"].isna().all()
+
+
+def test_memory_must_not_be_negative():
+    with pytest.raises(ValueError, match="memory"):
+        remembering(memory=-1)
+
+
+def test_a_run_with_memory_names_every_item_once_per_generation(tmp_path):
+    import cognarium as cg
+
+    results = cg.run(remembering(), cg.subjects.ExemplarLearner(), out=tmp_path / "run", progress=False)
+    frame = results.to_pandas()
+    assert len(frame) == 2 * 2 * 6
+    assert (frame.groupby(["generation", "chain"])["item"].nunique() == 6).all()
+    chain_entropy = results.metrics("chain_entropy")
+    assert len(chain_entropy) == 2

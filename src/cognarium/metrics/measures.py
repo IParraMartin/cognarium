@@ -83,6 +83,7 @@ def _surprisal(
 
 def _chain_entropy(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
     _require(frame, "chain_entropy", ["chain", "group", *group_by])
+    frame = frame[frame["group"].notna()]
 
     def plug_in_entropy(part: pd.DataFrame) -> float:
         counts = torch.tensor(part["group"].value_counts().to_numpy(), dtype=torch.float64)
@@ -104,6 +105,7 @@ def _kl(
         "group",
         *group_by
     ])
+    frame = frame[frame["group"].notna()]
     names = list(manifest.get("groups") or sorted(frame["group"].unique()))
     chains = frame.drop_duplicates(["generation", "chain"])
     if reference is not None:

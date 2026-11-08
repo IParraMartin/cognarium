@@ -35,6 +35,8 @@ _GROUP_STREAM = 2
 _INIT_STREAM = 3
 # the trial engine draws each participant's trials from stream 4
 _LANGUAGE_STREAM = 5
+# cg.tasks.Mapping draws each chain's random start from stream 6
+_ORDER_STREAM = 7
 
 # Reber (1967): each state maps a letter to the next state, and None ends the string
 _REBER = {
@@ -88,6 +90,12 @@ class IteratedLearning(Paradigm):
             previous one, drawn without repeats. Showing every item lets a subject
             that reads its context simply copy it.
         noise: How likely each transmitted label is to flip to another option.
+        memory: How many of its own latest answers in the same generation a chain
+            still sees, after the transmitted examples. With 0, every item is named
+            independently and a generation is one step. Otherwise each chain names
+            the items one at a time, in a new random order every generation, so a
+            generation takes one step per item. Imel and Zaslavsky (2026) used 10,
+            which kept chains from collapsing onto a single label.
         instructions: Text placed before each prompt.
         examples: Demonstrations shown every generation, before the transmitted
             data. Observations or `(stimulus, label)` pairs. They can bias a
@@ -98,8 +106,8 @@ class IteratedLearning(Paradigm):
         seed: Seeds everything random in the experiment.
 
     Raises:
-        ValueError: If a count or probability is out of range, or an example's
-            label isn't one of the task's options.
+        ValueError: If a count or probability is out of range, `memory` is
+            negative, or an example's label isn't one of the task's options.
     """
 
     name = "iterated_learning"
@@ -114,6 +122,7 @@ class IteratedLearning(Paradigm):
         n_prev_examples: int = 4,
         noise: float = 0.0,
         *,
+        memory: int = 0,
         instructions: str | None = None,
         examples: Sequence[Any] = (),
         temperature: float = 1.0,
@@ -122,6 +131,8 @@ class IteratedLearning(Paradigm):
         seed: int = 0
     ) -> None:
         n_items = len(task.stimuli)
+        if memory < 0:
+            raise ValueError(f"memory must not be negative, got {memory}.")
         if generations < 1 or chains < 1:
             raise ValueError("generations and chains must be at least 1.")
         if not 1 <= n_prev_examples <= n_items:
@@ -133,6 +144,7 @@ class IteratedLearning(Paradigm):
         self.chains = chains
         self.n_prev_examples = n_prev_examples
         self.noise = noise
+        self.memory = memory
         self.modalities = task.modalities
         self.settings = Settings(
             temperature=temperature,
@@ -147,22 +159,23 @@ class IteratedLearning(Paradigm):
                 raise ValueError(f"Example label '{example.label}' is not one of {task.options}.")
 
     def step(self, index: int, previous: pd.DataFrame | None) -> Step | None:
-        """Builds one generation across every chain.
+        """Builds the next step: one generation, or with memory one item per chain.
 
         Args:
-            index: The generation to build.
-            previous: The results table of the generation before it.
+            index: The step to build.
+            previous: The results table of the step before it.
 
         Returns:
-            The generation's queries, or None after the last generation.
+            The step's queries, or None after the last generation.
 
         Raises:
-            ValueError: If a later generation has no previous results.
+            ValueError: If a later step has no previous results, or they miss a chain.
         """
+        if self.memory > 0:
+            return self._item_step(index, previous)
         if index >= self.generations:
             return None
         parents = self._parent_labels(index, previous)
-        seed = self.settings.seed
         starts = self._starts()
         queries = []
         columns = {
@@ -174,45 +187,149 @@ class IteratedLearning(Paradigm):
         }
         for chain in range(self.chains):
             transmitted = self._transmit(index, chain, parents[chain])
-            context = (
-                *self.settings.examples,
-                *(Observation(self.task.stimuli[item], label) for item, label in transmitted.items())
-            )
-            for item, stimulus in enumerate(self.task.stimuli):
-                queries.append(
-                    Query(
-                        trial=Trial(
-                            stimulus,
-                            options=self.task.options,
-                            answer=starts[chain][item],
-                            item=item
-                        ),
-                        context=context,
-                        instructions=self.settings.instructions,
-                        template=self.task.template,
-                        group=chain,
-                        response_seed=(
-                            seed,
-                            _RESPONSE_STREAM,
-                            index,
-                            chain,
-                            item
-                        ),
-                        group_seed=(
-                            seed,
-                            _GROUP_STREAM,
-                            index,
-                            chain
-                        ),
-                        init_seed=(seed, _INIT_STREAM, chain)
-                    )
-                )
+            context = (*self.settings.examples, *self._shown(transmitted))
+            for item in range(len(self.task.stimuli)):
+                queries.append(self._query(
+                    index,
+                    chain,
+                    item,
+                    context,
+                    starts
+                ))
                 columns["chain"].append(chain)
                 columns["generation"].append(index)
                 columns["parent_label"].append(parents[chain][item])
                 columns["seen"].append(item in transmitted)
                 columns["transmitted_label"].append(transmitted.get(item))
         return Step(index=index, queries=tuple(queries), columns=columns)
+
+    def _item_step(self, index: int, previous: pd.DataFrame | None) -> Step | None:
+        n_items = len(self.task.stimuli)
+        generation, position = divmod(index, n_items)
+        if generation >= self.generations:
+            return None
+        parents, named = self._carried(generation, position, previous)
+        starts = self._starts()
+        queries = []
+        columns = {
+            "chain": [],
+            "generation": [],
+            "position": [],
+            "parent_label": [],
+            "seen": [],
+            "transmitted_label": [],
+            "parents": [],
+            "named": []
+        }
+        for chain in range(self.chains):
+            order = self._order(generation, chain)
+            item = order[position]
+            transmitted = self._transmit(generation, chain, parents[chain])
+            recent = order[:position][-self.memory:]
+            context = (
+                *self.settings.examples,
+                *self._shown(transmitted),
+                *(Observation(self.task.stimuli[earlier], named[chain][earlier]) for earlier in recent)
+            )
+            queries.append(self._query(
+                generation,
+                chain,
+                item,
+                context,
+                starts
+            ))
+            columns["chain"].append(chain)
+            columns["generation"].append(generation)
+            columns["position"].append(position)
+            columns["parent_label"].append(parents[chain][item])
+            columns["seen"].append(item in transmitted)
+            columns["transmitted_label"].append(transmitted.get(item))
+            columns["parents"].append(list(parents[chain]))
+            columns["named"].append(list(named[chain]))
+        return Step(index=index, queries=tuple(queries), columns=columns)
+
+    def _carried(
+        self,
+        generation: int,
+        position: int,
+        previous: pd.DataFrame | None
+    ) -> tuple[list[list[str]], list[list[str | None]]]:
+        """Reads the previous generation's labelling and this generation's answers so far."""
+        n_items = len(self.task.stimuli)
+        empty = [[None] * n_items for _ in range(self.chains)]
+        if generation == 0 and position == 0:
+            return [list(start) for start in self._starts()], empty
+        if previous is None:
+            raise ValueError(f"Step {generation * n_items + position} needs the previous step's results.")
+        rows = previous.set_index("chain")
+        parents, named = [], []
+        for chain in range(self.chains):
+            if chain not in rows.index:
+                raise ValueError(
+                    f"The step before generation {generation}, item {position} has no row for chain {chain}."
+                )
+            row = rows.loc[chain]
+            labels = list(row["named"])
+            labels[int(row["item"])] = row["response"]
+            parents.append(list(row["parents"]))
+            named.append(labels)
+        if position == 0:
+            missing = next(
+                ((chain, labels.index(None)) for chain, labels in enumerate(named) if None in labels),
+                None
+            )
+            if missing is not None:
+                raise ValueError(f"Generation {generation - 1} has no label from chain {missing[0]}, item {missing[1]}.")
+            return named, empty
+        return parents, named
+
+    def _order(self, generation: int, chain: int) -> list[int]:
+        rng = np.random.default_rng([
+            self.settings.seed,
+            _ORDER_STREAM,
+            generation,
+            chain
+        ])
+        return rng.permutation(len(self.task.stimuli)).tolist()
+
+    def _shown(self, transmitted: dict[int, str]) -> tuple[Observation, ...]:
+        return tuple(Observation(self.task.stimuli[item], label) for item, label in transmitted.items())
+
+    def _query(
+        self,
+        generation: int,
+        chain: int,
+        item: int,
+        context: tuple[Observation, ...],
+        starts: list[tuple[str, ...]]
+    ) -> Query:
+        seed = self.settings.seed
+        return Query(
+            trial=Trial(
+                self.task.stimuli[item],
+                options=self.task.options,
+                answer=starts[chain][item],
+                item=item
+            ),
+            context=context,
+            instructions=self.settings.instructions,
+            template=self.task.template,
+            group=chain,
+            response_seed=(
+                seed,
+                _RESPONSE_STREAM,
+                generation,
+                chain,
+                item
+            ),
+            group_seed=(
+                seed,
+                _GROUP_STREAM,
+                generation,
+                chain
+            ),
+            init_seed=(seed, _INIT_STREAM, chain)
+        )
 
     def config(self) -> dict[str, Any]:
         """Describes the experiment in JSON-safe form.
@@ -227,6 +344,7 @@ class IteratedLearning(Paradigm):
             "chains": self.chains,
             "n_prev_examples": self.n_prev_examples,
             "noise": self.noise,
+            "memory": self.memory,
             "groups": list(self.task.groups),
             **self.settings.config()
         }
@@ -235,11 +353,21 @@ class IteratedLearning(Paradigm):
         """Adds the group each chain's labelling falls into.
 
         Args:
-            frame: The results table of one generation.
+            frame: The results table of one step.
 
         Returns:
-            The table with a `group` column.
+            The table with a `group` column. With memory, a chain's labelling is
+            complete only on its last item of a generation, so only that row gets a
+            group and the others get None.
         """
+        if self.memory > 0:
+            last = len(self.task.stimuli) - 1
+            groups = []
+            for _, row in frame.iterrows():
+                labels = list(row["named"])
+                labels[int(row["item"])] = row["response"]
+                groups.append(self.task.group_of(labels) if row["position"] == last else None)
+            return frame.assign(group=groups)
         ordered = frame.sort_values(["chain", "item"])
         labels = ordered.groupby("chain")["response"].agg(list)
         groups = {chain: self.task.group_of(values) for chain, values in labels.items()}
