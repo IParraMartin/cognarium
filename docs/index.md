@@ -6,7 +6,7 @@ hide:
 
 <div class="cg-home" markdown>
 
-<section class="cg-hero" markdown>
+<section class="cg-hero cg-reel" markdown>
 
 # Cognitive science experiments on language models
 
@@ -23,28 +23,17 @@ uv add cognarium
 
 </div>
 
-<figure class="cg-sequence" aria-label="One Stroop trial: what a person sees, what GPT-2 reads, and how GPT-2 answers">
-<div class="cg-frame">
-<div class="cg-monitor"><span class="cg-word">RED</span></div>
-<p class="cg-frame__caption">A person sees the word RED in blue ink.</p>
-</div>
-<div class="cg-frame">
-<div class="cg-monitor cg-monitor--text"><p>The word RED is printed in blue ink. What color is the ink?<br>Response:<span class="cg-caret"></span></p></div>
-<p class="cg-frame__caption">GPT-2 reads a description of it.</p>
-</div>
-<div class="cg-frame">
-<div class="cg-monitor cg-monitor--bars">
-<ol aria-label="GPT-2's probability for each ink">
-<li><span>red</span><span class="cg-track"><span class="cg-fill" style="--p: 63.45%"></span></span><span class="cg-value">0.63</span></li>
-<li class="cg-answer"><span>blue</span><span class="cg-track"><span class="cg-fill" style="--p: 17.26%"></span></span><span class="cg-value">0.17</span></li>
-<li><span>green</span><span class="cg-track"><span class="cg-fill" style="--p: 11.31%"></span></span><span class="cg-value">0.11</span></li>
-<li><span>yellow</span><span class="cg-track"><span class="cg-fill" style="--p: 7.98%"></span></span><span class="cg-value">0.08</span></li>
-</ol>
-</div>
-<p class="cg-frame__caption">It gives each ink a probability, and most of it goes to the word.</p>
-</div>
-<figcaption>One trial from <a href="paradigms/control/#a-real-run">the real run of Stroop on GPT-2</a>, unedited.</figcaption>
+<div class="cg-reel__screen">
+<figure class="paper-vid" id="cg-reel-screen" data-figure="stroop">
+<canvas width="640" height="624" role="img" aria-label="Stroop on GPT-2. On one trial it gives red 0.64, blue 0.12, green 0.12 and yellow, the correct ink, 0.12. Over the run, interference is found, +1.54 [0.98, 2.02] bits of answer surprisal, and errors are found, +2.12 [1.23, 2.94] nats of answer margin."><img src="assets/reel-stroop.png" width="640" height="624" loading="lazy" decoding="async" alt="Stroop on GPT-2. On one trial it gives red 0.64, blue 0.12, green 0.12 and yellow, the correct ink, 0.12. Over the run, interference is found, +1.54 [0.98, 2.02] bits of answer surprisal, and errors are found, +2.12 [1.23, 2.94] nats of answer margin."></canvas>
 </figure>
+</div>
+<div class="cg-reel__about" aria-live="off">
+<p class="cg-reel__group">Cognitive control</p>
+<p class="cg-reel__title"><a href="paradigms/control/#stroop">Stroop</a></p>
+<p class="cg-reel__task">Name the ink colour of a colour word.</p>
+<p class="cg-reel__note">One trial as GPT-2 read it, then every effect its run scored, found or not. The numbers come from the real runs shown on each paradigm's page.</p>
+</div>
 
 </section>
 
@@ -148,3 +137,6 @@ A model has no reaction times, so each score names the human measure it stands i
 </section>
 
 </div>
+
+<script src="javascripts/paradigm-runs.js" defer></script>
+<script src="javascripts/figures.js" defer></script>

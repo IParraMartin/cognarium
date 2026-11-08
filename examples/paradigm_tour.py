@@ -2,7 +2,8 @@
 
 Each page reports what the run gave, whether or not it looks like the human effect, and
 nothing is tuned or filtered. DRM uses the small lists written below, since its
-paradigm needs lists from you. Rerunning resumes finished runs.
+paradigm needs lists from you. Rerunning resumes finished runs. The tour also writes
+one trial and the scores of each run for the screen on the docs' home page.
 
 Example: python examples/paradigm_tour.py --model gpt2 --device auto --out runs/tour --docs docs/results
 """
@@ -34,6 +35,9 @@ CHAIN_METRICS = (
     "chain_entropy",
     "kl"
 )
+# the columns where a paradigm keeps what it read out of a free response
+READ_COLUMNS = ("parsed", "recalled", "produced")
+SCREEN_START = "window.COGNARIUM_RUNS = "
 
 
 def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
@@ -59,6 +63,12 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         type=Path,
         default=Path("docs/results"),
         help="Where to write the pages."
+    )
+    parser.add_argument(
+        "--screen",
+        type=Path,
+        default=Path("docs/javascripts/paradigm-runs.js"),
+        help="Where to write the data for the home page's screen."
     )
     parser.add_argument(
         "--only",
@@ -165,6 +175,77 @@ def summary(paradigm: cg.Paradigm, results: cg.Results) -> pd.DataFrame:
     return results.score() if paradigm.effects else results.metrics(*CHAIN_METRICS)
 
 
+def screen_entry(
+    name: str,
+    paradigm: cg.Paradigm,
+    results: cg.Results
+) -> dict[str, Any]:
+    """Describes a run's first trial and its scores, for the screen on the docs' home page.
+
+    Args:
+        name: The paradigm's name in `cg.paradigms.PARADIGMS`.
+        paradigm: The paradigm that ran.
+        results: Its results.
+
+    Returns:
+        The paradigm's name, its docs page and anchor, the first line of its docstring,
+        the first prompt, its options with their probabilities and the answer, or the
+        free response and what the paradigm read out of it, and the score rows. For
+        iterated learning, which declares no effects, the accuracy and fidelity of each
+        generation and the number of chains take the place of the scores.
+    """
+    first = results.to_pandas().iloc[0]
+    entry: dict[str, Any] = {
+        "name": name,
+        "page": type(paradigm).__module__.rsplit(".", 1)[-1],
+        "anchor": type(paradigm).__name__.lower(),
+        "task": (type(paradigm).__doc__ or "").strip().splitlines()[0],
+        "prompt": paradigm.step(0, None).queries[0].prompt(),
+        "answer": None if first["answer"] is None else str(first["answer"])
+    }
+    if len(first["options"]):
+        entry["options"] = [str(option) for option in first["options"]]
+        entry["probabilities"] = [math.exp(value) for value in first["log_probs"]]
+    else:
+        entry["response"] = str(first["response"])
+        column = next(column for column in READ_COLUMNS if column in first.index)
+        entry["read"] = [str(item) for item in first[column]]
+    if paradigm.effects:
+        entry["effects"] = [
+            {key: _json(value) for key, value in row.items()}
+            for row in results.score().to_dict("records")
+        ]
+    else:
+        metrics = results.metrics("accuracy", "fidelity")
+        entry["series"] = {
+            metric: metrics[metrics["metric"] == metric].sort_values("generation")["value"].tolist()
+            for metric in ("accuracy", "fidelity")
+        }
+        entry["chains"] = paradigm.config()["chains"]
+    return entry
+
+
+def write_screen(path: Path, entries: dict[str, dict[str, Any]]) -> None:
+    """Writes the screen's data, keeping the entries of paradigms that didn't run this time.
+
+    Args:
+        path: The script to write, which sets `window.COGNARIUM_RUNS`.
+        entries: The new entries, by paradigm name.
+    """
+    kept = {}
+    if path.exists():
+        text = path.read_text(encoding="utf-8")
+        kept = {entry["name"]: entry for entry in json.loads(text[text.index("["):text.rindex("]") + 1])}
+    kept.update(entries)
+    ordered = [kept[name] for name in cg.paradigms.PARADIGMS if name in kept]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "/* One trial and the scores of each paradigm's run, written by examples/paradigm_tour.py. */\n"
+        f"{SCREEN_START}{json.dumps(ordered, indent=4, ensure_ascii=False)};\n",
+        encoding="utf-8"
+    )
+
+
 def markdown(table: pd.DataFrame) -> str:
     """Writes a table as Markdown, with numbers to four significant digits.
 
@@ -196,6 +277,7 @@ def main(argv: Sequence[str] | None = None) -> dict[str, cg.Results]:
     device = str(getattr(subject, "device", args.device))
     args.docs.mkdir(parents=True, exist_ok=True)
     found = {}
+    entries = {}
     for name in names:
         paradigm = build(name)
         results = cg.run(
@@ -216,7 +298,15 @@ def main(argv: Sequence[str] | None = None) -> dict[str, cg.Results]:
         else:
             print(f"{name}: {len(table)} rows of chain metrics")
         found[name] = results
+        entries[name] = screen_entry(name, paradigm, results)
+    write_screen(args.screen, entries)
     return found
+
+
+def _json(value: Any) -> Any:
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    return value.item() if hasattr(value, "item") else value
 
 
 def _cell(value: Any) -> str:
