@@ -219,6 +219,115 @@ body {
 
 .cg-hero {
   padding: 1.6rem 0 0;
+  position: relative;
+}
+
+.cg-hero > :not(.cg-hero__art, .cg-hero__controls) {
+  position: relative;
+}
+
+.cg-hero__art {
+  --cg-art-line: var(--cg-cobalt);
+  --cg-art-line-alpha: 0.2;
+  --cg-art-soma: var(--cg-cobalt);
+  --cg-art-spike: var(--cg-cobalt);
+  --cg-art-glow: var(--cg-cornflower);
+  --cg-art-ground: var(--cg-white);
+  --cg-art-blend: source-over;
+  height: 31rem;
+  left: max(42%, 32rem);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, transparent 6%, rgb(0 0 0 / 0.35) 18%, #000 40%, #000 86%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 16%, #000 66%, transparent 100%);
+  mask-image:
+    linear-gradient(to right, transparent 0%, transparent 6%, rgb(0 0 0 / 0.35) 18%, #000 40%, #000 86%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 16%, #000 66%, transparent 100%);
+  pointer-events: none;
+  position: absolute;
+  right: max(calc(50% - 50vw), -10rem);
+  top: -1.4rem;
+}
+
+[data-md-color-scheme="slate"] .cg-hero__art {
+  --cg-art-line: var(--cg-cornflower);
+  --cg-art-line-alpha: 0.22;
+  --cg-art-soma: var(--cg-cornflower);
+  --cg-art-spike: #dbe7ff;
+  --cg-art-glow: var(--cg-cornflower);
+  --cg-art-ground: var(--cg-navy);
+  --cg-art-blend: lighter;
+}
+
+.cg-hero__art canvas {
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.md-main {
+  overflow-x: clip;
+}
+
+.cg-hero__toggle {
+  align-items: center;
+  background-color: var(--cg-bg);
+  border: 1px solid var(--cg-line);
+  border-radius: 50%;
+  color: var(--cg-muted);
+  cursor: pointer;
+  display: flex;
+  height: 1.6rem;
+  justify-content: center;
+  padding: 0;
+  transition: color 120ms ease, border-color 120ms ease;
+  width: 1.6rem;
+}
+
+.cg-hero__controls {
+  position: absolute;
+  right: 0;
+  top: 23rem;
+  z-index: 1;
+}
+
+.cg-hero__toggle[hidden] {
+  display: none;
+}
+
+.cg-hero__toggle svg {
+  fill: currentColor;
+  height: 0.7rem;
+  width: 0.7rem;
+}
+
+.cg-hero__toggle .cg-hero__play,
+.cg-hero__toggle[aria-pressed="true"] .cg-hero__pause {
+  display: none;
+}
+
+.cg-hero__toggle[aria-pressed="true"] .cg-hero__play {
+  display: block;
+}
+
+.cg-hero__toggle:hover,
+.cg-hero__toggle:focus-visible {
+  border-color: var(--cg-link);
+  color: var(--cg-link);
+}
+
+.cg-hero__toggle:focus-visible {
+  outline: 2px solid var(--cg-link);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active), print {
+  .cg-hero__art,
+  .cg-hero__controls {
+    display: none;
+  }
 }
 
 .md-typeset .cg-hero h1 {
@@ -272,6 +381,7 @@ body {
 
 .cg-index {
   margin: 4.2rem 0 0;
+  position: relative;
   scroll-margin-top: 4rem;
 }
 
@@ -388,6 +498,13 @@ body {
 .md-typeset .cg-run pre > code {
   background-color: var(--cg-bg);
   border: 1px solid var(--cg-line);
+}
+
+@media screen and (max-width: 68em) {
+  .cg-hero__art,
+  .cg-hero__controls {
+    display: none;
+  }
 }
 
 @media screen and (max-width: 60em) {

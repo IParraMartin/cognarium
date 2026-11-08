@@ -46,6 +46,8 @@ plugins:
             show_root_heading: true
 extra_css:
   - stylesheets/extra.css
+extra_javascript:
+  - javascripts/hero.js
 markdown_extensions:
   - admonition
   - attr_list
