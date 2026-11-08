@@ -255,7 +255,13 @@ def _ib_complexity(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mappi
 
 def _ib_accuracy(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
     prior, meanings = _meaning_space(_task_key(manifest))
-    return _by_system(frame, manifest, "ib_accuracy", group_by, lambda system: naming.ib_accuracy(system, prior, meanings))
+    return _by_system(
+        frame,
+        manifest,
+        "ib_accuracy",
+        group_by,
+        lambda system: naming.ib_accuracy(system, prior, meanings)
+    )
 
 
 def _efficiency_loss(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:

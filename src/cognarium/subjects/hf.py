@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from typing import Any
@@ -15,7 +16,7 @@ from cognarium.recording.layers import LayerMap, find_layer_map
 from cognarium.responses import Query, Responses
 from cognarium.subjects.base import Readout, Subject, weights_digest
 from cognarium.subjects.generation import generate_texts
-from cognarium.subjects.scoring import score_options
+from cognarium.subjects.scoring import pad_sequences, score_options
 
 _CHECK_TOKENS = 8
 _READOUT_TOLERANCE = 1e-3
@@ -117,7 +118,8 @@ class HFSubject(Subject):
                 option_prefix=self.option_prefix,
                 max_length=getattr(self.model.config, "max_position_embeddings", None),
                 capture_logits=capture_logits,
-                on_batch=on_batch
+                on_batch=on_batch,
+                score_after_prompt=self._score_after_prompt
             )
 
     def generate(
@@ -241,6 +243,50 @@ class HFSubject(Subject):
 
     def _forward(self, ids: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         return self.model(input_ids=ids, attention_mask=mask, use_cache=False).logits
+
+    def _score_after_prompt(self, prompt: list[int], options: list[list[int]]) -> torch.Tensor | None:
+        """Scores multi-token options by running the prompt once and reusing its cache.
+
+        Each batch of options continues from a copy of the prompt's cache, so a long
+        prompt with many options, such as the points of a numeric scale, costs one
+        pass over the prompt instead of one per option.
+
+        Args:
+            prompt: The prompt's token ids.
+            options: Each option's token ids.
+
+        Returns:
+            One summed log probability per option, or None if the model keeps no cache
+            that can be copied, in which case the caller scores the options the slow way.
+        """
+        output = self.model(input_ids=torch.tensor([prompt], device=self.device), use_cache=True)
+        cache = getattr(output, "past_key_values", None)
+        if cache is None or not hasattr(cache, "reorder_cache"):
+            return None
+        first = output.logits[0, -1].float().log_softmax(dim=-1).double().cpu()
+        scores = torch.tensor([first[tokens[0]].item() for tokens in options], dtype=torch.float64)
+        longer = [index for index, tokens in enumerate(options) if len(tokens) > 1]
+        for start in range(0, len(longer), self.batch_size):
+            batch = longer[start : start + self.batch_size]
+            copied = copy.deepcopy(cache)
+            # every row of the batch continues from the same prompt
+            copied.reorder_cache(torch.zeros(len(batch), dtype=torch.long, device=self.device))
+            ids, mask = pad_sequences(
+                [options[index][:-1] for index in batch],
+                self.tokenizer.pad_token_id,
+                self.device
+            )
+            seen = torch.ones((len(batch), len(prompt)), dtype=mask.dtype, device=self.device)
+            log_probs = self.model(
+                input_ids=ids,
+                attention_mask=torch.cat([seen, mask], dim=1),
+                past_key_values=copied,
+                use_cache=True
+            ).logits.float().log_softmax(dim=-1).double().cpu()
+            for row, index in enumerate(batch):
+                rest = torch.tensor(options[index][1:])
+                scores[index] += log_probs[row, torch.arange(len(rest)), rest].sum()
+        return scores
 
     def _encode_prompt(self, text: str) -> list[int]:
         if not self.chat:

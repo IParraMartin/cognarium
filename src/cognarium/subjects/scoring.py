@@ -22,13 +22,18 @@ def score_options(
     option_prefix: str = " ",
     max_length: int | None = None,
     capture_logits: bool = False,
-    on_batch: Callable[[torch.Tensor, Sequence[int]], None] | None = None
+    on_batch: Callable[[torch.Tensor, Sequence[int]], None] | None = None,
+    score_after_prompt: Callable[[list[int], list[list[int]]], torch.Tensor | None] | None = None
 ) -> Responses:
     """Scores each query's options by their log probability after its prompt.
 
     A score is the log probability under the full vocabulary, summed across the
     option's tokens, so options of different lengths compare fairly. For
-    single-token options, score differences equal logit differences.
+    single-token options, score differences equal logit differences. When one
+    option's tokens start another's, as with 1 and 10 under a tokenizer that splits
+    digits, every option of that query is scored together with the template's
+    separator, which ends an answer in the prompt's examples. Otherwise the shorter
+    option would always score at least as high.
 
     Args:
         queries: The queries to answer.
@@ -46,6 +51,9 @@ def score_options(
         on_batch: Called as `on_batch(mask, queries)` right after the forward pass of
             each batch of prompts. Every query then goes through that pass exactly
             once, whatever the length of its options.
+        score_after_prompt: Scores one prompt's multi-token options from their token
+            ids, by running the prompt once and reusing what the model kept from it.
+            When it returns None, that query runs each option with its prompt.
 
     Returns:
         One row of scores per query, on CPU.
@@ -55,12 +63,19 @@ def score_options(
             vocabulary, a prompt is empty, or a sequence exceeds `max_length`.
     """
     prompts = [encode_prompt(query.prompt()) for query in queries]
-    options = [_encode_options(
-        query,
-        encode_option,
-        option_prefix,
-        unk_token_id
-    ) for query in queries]
+    # queries in a run often share one option list, so each list is tokenized once
+    encoded: dict[tuple[tuple[str, ...], str], list[list[int]]] = {}
+    options = []
+    for query in queries:
+        key = (tuple(query.trial.options), query.template.separator)
+        if key not in encoded:
+            encoded[key] = _encode_options(
+                query,
+                encode_option,
+                option_prefix,
+                unk_token_id
+            )
+        options.append(encoded[key])
     _check_lengths(prompts, options, max_length)
     width = max(len(row) for row in options)
     scores = torch.full((len(queries), width), -torch.inf, dtype=torch.float64)
@@ -82,6 +97,15 @@ def score_options(
         )
         if capture_logits:
             logits = torch.cat(last)
+        if score_after_prompt is not None:
+            declined = []
+            for index in multi:
+                row = score_after_prompt(prompts[index], options[index])
+                if row is None:
+                    declined.append(index)
+                else:
+                    scores[index, : len(row)] = row
+            multi = declined
         _score_from_pairs(
             multi,
             prompts,
@@ -157,16 +181,36 @@ def _encode_options(
     option_prefix: str,
     unk_token_id: int | None
 ) -> list[list[int]]:
+    encoded = _tokenize_options(query.trial.options, "", encode_option, option_prefix, unk_token_id)
+    if len({tuple(tokens) for tokens in encoded}) != len(encoded):
+        raise ValueError(f"Options {query.trial.options} have the same tokens, so they can't be told apart.")
+    starts = {tuple(tokens[:end]) for tokens in encoded for end in range(1, len(tokens))}
+    if query.template.separator and any(tuple(tokens) in starts for tokens in encoded):
+        return _tokenize_options(
+            query.trial.options,
+            query.template.separator,
+            encode_option,
+            option_prefix,
+            unk_token_id
+        )
+    return encoded
+
+
+def _tokenize_options(
+    options: Sequence[str],
+    ending: str,
+    encode_option: Callable[[str], list[int]],
+    option_prefix: str,
+    unk_token_id: int | None
+) -> list[list[int]]:
     encoded = []
-    for option in query.trial.options:
-        tokens = encode_option(option_prefix + option)
+    for option in options:
+        tokens = encode_option(option_prefix + option + ending)
         if not tokens:
             raise ValueError(f"Option '{option}' has no tokens, so it can't be scored.")
         if unk_token_id is not None and unk_token_id in tokens:
             raise ValueError(f"Option '{option}' isn't in the model's vocabulary, so it can't be scored.")
         encoded.append(tokens)
-    if len({tuple(tokens) for tokens in encoded}) != len(encoded):
-        raise ValueError(f"Options {query.trial.options} have the same tokens, so they can't be told apart.")
     return encoded
 
 

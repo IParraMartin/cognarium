@@ -72,6 +72,35 @@ def test_batch_size_and_padding_do_not_change_scores(tiny_model_and_tokenizer):
     assert torch.allclose(together, apart, atol=1e-5)
 
 
+def test_multi_token_options_run_the_prompt_once_and_match_brute_force(byte_model_and_tokenizer):
+    model, tok = byte_model_and_tokenizer
+    options = ("wug", "dax", "blicket", "z")
+    asked = query("Features: [1, 2] -> Label:", options=options)
+    seen = []
+    embeddings = model.get_input_embeddings()
+    handle = embeddings.register_forward_hook(lambda module, inputs, output: seen.append(inputs[0].numel()))
+    try:
+        scores = HFSubject(model, tok, device="cpu", batch_size=2).respond([asked]).scores
+    finally:
+        handle.remove()
+    for position, option in enumerate(options):
+        assert scores[0, position].item() == pytest.approx(brute_force(model, tok, asked.prompt(), option), abs=1e-5)
+    prompt_length = len(tok(asked.prompt())["input_ids"])
+    # the prompt goes through the model once, not once per option
+    assert sum(seen) < 2 * prompt_length
+
+
+def test_numbers_that_start_other_numbers_are_scored_up_to_the_end_of_an_answer(byte_model_and_tokenizer):
+    model, tok = byte_model_and_tokenizer
+    asked = query("x = 3 -> y =", options=("1", "10", "100"))
+    scores = HFSubject(model, tok, device="cpu").respond([asked]).scores
+    for position, option in enumerate(("1", "10", "100")):
+        assert scores[0, position].item() == pytest.approx(
+            brute_force(model, tok, asked.prompt(), option + "\n"),
+            abs=1e-5
+        )
+
+
 def test_capture_logits_returns_the_full_vocabulary(tiny_model_and_tokenizer):
     model, tok = tiny_model_and_tokenizer
     logits = HFSubject(model, tok, device="cpu").respond([query()], capture_logits=True).logits
