@@ -279,7 +279,8 @@ class IteratedLearning(Paradigm):
                 None
             )
             if missing is not None:
-                raise ValueError(f"Generation {generation - 1} has no label from chain {missing[0]}, item {missing[1]}.")
+                chain, item = missing
+                raise ValueError(f"Generation {generation - 1} has no label from chain {chain}, item {item}.")
             return named, empty
         return parents, named
 
