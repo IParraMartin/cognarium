@@ -46,6 +46,8 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--chains", type=int, default=8, help="Families per condition. The paper had 8.")
     parser.add_argument("--generations", type=int, default=9, help="Learners per family. The paper had 9.")
     parser.add_argument("--examples", type=int, default=50, help="Answers passed on to the next generation.")
+    parser.add_argument("--temperature", type=float, default=1.0, help="Divides log probabilities before sampling.")
+    parser.add_argument("--top-p", type=float, default=1.0, help="Samples only from the likeliest answers covering this mass.")
     parser.add_argument(
         "--conditions",
         nargs="+",
@@ -105,6 +107,8 @@ def main(argv: Sequence[str] | None = None) -> pd.DataFrame:
             chains=args.chains,
             n_prev_examples=args.examples,
             instructions=None if args.model == "exemplar" else INSTRUCTIONS,
+            temperature=args.temperature,
+            top_p=args.top_p,
             seed=args.seed
         )
         results = cg.run(paradigm, subject, out=args.out / condition)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -116,11 +117,17 @@ def test_function_learning_runs_on_a_language_model(byte_model_and_tokenizer, tm
         "5",
         "--conditions",
         "random",
+        "--temperature",
+        "0.6",
+        "--top-p",
+        "0.9",
         "--out",
         str(tmp_path / "runs")
     ]
     medians = load_main("function_learning")(args)
     assert medians["generation"].tolist() == [0, 1]
+    manifest = json.loads((tmp_path / "runs" / "random" / "manifest.json").read_text())
+    assert (manifest["paradigm"]["temperature"], manifest["paradigm"]["top_p"]) == (0.6, 0.9)
 
 
 def test_shepard_types_order_the_rational_learner_like_people(tmp_path):
