@@ -47,6 +47,7 @@ plugins:
 extra_css:
   - stylesheets/extra.css
 extra_javascript:
+  - javascripts/theme.js
   - javascripts/hero.js
 markdown_extensions:
   - admonition
