@@ -12,9 +12,9 @@ import cognarium as cg
 from cognarium.metrics import effect_comparison, item_correlation, split_half_ceiling
 
 
-def lexical_run(folder):
+def grammar_run(folder):
     return cg.run(
-        cg.paradigms.LexicalDecision(),
+        cg.paradigms.ArtificialGrammar(n_train=12, n_test=6),
         ScriptedSubject(probabilities=(0.7, 0.3)),
         out=folder,
         progress=False
@@ -152,7 +152,7 @@ def test_effect_comparison_paired_uses_the_differences():
 
 
 def test_compare_to_human_joins_on_item_and_warns_about_dropped_items(tmp_path):
-    results = lexical_run(tmp_path / "run")
+    results = grammar_run(tmp_path / "run")
     human = human_table(results, drop=2, extra=("zzz", "yyy", "xxx"))
     with pytest.warns(UserWarning, match="2 items .* only in the results.*3 .* only in the human"):
         table = results.compare_to_human(human, "answer_probability")
@@ -161,16 +161,16 @@ def test_compare_to_human_joins_on_item_and_warns_about_dropped_items(tmp_path):
 
 
 def test_compare_to_human_correlates_the_item_means(tmp_path):
-    results = lexical_run(tmp_path / "run")
+    results = grammar_run(tmp_path / "run")
     frame = results.to_pandas()
     model = frame.assign(value=np.exp([row[0] for row in frame["log_probs"]])).groupby("item")["value"].mean()
     human = pd.DataFrame({"item": model.index, "value": model.to_numpy() * 3 + np.arange(len(model))})
-    table = results.compare_to_human(human, "option_probability", option="word")
+    table = results.compare_to_human(human, "option_probability", option="grammatical")
     assert table.iloc[0]["correlation"] == pytest.approx(np.corrcoef(model.to_numpy(), human["value"])[0, 1])
 
 
 def test_compare_to_human_labels_proxies(tmp_path):
-    results = lexical_run(tmp_path / "run")
+    results = grammar_run(tmp_path / "run")
     human = human_table(results)
     surprisal = results.compare_to_human(human, "answer_surprisal", ceiling=0.8).iloc[0]
     accuracy = results.compare_to_human(human, "answer_probability").iloc[0]
@@ -203,7 +203,7 @@ def test_constant_input_raises_rather_than_nan():
 
 
 def test_too_few_shared_items_raises(tmp_path):
-    results = lexical_run(tmp_path / "run")
+    results = grammar_run(tmp_path / "run")
     items = sorted(results.to_pandas()["item"].unique())[:2]
     human = pd.DataFrame({"item": items, "value": [1.0, 2.0]})
     with pytest.warns(UserWarning), pytest.raises(ValueError, match="at least 3"):
@@ -211,6 +211,6 @@ def test_too_few_shared_items_raises(tmp_path):
 
 
 def test_compare_to_human_needs_the_columns(tmp_path):
-    results = lexical_run(tmp_path / "run")
+    results = grammar_run(tmp_path / "run")
     with pytest.raises(ValueError, match="'value'"):
         results.compare_to_human(pd.DataFrame({"item": ["a"], "rating": [1.0]}), "answer_probability")

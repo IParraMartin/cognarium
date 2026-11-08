@@ -32,12 +32,15 @@ bootstrap interval and a permutation test.
 
 ```python
 subject = cg.load("gpt2", device="auto")
-results = cg.run(cg.paradigms.NBack(), subject)
+results = cg.run(cg.paradigms.ArtificialGrammar(), subject)
 results.metrics("accuracy", "entropy")
 ```
 
+Signal detection needs both kinds of trial in each group, so `by=[]` pools the
+grammatical and ungrammatical strings:
+
 ```python
-results.metrics("d_prime", positive="yes")
+results.metrics("d_prime", positive="grammatical", by=[])
 ```
 
 ## Geometry

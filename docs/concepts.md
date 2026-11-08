@@ -14,11 +14,11 @@ condition labels and an item ID.
 import cognarium as cg
 
 trial = cg.Trial(
-    cg.Stimulus(text="The word RED is printed in blue ink. What color is the ink?"),
-    options=("red", "blue"),
-    answer="blue",
-    condition={"congruency": "incongruent"},
-    item="red-blue"
+    cg.Stimulus(text="Letters: T X S"),
+    options=("grammatical", "ungrammatical"),
+    answer="grammatical",
+    condition={"status": "grammatical"},
+    item="TXS"
 )
 trial.options
 ```
@@ -40,8 +40,8 @@ declares the effects it scores. Settings that shape a run live on the paradigm:
 | `seed` | Seeds everything random in the experiment |
 
 ```python
-paradigm = cg.paradigms.Flanker(
-    instructions="Answer with the direction of the middle arrow.",
+paradigm = cg.paradigms.ArtificialGrammar(
+    instructions="Judge whether each string follows the rules of the studied strings.",
     temperature=0.7,
     n_participants=2,
     seed=1
@@ -76,10 +76,10 @@ bayes = cg.subjects.BayesianLearner(decision="sample")
 
 ## Responses
 
-Most paradigms are forced choice: every option is scored and the scores are normalised
-over the options, so the response is a distribution on every kind of subject. Paradigms
-such as free recall and fluency are answered by free generation instead, and their
-output is parsed afterwards. Temperature, top-k and top-p are applied by the runner, so
+Paradigms are forced choice by default: every option is scored and the scores are
+normalised over the options, so the response is a distribution on every kind of subject.
+A paradigm that sets `response_mode = "generate"` is answered by free generation
+instead, on neural subjects only, and its output is parsed afterwards. Temperature, top-k and top-p are applied by the runner, so
 they behave the same on every subject, and the raw scores are always kept beside the
 shaped ones.
 
@@ -91,6 +91,12 @@ isolated trials and no personas, every participant sees the same prompts, so cog
 warns, and refuses participant-level intervals rather than reporting one of zero width.
 
 ```python
-results = cg.run(cg.paradigms.Stroop(), gpt2)
-results.contrast("answer_surprisal", by="congruency", levels=("incongruent", "congruent"), ci_by="item")
+results = cg.run(cg.paradigms.ArtificialGrammar(), gpt2)
+results.contrast(
+    "option_probability",
+    by="status",
+    levels=("grammatical", "ungrammatical"),
+    option="grammatical",
+    ci_by="item"
+)
 ```

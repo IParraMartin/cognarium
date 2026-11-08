@@ -760,7 +760,7 @@ _ENTRIES = (
             "presented in lists. Journal of Experimental Psychology: Learning, Memory, and Cognition, 21(4), "
             "803-814."
         ),
-        note=f"{_NOT_OFFERED} The DRM paradigm takes your own lists through stimuli=."
+        note=_NOT_OFFERED
     ),
     Entry(
         name="cogbench",

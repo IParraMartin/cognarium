@@ -54,7 +54,7 @@ login. `cg.data.available(include_disabled=True)` lists them too.
 ```python
 pairs = cg.data.load("blimp", phenomena=["causative"])
 subject = cg.load("gpt2", device="auto")
-results = cg.run(cg.paradigms.MinimalPairs(stimuli=pairs), subject)
+results = cg.run(Acceptability(stimuli=pairs), subject)
 ```
 
 <!-- no-run -->

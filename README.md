@@ -8,9 +8,9 @@ Bayesian learners, on CPU, MPS or CUDA.
 
 ## Status
 
-This is version 0.1.0. It has 25 paradigms across cognitive control, memory,
-learning, language and judgment, CSV and JSON conversion, a registry of open datasets
-pinned by checksum, comparison with human data, per-trial logits, the logit lens,
+This is version 0.1.0. It has three learning paradigms (in-context iterated learning
+on any category system or function, category learning and artificial grammar learning),
+CSV and JSON conversion, a registry of open datasets pinned by checksum, comparison with human data, per-trial logits, the logit lens,
 hidden-state datasets, resumable runs, and information, classification, signal
 detection, geometry, statistics and naming metrics. Batching, quantization and multi-GPU sweeps
 come next, then speech, vision and perception paradigms.
@@ -36,7 +36,7 @@ uv run mkdocs serve
 import cognarium as cg
 
 subject = cg.load("gpt2", device="auto")
-results = cg.run(cg.paradigms.Stroop(), subject)
+results = cg.run(cg.paradigms.ArtificialGrammar(), subject)
 
 results.score()
 results.to_pandas()
@@ -44,8 +44,8 @@ results.metrics("accuracy", "entropy")
 ```
 
 `score()` gives one row per effect the paradigm declares, with a bootstrap interval over
-items and a permutation test. A model has no reaction times, so where the human effect
-is about speed the table names what its measure stands in for, in `proxy_for`.
+items and a permutation test. Where a measure stands in for a human one, such as
+surprisal for reaction time, the table names it in `proxy_for`.
 
 Each run writes to `runs/<paradigm>/<key>/`. Running the same call again continues after
 the last saved step, and a folder that holds a different run is refused.
@@ -54,7 +54,7 @@ the last saved step, and a folder that holds a different run is refused.
 
 The [docs](docs/index.md) cover installing, a longer quickstart, the concepts, writing
 your own paradigm, recording hidden states, metrics, data and reproducibility. Each
-paradigm's page says how it maps onto the human task and what it can't capture.
+paradigm's section says how it maps onto the human task and what it can't capture.
 
 ## Contents
 

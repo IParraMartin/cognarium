@@ -108,9 +108,7 @@ def test_trials_depend_only_on_the_seed(name):
 
 @pytest.mark.parametrize("name", NAMES)
 def test_default_stimuli_are_labelled_not_human_normed(name):
-    # DRM ships no lists, so its cases pass their own
-    expected = "your own rows" if name == "drm" else "built-in, not human-normed"
-    assert CASES[name].build().config()["stimuli"] == expected
+    assert CASES[name].build().config()["stimuli"] == "built-in, not human-normed"
 
 
 @pytest.mark.parametrize("name", NAMES)

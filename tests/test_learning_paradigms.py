@@ -1,4 +1,4 @@
-"""Category learning, artificial grammar learning and statistical learning."""
+"""Category learning and artificial grammar learning."""
 
 from __future__ import annotations
 
@@ -50,10 +50,6 @@ def GRAMMAR(**options):
     return learning.ArtificialGrammar(n_train=12, n_test=6, **options)
 
 
-def STREAM(**options):
-    return learning.StatisticalLearning(n_words=4, stream_words=12, **options)
-
-
 def run_quietly(
     paradigm,
     subject,
@@ -98,17 +94,13 @@ def trials_of(paradigm, participant=0):
     return paradigm.sequences()[participant]
 
 
-def windows(syllables):
-    return [tuple(syllables[start : start + 3]) for start in range(len(syllables) - 2)]
-
-
 def posterior_group(paradigm):
     learner = cg.subjects.BayesianLearner(decision="average").bind(paradigm, "posterior")
     log_posterior = learner.log_posterior(paradigm.study(0, 0))
     return paradigm.hypothesis_space().groups[int(log_posterior.argmax())]
 
 
-@pytest.mark.parametrize("build", [CATEGORY, GRAMMAR, STREAM])
+@pytest.mark.parametrize("build", [CATEGORY, GRAMMAR])
 def test_runs_on_exemplar_and_bayesian_learners(build, tmp_path):
     paradigm = build()
     for subject in [cg.subjects.ExemplarLearner(criterion=0.5), cg.subjects.BayesianLearner(decision="average")]:
@@ -251,61 +243,6 @@ def test_grammar_strings_have_distinct_features():
 def test_grammar_refuses_more_strings_than_it_has():
     with pytest.raises(ValueError, match="n_train"):
         learning.ArtificialGrammar(n_train=30, n_test=20)
-
-
-def test_stream_has_no_immediate_repeats():
-    paradigm = STREAM(n_participants=3)
-    for participant in range(3):
-        stream = paradigm.stream(participant)
-        words = [tuple(stream[start : start + 3]) for start in range(0, len(stream), 3)]
-        assert all(word in paradigm.words for word in words)
-        assert all(first != second for first, second in zip(words, words[1:], strict=False))
-
-
-def test_part_words_occur_in_the_stream_less_often_than_words():
-    paradigm = STREAM()
-    counts = Counter(windows(paradigm.stream(0)))
-    by_type = {"word": [], "part_word": []}
-    for trial in trials_of(paradigm):
-        by_type[trial.condition["test_type"]].append(counts[tuple(trial.stimulus.text.split())])
-    assert min(by_type["part_word"]) >= 1
-    assert max(by_type["part_word"]) < min(by_type["word"])
-
-
-def test_transitional_probabilities_are_higher_inside_words():
-    paradigm = STREAM()
-    stream = paradigm.stream(0)
-    pairs = Counter(zip(stream, stream[1:], strict=False))
-    firsts = Counter(stream[:-1])
-    inside = {(word[0], word[1]) for word in paradigm.words} | {(word[1], word[2]) for word in paradigm.words}
-    probabilities = {pair: count / firsts[pair[0]] for pair, count in pairs.items()}
-    assert min(p for pair, p in probabilities.items() if pair in inside) > max(
-        p for pair, p in probabilities.items() if pair not in inside
-    )
-
-
-def test_stream_refuses_too_few_words():
-    with pytest.raises(ValueError, match="n_words"):
-        learning.StatisticalLearning(n_words=2, stream_words=12)
-
-
-def test_stream_refuses_a_length_that_isnt_a_multiple_of_the_words():
-    with pytest.raises(ValueError, match="stream_words"):
-        learning.StatisticalLearning(n_words=4, stream_words=10)
-
-
-def test_bayesian_finds_the_words_in_the_stream(tmp_path):
-    paradigm = STREAM()
-    assert posterior_group(paradigm) == "true"
-    results = run_quietly(paradigm, cg.subjects.BayesianLearner(decision="average"), tmp_path / "run")
-    primary = results.score().iloc[0]
-    assert primary["detected"] and primary["difference"] > 0
-
-
-def test_exemplar_prefers_words_to_part_words(tmp_path):
-    results = run_quietly(STREAM(), cg.subjects.ExemplarLearner(criterion=0.5), tmp_path / "run")
-    primary = results.score().iloc[0]
-    assert primary["detected"] and primary["difference"] > 0
 
 
 def test_category_learning_feedback_holds_every_earlier_block_with_correct_labels():

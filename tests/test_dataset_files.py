@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from helpers import ScriptedSubject
 
 import cognarium as cg
 from cognarium.data import check
@@ -51,12 +50,6 @@ def test_every_link_answers():
     assert check.check_links() == {}
 
 
-def test_a_blimp_phenomenon_runs_as_minimal_pairs(tmp_path):
+def test_a_blimp_phenomenon_holds_its_thousand_pairs():
     pairs = cg.data.load("blimp", phenomena=["causative"])
-    results = cg.run(
-        cg.paradigms.MinimalPairs(stimuli=pairs),
-        ScriptedSubject(),
-        out=tmp_path / "run",
-        progress=False
-    )
-    assert len(results.to_pandas()) == 1000
+    assert len(pairs) == 1000

@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-ITEMS = sorted(path.name for path in (ROOT / "src/cognarium/paradigms/items").glob("*.json"))
 
 
 @pytest.fixture(scope="module")
@@ -64,12 +63,6 @@ def metadata_of(wheel):
     with zipfile.ZipFile(wheel) as archive:
         (name,) = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
         return email.message_from_bytes(archive.read(name))
-
-
-def test_the_wheel_holds_every_item_file(wheel):
-    packaged = {Path(name).name for name in names_in(wheel) if "/paradigms/items/" in name}
-    assert len(ITEMS) >= 10
-    assert set(ITEMS) <= packaged
 
 
 def test_the_wheel_holds_only_the_library(wheel):

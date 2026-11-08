@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from importlib import resources
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -594,19 +593,6 @@ class Paradigm:
             for row in self.sequences()
         ]
         return all(multiset == multisets[0] for multiset in multisets)
-
-
-def load_items(name: str) -> list[dict[str, Any]]:
-    """Reads a file of built-in items that ships with cognarium.
-
-    Args:
-        name: The file's name in `cognarium/paradigms/items`, without `.json`.
-
-    Returns:
-        The file's rows.
-    """
-    content = resources.files("cognarium.paradigms").joinpath("items", f"{name}.json").read_text(encoding="utf-8")
-    return json.loads(content)["rows"]
 
 
 def _condition_keys(sequences: Sequence[Sequence[Trial]]) -> list[str]:

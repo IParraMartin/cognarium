@@ -10,7 +10,7 @@ each session.
 import cognarium as cg
 
 subject = cg.load("gpt2", device="auto")
-results = cg.run(cg.paradigms.Flanker(), subject, out="runs/flanker")
+results = cg.run(cg.paradigms.ArtificialGrammar(), subject, out="runs/grammar")
 results.manifest["versions"]
 ```
 
@@ -20,7 +20,7 @@ A run saves each step as it finishes. Running the same call again continues afte
 last saved step, and a finished run makes no more model calls.
 
 ```python
-again = cg.run(cg.paradigms.Flanker(), subject, out="runs/flanker")
+again = cg.run(cg.paradigms.ArtificialGrammar(), subject, out="runs/grammar")
 again.to_pandas().equals(results.to_pandas())
 ```
 
@@ -29,7 +29,7 @@ nothing is deleted.
 
 ```python
 try:
-    cg.run(cg.paradigms.Flanker(seed=1), subject, out="runs/flanker")
+    cg.run(cg.paradigms.ArtificialGrammar(seed=1), subject, out="runs/grammar")
 except cg.RunConflictError as error:
     print(error)
 ```

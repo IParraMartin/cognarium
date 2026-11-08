@@ -1,10 +1,16 @@
 # Custom paradigms
 
-## Your own stimuli
+## Your own items
 
-Every built-in paradigm takes `stimuli=` with the columns its page names. A path to a
-CSV, JSON, JSON Lines or Parquet file works, as do a pandas table, a `Dataset` and a list
-of mappings. A missing column or an empty cell raises an error naming the row.
+The learning paradigms take their items as a task. `cg.tasks.Mapping` holds any items,
+described by numbers or by words, with a fixed set of labels, so iterated learning runs
+on your own category system or function without a new class, as the
+[learning paradigms](paradigms/learning.md) page shows.
+
+A paradigm you write can read rows from a file instead. Set `item_columns` to the columns
+it needs, and `stimuli=` then takes a path to a CSV, JSON, JSON Lines or Parquet file, a
+pandas table, a `Dataset` or a list of mappings. `self.item_rows(rng)` gives the rows. A
+missing column or an empty cell raises an error naming the row.
 
 ```python
 import cognarium as cg
@@ -12,18 +18,34 @@ import pandas as pd
 
 subject = cg.load("gpt2", device="auto")
 
+
+class Acceptability(cg.Paradigm):
+    """Choose the acceptable sentence of a pair that differs in one place."""
+
+    item_columns = ("good", "bad")
+    effects = (cg.Effect("preference", "answer_probability", against=0.5),)
+
+    def trials(self, rng):
+        for index, row in enumerate(self.item_rows(rng)):
+            first, second = (row["good"], row["bad"]) if index % 2 == 0 else (row["bad"], row["good"])
+            yield cg.Trial(
+                cg.Stimulus(text=f"A: {first}\nB: {second}\nWhich sentence is acceptable?"),
+                options=["A", "B"],
+                answer="A" if first == row["good"] else "B",
+                item=index
+            )
+
+
 pairs = pd.DataFrame({
     "good": ["The keys are on the table.", "She has eaten.", "Who did you see?"],
-    "bad": ["The keys is on the table.", "She have eaten.", "Who did you see him?"],
-    "phenomenon": ["agreement", "agreement", "islands"]
+    "bad": ["The keys is on the table.", "She have eaten.", "Who did you see him?"]
 })
 pairs.to_csv("pairs.csv", index=False)
-results = cg.run(cg.paradigms.MinimalPairs(stimuli="pairs.csv"), subject)
-results.to_pandas()[["phenomenon", "answer", "response"]]
+results = cg.run(Acceptability(stimuli="pairs.csv"), subject)
+results.to_pandas()[["item", "answer", "response"]]
 ```
 
-Results record where the stimuli came from, and say "built-in, not human-normed" when a
-paradigm used its own.
+Results record where the stimuli came from.
 
 ## A new paradigm
 
@@ -80,8 +102,8 @@ written, `group_by` to the columns metrics are reported by, or override
 | `entropy` | The entropy of the response distribution |
 | `accuracy`, `surprisal` | Whether the response was correct, and the surprisal of the response, in bits |
 
-A numeric column the paradigm writes, such as `n_recalled`, works as a measure too.
+A numeric column the paradigm writes, such as a count it parses, works as a measure too.
 
 Surprisal, entropy and the margin stand in for reaction time, and `score()` says so in
-`proxy_for`. When a measure stands in for something else, name it on the effect, as the
-built-in `errors` effects do: `cg.Effect("errors", "answer_margin", ..., proxy_for="error rate")`.
+`proxy_for`. When a measure stands in for something else, name it on the effect, as in
+`cg.Effect("errors", "answer_margin", ..., proxy_for="error rate")`.

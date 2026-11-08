@@ -87,7 +87,7 @@ def wordsim353(path: Path) -> Dataset:
 
 
 def blimp(path: Path, *, phenomena: Sequence[str] | None = None) -> Dataset:
-    """Reads BLiMP's 67 sets of 1,000 minimal pairs, in the columns `MinimalPairs` reads.
+    """Reads BLiMP's 67 sets of 1,000 minimal pairs, as `good` and `bad` columns.
 
     Args:
         path: The downloaded `BLiMP.zip`.

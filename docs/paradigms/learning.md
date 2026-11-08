@@ -2,8 +2,6 @@
 
 Paradigms where the subject learns during the experiment. These run on neural models in context and, with the same trials and scoring, on exemplar and Bayesian learners.
 
-Every section ends with a run on a real model, reported as it came out: a paradigm doesn't have to reproduce the human effect, and none was tuned until it did.
-
 ```python
 import cognarium as cg
 
@@ -144,28 +142,6 @@ People aren't told the strings follow rules, while here every study string carri
 
 ```python
 paradigm = cg.paradigms.ArtificialGrammar()
-results = cg.run(paradigm, subject)
-results.score()
-```
-
-## StatisticalLearning
-
-Find the words in a stream of syllables, then judge words and part-words.
-
-The language has nonsense words of three consonant-vowel syllables, each syllable used in one word only, drawn from the seed. Each participant hears their own stream, in which every word occurs equally often and never twice in a row. The stream is shown as every run of three syllables in it, each labelled familiar. Tests are the words and as many part-words, which join the end of one word to the start of the word that followed it in the stream, so they occurred too, but less often. A learner who found the words calls words familiar and part-words not.
-
-### Maps onto
-
-Statistical word segmentation (Saffran, Aslin and Newport, 1996), where syllables inside a word predict each other better than syllables across a word boundary.
-
-### What it can't capture
-
-The stream is shown as overlapping windows of text rather than continuous speech, because every subject type must read the same trials, and each window is judged rather than two items compared. The syllables are generated, not human-normed.
-
-### Run it
-
-```python
-paradigm = cg.paradigms.StatisticalLearning()
 results = cg.run(paradigm, subject)
 results.score()
 ```

@@ -9,7 +9,7 @@ scores over the options that every run keeps.
 import cognarium as cg
 
 subject = cg.load("gpt2", device="auto")
-results = cg.run(cg.paradigms.Stroop(), subject, record=["logits", "hidden_states"])
+results = cg.run(cg.paradigms.ArtificialGrammar(), subject, record=["logits", "hidden_states"])
 results.logits(0).shape
 ```
 
@@ -47,15 +47,15 @@ A store saves to a folder of safetensors shards with a Parquet index and a manif
 opens lazily.
 
 ```python
-saved = hidden.save("stroop_gpt2")
-store = cg.HiddenStates.open("stroop_gpt2")
+saved = hidden.save("grammar_gpt2")
+store = cg.HiddenStates.open("grammar_gpt2")
 states = {layer: store.to_tensor(layer) for layer in store.layers}
 cg.metrics.layer_matrix(states, "linear_cka")
 ```
 
 <!-- no-run -->
 ```python
-store.push_to_hub("your-name/stroop_gpt2")
+store.push_to_hub("your-name/grammar_gpt2")
 ```
 
 ## Other models

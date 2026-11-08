@@ -413,7 +413,20 @@ def test_link_check_reports_dead_links(local_server, monkeypatch, capsys):
     assert "404" in printed.out + printed.err
 
 
-def test_minimal_pairs_runs_from_a_registry_dataset(local_server, tmp_path, monkeypatch):
+class Acceptability(cg.Paradigm):
+    item_columns = ("good", "bad")
+
+    def trials(self, rng):
+        for index, row in enumerate(self.item_rows(rng)):
+            yield cg.Trial(
+                cg.Stimulus(text=f"A: {row['good']}\nB: {row['bad']}\nWhich is better?"),
+                options=["A", "B"],
+                answer="A",
+                item=index
+            )
+
+
+def test_a_paradigm_runs_from_a_registry_dataset(local_server, tmp_path, monkeypatch):
     entry = entry_for(
         local_server,
         monkeypatch,
@@ -421,7 +434,7 @@ def test_minimal_pairs_runs_from_a_registry_dataset(local_server, tmp_path, monk
         content=PAIRS,
         loader=read_pairs
     )
-    paradigm = cg.paradigms.MinimalPairs(stimuli=cg.data.load("pairs", cache_dir=tmp_path / "cache"))
+    paradigm = Acceptability(stimuli=cg.data.load("pairs", cache_dir=tmp_path / "cache"))
     results = cg.run(
         paradigm,
         ScriptedSubject(),

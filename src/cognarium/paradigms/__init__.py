@@ -8,102 +8,24 @@ from cognarium.paradigms.base import (
     Paradigm,
     Step
 )
-from cognarium.paradigms.control import (
-    Flanker,
-    GoNoGo,
-    Simon,
-    StopSignal,
-    Stroop,
-    TaskSwitching
-)
-from cognarium.paradigms.judgment import (
-    Anchoring,
-    ConjunctionFallacy,
-    FalseBelief,
-    Framing
-)
-from cognarium.paradigms.language import (
-    Fluency,
-    GardenPath,
-    LexicalDecision,
-    MinimalPairs,
-    SemanticPriming,
-    StructuralPriming
-)
-from cognarium.paradigms.learning import (
-    ArtificialGrammar,
-    CategoryLearning,
-    IteratedLearning,
-    StatisticalLearning
-)
-from cognarium.paradigms.memory import (
-    DRM,
-    FreeRecall,
-    NBack,
-    Span,
-    Sternberg
-)
+from cognarium.paradigms.learning import ArtificialGrammar, CategoryLearning, IteratedLearning
 
 PARADIGMS: dict[str, type[Paradigm]] = {
     paradigm.name: paradigm
     for paradigm in (
         IteratedLearning,
-        Stroop,
-        Flanker,
-        Simon,
-        GoNoGo,
-        StopSignal,
-        TaskSwitching,
-        NBack,
-        Span,
-        Sternberg,
-        FreeRecall,
-        DRM,
         CategoryLearning,
-        ArtificialGrammar,
-        StatisticalLearning,
-        SemanticPriming,
-        StructuralPriming,
-        LexicalDecision,
-        GardenPath,
-        MinimalPairs,
-        Fluency,
-        Anchoring,
-        Framing,
-        ConjunctionFallacy,
-        FalseBelief
+        ArtificialGrammar
     )
 }
 
 __all__ = [
-    "DRM",
     "PARADIGMS",
-    "Anchoring",
     "ArtificialGrammar",
     "CategoryLearning",
-    "ConjunctionFallacy",
     "Effect",
-    "FalseBelief",
-    "Flanker",
-    "Fluency",
-    "Framing",
-    "FreeRecall",
-    "GardenPath",
-    "GoNoGo",
     "HypothesisSpace",
     "IteratedLearning",
-    "LexicalDecision",
-    "MinimalPairs",
-    "NBack",
     "Paradigm",
-    "SemanticPriming",
-    "Simon",
-    "Span",
-    "StatisticalLearning",
-    "Step",
-    "Sternberg",
-    "StopSignal",
-    "Stroop",
-    "StructuralPriming",
-    "TaskSwitching"
+    "Step"
 ]

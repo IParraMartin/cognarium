@@ -43,7 +43,7 @@ def section(page, title):
 
 
 def test_there_are_pages_to_run():
-    assert len(PAGES) >= 15
+    assert len(PAGES) >= 11
     assert all(blocks(page) for page in DOCS.glob("paradigms/*.md"))
 
 

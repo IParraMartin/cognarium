@@ -1,6 +1,5 @@
-"""Runs every built-in paradigm on one model and prints how many effects each run detected.
+"""Runs every built-in paradigm on one model and prints what each run found.
 
-DRM uses the small lists written below, since its paradigm needs lists from you.
 Rerunning resumes finished runs.
 
 Example: python examples/paradigm_tour.py --model gpt2 --device auto --out runs/tour
@@ -16,12 +15,6 @@ import pandas as pd
 
 import cognarium as cg
 
-DRM_LISTS = {
-    "cold": (("ice", "snow", "winter", "frost", "chill", "freeze"), "cold", "ladder"),
-    "music": (("song", "melody", "piano", "rhythm", "band", "tune"), "music", "carpet"),
-    "bread": (("loaf", "bakery", "toast", "dough", "slice", "crust"), "bread", "comet"),
-    "ocean": (("wave", "tide", "salt", "shore", "deep", "sailor"), "ocean", "pencil")
-}
 CHAIN_METRICS = (
     "accuracy",
     "fidelity",
@@ -58,21 +51,6 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def drm_rows() -> list[dict[str, str]]:
-    """Writes the tour's DRM lists as stimulus rows.
-
-    Returns:
-        For each list, its studied words, its lure and one unrelated word. The lists were
-        written for this tour and are not the published DRM lists.
-    """
-    rows = []
-    for name, (studied, lure, unrelated) in DRM_LISTS.items():
-        rows.extend({"list": name, "word": word, "role": "studied"} for word in studied)
-        rows.append({"list": name, "word": lure, "role": "lure"})
-        rows.append({"list": name, "word": unrelated, "role": "unrelated"})
-    return rows
-
-
 def build(name: str) -> cg.Paradigm:
     """Makes a paradigm with its default settings.
 
@@ -80,17 +58,14 @@ def build(name: str) -> cg.Paradigm:
         name: The paradigm's name in `cg.paradigms.PARADIGMS`.
 
     Returns:
-        The paradigm. The two learning paradigms that need a category structure get
-        Shepard type I for category learning and type VI for iterated learning, and DRM
-        gets the tour's lists.
+        The paradigm. The two that need a category structure get Shepard type I for
+        category learning and type VI for iterated learning.
     """
     paradigm = cg.paradigms.PARADIGMS[name]
     if name == "iterated_learning":
         return paradigm(task=cg.tasks.ShepardCategories(type="VI"))
     if name == "category_learning":
         return paradigm(task=cg.tasks.ShepardCategories(type="I"))
-    if name == "drm":
-        return paradigm(stimuli=drm_rows())
     return paradigm()
 
 

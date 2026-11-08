@@ -8,11 +8,9 @@ import pytest
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
 TOURED = (
-    "stroop",
-    "n_back",
+    "iterated_learning",
     "category_learning",
-    "minimal_pairs",
-    "framing"
+    "artificial_grammar"
 )
 
 
@@ -72,8 +70,9 @@ def test_tour_runs_on_a_tiny_model(
     assert set(results) == set(TOURED)
     printed = capsys.readouterr().out
     for name in TOURED:
-        assert not results[name].score().empty
         assert f"{name}: " in printed
+    assert not results["category_learning"].score().empty
+    assert not results["iterated_learning"].metrics("accuracy").empty
 
 
 
