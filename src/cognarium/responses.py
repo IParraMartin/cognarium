@@ -24,11 +24,15 @@ class PromptTemplate:
             continues the stimulus directly, as when scoring the next word of a
             sentence.
         separator: What joins the parts of a prompt.
+        complete: Whether every option is scored with the separator after it, as a
+            whole answer. Then an option that would usually go on, such as a string
+            that stops halfway, scores lower than one that ends where it should.
     """
 
     stimulus: str = "{text}"
     response: str = "Response:"
     separator: str = "\n"
+    complete: bool = False
 
     def render_query(self, stimulus: Stimulus) -> str:
         """Writes a stimulus up to the point where a response is due.

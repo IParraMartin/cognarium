@@ -121,3 +121,80 @@ def test_function_learning_runs_on_a_language_model(byte_model_and_tokenizer, tm
     ]
     medians = load_main("function_learning")(args)
     assert medians["generation"].tolist() == [0, 1]
+
+
+def test_shepard_types_order_the_rational_learner_like_people(tmp_path):
+    args = [
+        "--model",
+        "bayesian",
+        "--participants",
+        "10",
+        "--blocks",
+        "2",
+        "--out",
+        str(tmp_path / "runs")
+    ]
+    curves = load_main("shepard_types")(args)
+    assert len(curves) == 6 * 2
+    means = curves.groupby("type")["error"].mean()
+    assert means["I"] < means["II"] < min(means["III"], means["IV"], means["V"])
+    assert max(means["III"], means["IV"], means["V"]) < means["VI"]
+    assert (tmp_path / "runs" / "errors.csv").exists()
+
+
+def test_shepard_types_run_on_a_language_model(byte_model_and_tokenizer, tmp_path, capsys):
+    model, tokenizer = byte_model_and_tokenizer
+    model.save_pretrained(tmp_path / "model")
+    tokenizer.save_pretrained(tmp_path / "model")
+    args = [
+        "--model",
+        str(tmp_path / "model"),
+        "--device",
+        "cpu",
+        "--participants",
+        "1",
+        "--blocks",
+        "2",
+        "--out",
+        str(tmp_path / "runs")
+    ]
+    curves = load_main("shepard_types")(args)
+    assert curves["error"].between(0, 1).all()
+    assert "rank correlation with the human order" in capsys.readouterr().out
+
+
+def test_grammar_learning_runs_both_tests_on_a_language_model(byte_model_and_tokenizer, tmp_path, capsys):
+    model, tokenizer = byte_model_and_tokenizer
+    model.save_pretrained(tmp_path / "model")
+    tokenizer.save_pretrained(tmp_path / "model")
+    args = [
+        "--model",
+        str(tmp_path / "model"),
+        "--device",
+        "cpu",
+        "--participants",
+        "2",
+        "--n-train",
+        "6",
+        "--n-test",
+        "4",
+        "--out",
+        str(tmp_path / "runs")
+    ]
+    scores = load_main("grammar_learning")(args)
+    assert list(scores) == ["judgment", "probability"]
+    assert scores["judgment"]["effect"].tolist() == ["grammaticality", "chunk_strength"]
+    assert scores["probability"]["effect"].tolist() == ["preference"]
+    assert "probability of answering grammatical" in capsys.readouterr().out
+
+
+def test_grammar_learning_gives_a_feature_learner_only_the_judgment_test(tmp_path):
+    args = [
+        "--model",
+        "exemplar",
+        "--participants",
+        "2",
+        "--out",
+        str(tmp_path / "runs")
+    ]
+    assert list(load_main("grammar_learning")(args)) == ["judgment"]

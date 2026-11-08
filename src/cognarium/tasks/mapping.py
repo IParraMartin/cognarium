@@ -20,19 +20,22 @@ _TEMPLATE = PromptTemplate(stimulus="Features: {text} -> Label:", response="")
 
 
 class Mapping:
-    """Items mapped to labels from a fixed set, as iterated learning transmits them.
+    """Items mapped to labels from a fixed set, which a paradigm transmits or teaches.
 
     A colour naming system is a mapping, with one feature vector per colour and
     made-up words as labels. So is a function read on a scale, with one x value per
     item and the points of the scale as labels. Items and their labels are written
-    `Features: [0.2, 0.7, 0.1] -> Label: wug`.
+    `Features: [0.2, 0.7, 0.1] -> Label: wug`. Iterated learning passes a mapping
+    down chains of learners, and category learning teaches it from feedback.
 
     Args:
         features: One entry per item: a sequence of numbers or words, or a single
             value, which is written without brackets.
         labels: The fixed set of labels a subject chooses from.
-        start: One label per item for the first generation. None gives each chain
-            its own random labelling, drawn from the run's seed.
+        start: One label per item: the first generation's labels in iterated
+            learning, and the labels taught in category learning. None draws a
+            random labelling from the run's seed, one per chain in iterated
+            learning and one for the whole run in category learning.
         template: How an item and its label are written.
         sigma: How far each item's meaning spreads over the others, for the naming
             measures. Defaults to the median distance from an item to its nearest

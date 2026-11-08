@@ -40,6 +40,30 @@ def _accuracy(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[st
     return _mean_by(scored, group_by, (scored["response"] == scored["answer"]).to_numpy(dtype=float))
 
 
+def _answer_probability(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    raw: bool = False
+) -> pd.DataFrame:
+    _require(frame, "answer_probability", ["log_probs" if raw else "shaped_log_probs", "answer", "options", *group_by])
+    scored = frame[frame["answer"].notna()]
+    return _mean_by(scored, group_by, _row_answer_probability(scored, raw))
+
+
+def _option_probability(
+    frame: pd.DataFrame,
+    group_by: Sequence[str],
+    manifest: Mapping[str, Any],
+    option: str | int | None = None,
+    raw: bool = False
+) -> pd.DataFrame:
+    if option is None:
+        raise ValueError("Measure 'option_probability' needs option=, the option whose probability to average.")
+    _require(frame, "option_probability", ["log_probs" if raw else "shaped_log_probs", "options", *group_by])
+    return _mean_by(frame, group_by, _row_option_probability(frame, option, raw))
+
+
 def _fidelity(frame: pd.DataFrame, group_by: Sequence[str], manifest: Mapping[str, Any]) -> pd.DataFrame:
     _require(frame, "fidelity", ["response", "parent_label", *group_by])
     return _mean_by(frame, group_by, (frame["response"] == frame["parent_label"]).to_numpy(dtype=float))
@@ -342,6 +366,8 @@ def _correlation(
 
 MEASURES: dict[str, Callable[..., pd.DataFrame]] = {
     "accuracy": _accuracy,
+    "answer_probability": _answer_probability,
+    "option_probability": _option_probability,
     "fidelity": _fidelity,
     "entropy": _entropy,
     "surprisal": _surprisal,
@@ -597,19 +623,23 @@ def _by_system(
     group_by: Sequence[str],
     score: Callable[[torch.Tensor], float]
 ) -> pd.DataFrame:
-    """Scores each chain's naming system in each generation, then averages over chains in a group."""
+    """Scores each naming system, then averages the scores within a group.
+
+    A system is one chain's answers in one generation of iterated learning, and
+    otherwise one participant's answers within the group.
+    """
+    units = ["generation", "chain"] if {"generation", "chain"} <= set(frame.columns) else ["participant"]
     _require(frame, name, [
         "item",
         "options",
         "response",
-        "generation",
-        "chain",
+        *units,
         *group_by
     ])
     _refuse_free(frame)
     labels = [str(label) for label in frame["options"].iloc[0]]
     n_items = _item_count(frame, manifest)
-    keys = list(dict.fromkeys([*group_by, "generation", "chain"]))
+    keys = list(dict.fromkeys([*group_by, *units]))
     rows = []
     for key, part in frame.groupby(keys, sort=True):
         counts = torch.zeros(n_items, len(labels), dtype=torch.float64)

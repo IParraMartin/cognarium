@@ -7,7 +7,7 @@ from collections import Counter
 
 import pytest
 import torch
-from helpers import TrainableScriptedSubject
+from helpers import ScriptedSubject, TrainableScriptedSubject
 
 import cognarium as cg
 from cognarium.errors import MissingAbilityError
@@ -181,6 +181,9 @@ def test_bayesian_recovers_the_grammar(tmp_path):
     results = run_quietly(paradigm, cg.subjects.BayesianLearner(decision="average"), tmp_path / "run")
     above_chance = results.contrast("answer_probability", against=0.5).iloc[0]
     assert above_chance["detected"] and above_chance["difference"] > 0
+    scores = results.score().set_index("effect")
+    assert scores.loc["grammaticality", "detected"]
+    assert not scores.loc["chunk_strength", "detected"]
 
 
 def test_grammar_hypotheses_are_the_letter_permutations():
@@ -189,19 +192,19 @@ def test_grammar_hypotheses_are_the_letter_permutations():
     assert Counter(space.groups) == {"true": 1, "other": 119}
 
 
-def test_exemplar_prefers_grammatical_strings(tmp_path):
-    paradigm = GRAMMAR()
+def test_exemplar_matches_hand_values_and_tracks_chunk_strength(tmp_path):
+    paradigm = GRAMMAR(n_participants=8)
     c, criterion = 4.0, 1.0
     results = run_quietly(paradigm, cg.subjects.ExemplarLearner(c=c, criterion=criterion), tmp_path / "run")
-    frame = results.to_pandas()
+    frame = results.to_pandas().query("participant == 0")
     exemplars = torch.stack([observation.stimulus.features for observation in paradigm.study(0, 0)]).double()
     for _, row in frame.iterrows():
         features = trials_of(paradigm)[row["trial"]].stimulus.features.double()
         summed = torch.exp(-c * (features - exemplars).abs().mean(dim=1)).sum().item()
         expected = (criterion + summed) / (2 * criterion + summed)
         assert math.exp(row["log_probs"][0]) == pytest.approx(expected)
-    primary = results.score().iloc[0]
-    assert primary["detected"] and primary["difference"] > 0
+    chunk = results.score().set_index("effect").loc["chunk_strength"]
+    assert chunk["detected"] and chunk["difference"] > 0
 
 
 def test_grammar_strings_obey_the_transitions():
@@ -240,6 +243,74 @@ def test_grammar_strings_have_distinct_features():
     assert len({tuple(stimulus.features.tolist()) for stimulus in stimuli}) == len(stimuli)
 
 
+def test_each_change_is_the_one_nearest_its_original_in_chunk_strength():
+    paradigm = GRAMMAR(n_participants=3)
+    _, variants = learning._grammar_pool()
+    for participant in range(3):
+        studied, tested, changed = paradigm._material(paradigm._participant_rng(participant))
+        counts = learning._chunk_counts(studied)
+        used = []
+        for text, change in zip(tested, changed, strict=True):
+            target = learning._chunk_strength(text, counts)
+            free = [variant for variant in variants[text] if variant not in used] or [change]
+            gaps = [abs(learning._chunk_strength(variant, counts) - target) for variant in free]
+            assert abs(learning._chunk_strength(change, counts) - target) == min(gaps)
+            used.append(change)
+
+
+def test_chunk_strength_is_the_mean_count_of_letter_pairs_and_triples():
+    counts = learning._chunk_counts(["TXS", "TXX"])
+    # TX twice, XS once, TXS once, out of the pairs TX and XS and the triple TXS
+    assert learning._chunk_strength("TXS", counts) == pytest.approx((2 + 1 + 1) / 3)
+    assert learning._chunk_strength("PVV", counts) == 0
+
+
+def test_each_status_splits_into_high_and_low_chunk_strength(tmp_path):
+    paradigm = GRAMMAR(n_participants=2)
+    results = run_quietly(paradigm, cg.subjects.ExemplarLearner(criterion=0.5), tmp_path / "run")
+    frame = results.to_pandas()
+    for (_, status), part in frame.groupby(["participant", "status"]):
+        assert (part["chunk"] == "high").sum() == (part["chunk"] == "low").sum() == 3
+        assert part.loc[part["chunk"] == "high", "chunk_strength"].min() >= (
+            part.loc[part["chunk"] == "low", "chunk_strength"].max()
+        )
+    assert results.manifest["paradigm"]["parameters"]["test"] == "judgment"
+
+
+def test_the_probability_test_compares_each_string_with_its_change():
+    paradigm = GRAMMAR(test="probability")
+    trials = trials_of(paradigm)
+    assert len(trials) == 6
+    for trial in trials:
+        assert trial.answer in trial.options and len(trial.options) == 2
+        assert trial.answer.replace(" ", "") == trial.item
+        assert learning._accepts(trial.item)
+        change = next(option for option in trial.options if option != trial.answer)
+        assert not learning._accepts(change.replace(" ", ""))
+    assert paradigm.template.complete
+    assert paradigm.modalities == frozenset({"text"})
+    studied = paradigm.study(0, 0)
+    step = paradigm.step(0, None)
+    prompt = step.queries[0].prompt()
+    assert prompt.startswith(f"Letters: {studied[0].label}\n")
+    assert prompt.endswith("\nLetters:")
+    assert [effect.name for effect in paradigm.effects] == ["preference"]
+
+
+def test_the_probability_test_runs_on_a_reader_and_not_on_a_feature_learner(tmp_path):
+    results = run_quietly(GRAMMAR(test="probability"), ScriptedSubject(), tmp_path / "run")
+    frame = results.to_pandas()
+    assert {"chunk_strength", "chunk_difference"} <= set(frame.columns)
+    assert results.score().iloc[0]["effect"] == "preference"
+    with pytest.raises(MissingAbilityError, match="text"):
+        run_quietly(GRAMMAR(test="probability"), cg.subjects.ExemplarLearner(), tmp_path / "exemplar")
+
+
+def test_grammar_refuses_an_unknown_test():
+    with pytest.raises(ValueError, match="test"):
+        GRAMMAR(test="recall")
+
+
 def test_grammar_refuses_more_strings_than_it_has():
     with pytest.raises(ValueError, match="n_train"):
         learning.ArtificialGrammar(n_train=30, n_test=20)
@@ -247,7 +318,6 @@ def test_grammar_refuses_more_strings_than_it_has():
 
 def test_category_learning_feedback_holds_every_earlier_block_with_correct_labels():
     paradigm = CATEGORY(n_participants=2)
-    task = paradigm.task
     for participant in range(2):
         row = trials_of(paradigm, participant)
         for block in range(3):
@@ -255,8 +325,96 @@ def test_category_learning_feedback_holds_every_earlier_block_with_correct_label
             earlier = [trial for trial in row if trial.block < block]
             assert [observation.stimulus for observation in studied] == [trial.stimulus for trial in earlier]
             assert [observation.label for observation in studied] == [
-                task.seed_labels[trial.item] for trial in earlier
+                paradigm.target[trial.item] for trial in earlier
             ]
+
+
+def test_trial_feedback_shows_every_earlier_trial_with_its_correct_label():
+    paradigm = CATEGORY(n_participants=2)
+    for block in range(3):
+        step = paradigm.step(block, None)
+        for query, participant, position in zip(
+            step.queries,
+            step.columns["participant"],
+            step.columns["trial"],
+            strict=True
+        ):
+            earlier = trials_of(paradigm, participant)[:position]
+            assert [observation.stimulus for observation in query.context] == [trial.stimulus for trial in earlier]
+            assert [observation.label for observation in query.context] == [trial.answer for trial in earlier]
+        assert len({query.group for query in step.queries}) == len(step.queries)
+    assert paradigm.step(3, None) is None
+
+
+def test_block_feedback_shares_one_context_per_block_and_participant():
+    paradigm = CATEGORY(n_participants=2, feedback="block")
+    step = paradigm.step(1, None)
+    contexts = {(participant, id(query.context)) for query, participant in zip(
+        step.queries,
+        step.columns["participant"],
+        strict=True
+    )}
+    assert len(contexts) == 2
+    assert all(len(query.context) == 8 for query in step.queries)
+
+
+def test_repeats_show_each_item_several_times_per_block():
+    row = trials_of(CATEGORY(repeats=2))
+    for block in range(3):
+        items = [trial.item for trial in row if trial.block == block]
+        assert sorted(items) == sorted(list(range(8)) * 2)
+
+
+def test_category_learning_refuses_bad_settings():
+    with pytest.raises(ValueError, match="repeats"):
+        CATEGORY(repeats=0)
+    with pytest.raises(ValueError, match="feedback"):
+        CATEGORY(feedback="never")
+
+
+def test_a_mapping_teaches_its_start_labels():
+    task = cg.tasks.Mapping(["cat", "dog", "fish", "bird"], ("wug", "dax"), start=["wug", "dax", "dax", "wug"])
+    paradigm = learning.CategoryLearning(task, blocks=2)
+    assert {(trial.item, trial.answer) for trial in trials_of(paradigm)} == {
+        (0, "wug"),
+        (1, "dax"),
+        (2, "dax"),
+        (3, "wug")
+    }
+    assert paradigm.modalities == frozenset({"text"})
+    assert paradigm.config()["task"]["start"] == ["wug", "dax", "dax", "wug"]
+
+
+def test_a_mapping_without_a_start_teaches_a_random_labelling_set_by_the_seed():
+    task = cg.tasks.Mapping([[value] for value in range(12)], ("wug", "dax", "fep"))
+    first = learning.CategoryLearning(task, blocks=2, seed=1).target
+    assert first == learning.CategoryLearning(task, blocks=2, seed=1).target
+    assert first != learning.CategoryLearning(task, blocks=2, seed=2).target
+    assert set(first) <= {"wug", "dax", "fep"}
+
+
+def test_an_exemplar_learner_learns_a_mapping_and_a_bayesian_one_is_refused(tmp_path):
+    task = cg.tasks.Mapping(
+        [[value] for value in range(8)],
+        ("low", "high"),
+        start=["low"] * 4 + ["high"] * 4
+    )
+    paradigm = learning.CategoryLearning(task, blocks=3)
+    results = run_quietly(paradigm, cg.subjects.ExemplarLearner(criterion=0.5), tmp_path / "exemplar")
+    curve = results.metrics("accuracy").set_index("block")["value"]
+    assert curve[2] > curve[0]
+    with pytest.raises(MissingAbilityError, match="labelling"):
+        run_quietly(paradigm, cg.subjects.BayesianLearner(), tmp_path / "bayes")
+
+
+def test_function_learning_from_feedback_is_scored_against_the_function_by_block(tmp_path):
+    task = cg.tasks.Mapping.from_function(range(1, 9), lambda x: x, scale=range(1, 9))
+    paradigm = learning.CategoryLearning(task, blocks=3)
+    results = run_quietly(paradigm, cg.subjects.ExemplarLearner(criterion=0.5), tmp_path / "run")
+    table = results.metrics("mse", "correlation", reference=lambda x: x)
+    assert sorted(table["block"].unique()) == [0, 1, 2]
+    errors = table[table["metric"] == "mse"].set_index("block")["value"]
+    assert errors[2] < errors[0]
 
 
 def test_category_learning_asks_every_object_once_per_block():
@@ -279,7 +437,7 @@ def test_category_learning_records_the_task():
     assert config["task"] == {"name": "shepard", "type": "II"}
 
 
-def test_lstm_in_weights_mode_trains_on_each_block(tmp_path, monkeypatch):
+def test_lstm_in_weights_mode_trains_once_per_block_with_block_feedback(tmp_path, monkeypatch):
     learned = []
     original = CustomSubject.learn
 
@@ -294,15 +452,37 @@ def test_lstm_in_weights_mode_trains_on_each_block(tmp_path, monkeypatch):
         embedding_dim=4,
         hidden_dim=4
     )
-    results = run_quietly(CATEGORY(), subject, tmp_path / "run")
+    results = run_quietly(CATEGORY(feedback="block"), subject, tmp_path / "run")
     assert results.manifest["learning"] == "weights"
     assert learned == [8, 16]
 
 
-def test_a_weight_learner_starts_fresh_for_every_block(tmp_path):
+def test_a_weight_learner_trains_on_every_earlier_trial_with_trial_feedback(tmp_path):
     subject = TrainableScriptedSubject()
     run_quietly(CATEGORY(n_participants=2), subject, tmp_path / "run")
+    assert sorted(len(observations) for observations in subject.learned) == sorted([*range(1, 24)] * 2)
+    assert subject.max_context_seen == 0
+
+
+def test_a_weight_learner_starts_fresh_for_every_block(tmp_path):
+    subject = TrainableScriptedSubject()
+    run_quietly(CATEGORY(n_participants=2, feedback="block"), subject, tmp_path / "run")
     assert len(subject.fresh_seeds) == 6
     assert sorted(len(observations) for observations in subject.learned) == [8, 8, 16, 16]
     # the context lives in the weights, so the prompt holds none of it
     assert subject.max_context_seen == 0
+
+
+def test_preview_writes_a_query_as_a_reader_sees_it():
+    paradigm = CATEGORY()
+    lines = paradigm.preview(2).split("\n")
+    first = trials_of(paradigm)[:2]
+    assert lines[:4] == [
+        f"Object: {first[0].stimulus.text}",
+        f"Category: {first[0].answer}",
+        f"Object: {first[1].stimulus.text}",
+        f"Category: {first[1].answer}"
+    ]
+    assert lines[-1] == "[options: A | B]"
+    with pytest.raises(ValueError, match="no step"):
+        paradigm.preview(step=3)

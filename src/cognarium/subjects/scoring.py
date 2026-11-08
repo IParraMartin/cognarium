@@ -33,7 +33,8 @@ def score_options(
     option's tokens start another's, as with 1 and 10 under a tokenizer that splits
     digits, every option of that query is scored together with the template's
     separator, which ends an answer in the prompt's examples. Otherwise the shorter
-    option would always score at least as high.
+    option would always score at least as high. A template with `complete` set scores
+    every option with its separator.
 
     Args:
         queries: The queries to answer.
@@ -64,10 +65,10 @@ def score_options(
     """
     prompts = [encode_prompt(query.prompt()) for query in queries]
     # queries in a run often share one option list, so each list is tokenized once
-    encoded: dict[tuple[tuple[str, ...], str], list[list[int]]] = {}
+    encoded: dict[tuple[tuple[str, ...], str, bool], list[list[int]]] = {}
     options = []
     for query in queries:
-        key = (tuple(query.trial.options), query.template.separator)
+        key = (tuple(query.trial.options), query.template.separator, query.template.complete)
         if key not in encoded:
             encoded[key] = _encode_options(
                 query,
@@ -185,7 +186,8 @@ def _encode_options(
     if len({tuple(tokens) for tokens in encoded}) != len(encoded):
         raise ValueError(f"Options {query.trial.options} have the same tokens, so they can't be told apart.")
     starts = {tuple(tokens[:end]) for tokens in encoded for end in range(1, len(tokens))}
-    if query.template.separator and any(tuple(tokens) in starts for tokens in encoded):
+    ambiguous = any(tuple(tokens) in starts for tokens in encoded)
+    if query.template.separator and (query.template.complete or ambiguous):
         return _tokenize_options(
             query.trial.options,
             query.template.separator,

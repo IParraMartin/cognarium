@@ -8,12 +8,14 @@ Bayesian learners, on CPU, MPS or CUDA.
 
 ## Status
 
-This is version 0.1.0. It has three learning paradigms (in-context iterated learning
-on any category system or function, category learning and artificial grammar learning),
-CSV and JSON conversion, a registry of open datasets pinned by checksum, comparison with human data, per-trial logits, the logit lens,
-hidden-state datasets, resumable runs, and information, classification, signal
-detection, geometry, statistics and naming metrics. Batching, quantization and multi-GPU sweeps
-come next, then speech, vision and perception paradigms.
+This is version 0.1.0. It has three learning paradigms: in-context iterated learning
+and category learning on any category system or function, and artificial grammar
+learning with judgment and string-probability tests. Each also runs on exemplar and
+Bayesian learners as baselines. It has CSV and JSON conversion, a registry of open
+datasets pinned by checksum, comparison with human data, per-trial logits, the logit
+lens, hidden-state datasets, resumable runs, and information, classification, signal
+detection, geometry, statistics and naming metrics. Batching, quantization and
+multi-GPU sweeps come next, then speech, vision and perception paradigms.
 
 ## Install
 
@@ -70,8 +72,9 @@ paradigm's section says how it maps onto the human task and what it can't captur
   - `data/`: CSV and JSON conversion, the dataset registry and its downloads
   - `runner.py`: `run`, which saves each step as it finishes
   - `results.py`: `Results`, which reads a run back
-- `examples/`: runnable scripts, including a tour that runs every paradigm on one model
-  and a reproduction of iterated function learning (Kalish, Griffiths and Lewandowsky, 2007)
+- `examples/`: runnable scripts: a tour that runs every paradigm on one model, the six
+  Shepard types against the human order, grammar learning with both tests, and a
+  reproduction of iterated function learning (Kalish, Griffiths and Lewandowsky, 2007)
 - `docs/`: the documentation site
 - `tests/`: the test suite, which also runs every code block in the docs
 

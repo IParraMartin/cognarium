@@ -36,8 +36,8 @@ uv add cognarium
 <h3><a href="paradigms/learning/">Learning and transmission</a></h3>
 <ul class="cg-rows">
 <li><a href="paradigms/learning/#iteratedlearning">Iterated learning</a><span class="cg-task">Each generation learns from the last generation&#x27;s answers, for any category system or function.</span></li>
-<li><a href="paradigms/learning/#categorylearning">Category learning</a><span class="cg-task">Learn a category structure from corrective feedback, block by block.</span></li>
-<li><a href="paradigms/learning/#artificialgrammar">Artificial grammar</a><span class="cg-task">Study strings from a finite-state grammar, then judge new ones.</span></li>
+<li><a href="paradigms/learning/#categorylearning">Category learning</a><span class="cg-task">Learn the Shepard structures, any category system or a function from corrective feedback.</span></li>
+<li><a href="paradigms/learning/#artificialgrammar">Artificial grammar</a><span class="cg-task">Study strings from a finite-state grammar, then judge new ones, or compare them by probability.</span></li>
 </ul>
 </div>
 </div>

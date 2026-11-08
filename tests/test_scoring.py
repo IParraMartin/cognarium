@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from cognarium.responses import Query
+from cognarium.responses import PromptTemplate, Query
 from cognarium.stimuli import Stimulus, Trial
 from cognarium.subjects.scoring import score_options
 
@@ -14,6 +14,7 @@ TOKENS = {
     " ab": [2, 3],
     " ba": [3, 2],
     " a\n": [2, 1],
+    " b\n": [3, 1],
     " ab\n": [2, 3, 1]
 }
 
@@ -80,6 +81,16 @@ def test_an_option_that_starts_another_is_scored_up_to_the_end_of_an_answer():
     # otherwise "a" would always beat "ab", whose score adds a second log probability
     assert scores[0, 0].item() == pytest.approx((after(1)[2] + after(2)[1]).item())
     assert scores[0, 1].item() == pytest.approx((after(1)[2] + after(2)[3] + after(3)[1]).item())
+
+
+def test_a_complete_template_scores_every_option_up_to_the_end_of_an_answer():
+    prompts = {"x\nResponse:": [1]}
+    template = PromptTemplate(response="Response:", complete=True)
+    complete = Query(trial=Trial(Stimulus(text="x"), options=("a", "b")), template=template)
+    scores = run_scoring([complete, query()], last_token_forward, prompts).scores
+    assert scores[0, 0].item() == pytest.approx((after(1)[2] + after(2)[1]).item())
+    assert scores[0, 1].item() == pytest.approx((after(1)[3] + after(3)[1]).item())
+    assert scores[1, 0].item() == pytest.approx(after(1)[2].item())
 
 
 def test_a_prompt_scorer_replaces_running_each_option_with_its_prompt():

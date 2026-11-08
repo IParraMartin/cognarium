@@ -14,10 +14,12 @@ DOCS = Path(__file__).parent.parent / "docs"
 PAGES = [*sorted(DOCS.glob("*.md")), *sorted((DOCS / "paradigms").glob("*.md"))]
 BLOCK = re.compile(r"(<!-- no-run -->\s*\n)?```python\n(.*?)```", re.DOTALL)
 HEADINGS = (
+    "How it runs on a language model",
     "Maps onto",
     "What it can't capture",
     "Run it"
 )
+PREVIEW = re.compile(r"<!-- preview: (.*?) -->\s*\n```text\n(.*?)```", re.DOTALL)
 NETWORK_ONLY = ("cg.data.load(", "push_to_hub(")
 
 
@@ -79,3 +81,10 @@ def test_every_paradigm_has_a_documented_section(name):
     for heading in HEADINGS:
         assert f"### {heading}\n" in found, f"{paradigm.__name__} lacks '{heading}'"
 
+
+
+def test_every_shown_prompt_is_what_the_paradigm_writes():
+    shown = [match for page in PAGES for match in PREVIEW.findall(page.read_text(encoding="utf-8"))]
+    assert len(shown) >= 4
+    for expression, text in shown:
+        assert eval(expression, {"cg": cg}) == text.rstrip("\n"), expression

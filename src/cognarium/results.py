@@ -215,17 +215,19 @@ class Results:
         Args:
             *names: The metrics to compute. From the responses and answers: accuracy,
                 balanced_accuracy, precision, recall, f1, mcc, d_prime, criterion or
-                a_prime. From the probabilities: entropy, surprisal, auroc, auprc,
-                brier, ece, cross_entropy or perplexity. From iterated learning:
-                fidelity, chain_entropy or kl. With recorded logits: logit_margin,
-                logit_difference, target_rank or vocab_entropy. From naming systems
-                in iterated learning, where a chain's system in a generation is its
-                answers, one label per item: ib_complexity, ib_accuracy,
-                efficiency_loss and ib_alignment, which need a `cg.tasks.Mapping`
-                with numeric features, and alignment and co_naming_mse, which
-                compare with `reference`. With numeric labels, as in function
-                learning: mse and correlation against `reference`. These score each
-                chain's system, then average over the chains in a group.
+                a_prime. From the probabilities: answer_probability,
+                option_probability, entropy, surprisal, auroc, auprc, brier, ece,
+                cross_entropy or perplexity. From iterated learning: fidelity,
+                chain_entropy or kl. With recorded logits: logit_margin,
+                logit_difference, target_rank or vocab_entropy. From naming systems,
+                where a system is one chain's answers in a generation of iterated
+                learning, or else one participant's answers in a group, one label
+                per item: ib_complexity, ib_accuracy, efficiency_loss and
+                ib_alignment, which need a `cg.tasks.Mapping` with numeric features,
+                and alignment and co_naming_mse, which compare with `reference`.
+                With numeric labels, as in function learning: mse and correlation
+                against `reference`. These score each system, then average over the
+                systems in a group.
             by: A column or columns to group by, in place of the paradigm's own. With
                 `["generation", "chain"]` the naming measures give one value per
                 chain.
@@ -233,7 +235,8 @@ class Results:
                 probability metric use the distribution before temperature and top-p.
                 `positive` names the option treated as the positive class. It defaults
                 to the macro average for precision, recall and f1, and to the first
-                option for the detection metrics. `n_bins` configures ece, and
+                option for the detection metrics. `option` names the option whose
+                probability option_probability averages. `n_bins` configures ece, and
                 `reference` and `smoothing` configure kl. For alignment and
                 co_naming_mse, `reference` is one label per item or an items x labels
                 table of probabilities. For mse and correlation, it is one number per

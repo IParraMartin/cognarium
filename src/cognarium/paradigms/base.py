@@ -343,6 +343,27 @@ class Paradigm:
             return None
         return self._build_step(index, chosen)
 
+    def preview(self, query: int = 0, step: int = 0) -> str:
+        """Writes out one query as a subject that reads text sees it.
+
+        Args:
+            query: Which query of the step, in the order the step holds them.
+            step: Which step. Steps after the first only work for paradigms whose
+                prompts never depend on earlier responses.
+
+        Returns:
+            The full prompt, then a last line listing the options it scores.
+
+        Raises:
+            ValueError: If the step doesn't exist or needs earlier responses.
+            IndexError: If the step has no such query.
+        """
+        built = self.step(step, None)
+        if built is None:
+            raise ValueError(f"Paradigm '{self.name}' has no step {step}.")
+        chosen = built.queries[query]
+        return f"{chosen.prompt()}\n[options: {' | '.join(chosen.trial.options)}]"
+
     def config(self) -> dict[str, Any]:
         """Describes the paradigm in JSON-safe form.
 
