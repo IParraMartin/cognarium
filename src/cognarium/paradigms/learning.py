@@ -81,8 +81,9 @@ class IteratedLearning(Paradigm):
         task: The task being transmitted.
         generations: How many learners follow each other in a chain.
         chains: How many independent chains to run.
-        bottleneck: How many labelled items each generation sees. Showing every
-            item lets a subject that reads its context simply copy it.
+        n_prev_examples: How many items each generation sees labelled by the
+            previous one, drawn without repeats. Showing every item lets a subject
+            that reads its context simply copy it.
         noise: How likely each transmitted label is to flip to another option.
         instructions: Text placed before each prompt.
         examples: Demonstrations shown every generation, before the transmitted
@@ -107,7 +108,7 @@ class IteratedLearning(Paradigm):
         task: ShepardCategories,
         generations: int = 10,
         chains: int = 50,
-        bottleneck: int = 4,
+        n_prev_examples: int = 4,
         noise: float = 0.0,
         *,
         instructions: str | None = None,
@@ -120,14 +121,14 @@ class IteratedLearning(Paradigm):
         n_items = len(task.stimuli)
         if generations < 1 or chains < 1:
             raise ValueError("generations and chains must be at least 1.")
-        if not 1 <= bottleneck <= n_items:
-            raise ValueError(f"bottleneck must be between 1 and {n_items}, got {bottleneck}.")
+        if not 1 <= n_prev_examples <= n_items:
+            raise ValueError(f"n_prev_examples must be between 1 and {n_items}, got {n_prev_examples}.")
         if not 0 <= noise < 1:
             raise ValueError(f"noise must be in [0, 1), got {noise}.")
         self.task = task
         self.generations = generations
         self.chains = chains
-        self.bottleneck = bottleneck
+        self.n_prev_examples = n_prev_examples
         self.noise = noise
         self.modalities = task.modalities
         self.settings = Settings(
@@ -220,7 +221,7 @@ class IteratedLearning(Paradigm):
             "task": self.task.config(),
             "generations": self.generations,
             "chains": self.chains,
-            "bottleneck": self.bottleneck,
+            "n_prev_examples": self.n_prev_examples,
             "noise": self.noise,
             "groups": list(self.task.groups),
             **self.settings.config()
@@ -291,8 +292,8 @@ class IteratedLearning(Paradigm):
             chain
         ])
         options = self.task.options
-        subset = rng.choice(len(labels), size=self.bottleneck, replace=False)
-        flips = rng.random(self.bottleneck) < self.noise
+        subset = rng.choice(len(labels), size=self.n_prev_examples, replace=False)
+        flips = rng.random(self.n_prev_examples) < self.noise
         transmitted = {}
         for item, flip in zip(subset.tolist(), flips.tolist(), strict=True):
             label = labels[item]

@@ -152,7 +152,7 @@ def test_every_learner_finds_shepard_type_one_easier_than_type_six(tmp_path):
 def test_exemplar_criterion_zero_keeps_scores_and_run_key(tmp_path):
     paradigm = cg.paradigms.IteratedLearning(ShepardCategories(type="II"), generations=2, chains=2)
     results = run_quietly(paradigm, cg.subjects.ExemplarLearner(criterion=0.0), tmp_path / "run")
-    assert results.manifest["key"] == "d7aa8aa5e69b"
+    assert results.manifest["key"] == "e82a2f994088"
     assert results.to_pandas()["scores"].iloc[3].tolist() == [-1.3333333333333333, 0.5000188820728624]
 
 

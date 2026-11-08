@@ -113,13 +113,20 @@ def test_annotate_adds_each_chains_group():
     [
         {"chains": 0},
         {"generations": 0},
-        {"bottleneck": 9},
+        {"n_prev_examples": 9},
+        {"n_prev_examples": 0},
         {"noise": 1.0}
     ]
 )
 def test_invalid_settings_raise(bad):
     with pytest.raises(ValueError):
         paradigm(**bad)
+
+
+def test_each_generation_sees_n_prev_examples_from_the_last_one():
+    step = paradigm(n_prev_examples=6).step(0, None)
+    assert all(len(query.context) == 6 for query in step.queries)
+    assert paradigm(n_prev_examples=6).config()["n_prev_examples"] == 6
 
 
 def test_example_label_must_be_an_option():
