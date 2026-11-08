@@ -27,7 +27,8 @@ def load(
     adapter: Callable[..., torch.Tensor] | None = None,
     layer_map: LayerMap | None = None,
     layers: Mapping[str, str] | None = None,
-    readout: str | None = None
+    readout: str | None = None,
+    chat: bool = False
 ) -> Subject:
     """Turns a model into a subject that can run experiments.
 
@@ -47,6 +48,8 @@ def load(
             dotted paths.
         readout: The dotted path of a custom module's output head, which the logit
             lens reads states through.
+        chat: Whether a Hugging Face model gets each prompt as one user message
+            through its chat template, as instruction-tuned models expect.
 
     Returns:
         The subject.
@@ -54,6 +57,7 @@ def load(
     Raises:
         TypeError: If the model isn't a supported type, a model object comes without
             a tokenizer, or a setting doesn't apply to this kind of model.
+        ValueError: If `chat` is on and the tokenizer has no chat template.
     """
     if isinstance(model, Subject):
         return model
@@ -67,7 +71,8 @@ def load(
             dtype=resolve_dtype(dtype, resolved_device),
             batch_size=batch_size,
             revision=revision,
-            layer_map=layer_map
+            layer_map=layer_map,
+            chat=chat
         )
     if not isinstance(model, torch.nn.Module):
         raise TypeError(f"Can't load a model of type {type(model).__name__}.")
@@ -84,8 +89,11 @@ def load(
             tokenizer,
             device=resolved_device,
             batch_size=batch_size,
-            layer_map=layer_map
+            layer_map=layer_map,
+            chat=chat
         )
+    if chat:
+        raise TypeError("chat is for Hugging Face models.")
     if layer_map is not None:
         raise TypeError("layer_map is for Hugging Face models. Use layers and readout on a custom module.")
     return CustomSubject(
@@ -114,7 +122,8 @@ def _load_by_name(
     dtype: torch.dtype,
     batch_size: int,
     revision: str | None,
-    layer_map: LayerMap | None
+    layer_map: LayerMap | None,
+    chat: bool
 ) -> HFSubject:
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -127,7 +136,8 @@ def _load_by_name(
         device=device,
         batch_size=batch_size,
         revision=_resolve_revision(name, revision),
-        layer_map=layer_map
+        layer_map=layer_map,
+        chat=chat
     )
 
 

@@ -32,13 +32,19 @@ class HFSubject(Subject):
             which can't change results because padding is masked.
         device: Where the model runs.
         batch_size: How many sequences go through the model at once.
-        option_prefix: What separates a prompt from its option.
+        option_prefix: What separates a prompt from its option. Defaults to a space,
+            or to nothing in chat format, where an option starts the reply.
         revision: The Hub commit the model came from, if it came from the Hub.
         layer_map: Where the model keeps its blocks, final norm and head, for models
             that can't be recognised or detected.
+        chat: Whether to send each prompt as one user message through the
+            tokenizer's chat template, as instruction-tuned models expect. The
+            options, or a free response, are then the start of the assistant's
+            reply, and thinking is turned off for templates that offer it.
 
     Raises:
-        ValueError: If the tokenizer has neither a pad token nor an EOS token.
+        ValueError: If the tokenizer has neither a pad token nor an EOS token, or
+            `chat` is on and the tokenizer has no chat template.
     """
 
     modalities = frozenset({"text"})
@@ -53,10 +59,16 @@ class HFSubject(Subject):
         *,
         device: str = "auto",
         batch_size: int = 32,
-        option_prefix: str = " ",
+        option_prefix: str | None = None,
         revision: str | None = None,
-        layer_map: LayerMap | None = None
+        layer_map: LayerMap | None = None,
+        chat: bool = False
     ) -> None:
+        if chat and getattr(tokenizer, "chat_template", None) is None:
+            raise ValueError(
+                "This tokenizer has no chat template, so prompts can't be sent in chat format. "
+                "Load an instruction-tuned model, or leave chat off."
+            )
         if tokenizer.pad_token_id is None:
             if tokenizer.eos_token_id is None:
                 raise ValueError("The tokenizer needs a pad token or an EOS token to batch prompts.")
@@ -65,7 +77,8 @@ class HFSubject(Subject):
         self.model = model.to(self.device).eval()
         self.tokenizer = tokenizer
         self.batch_size = batch_size
-        self.option_prefix = option_prefix
+        self.chat = chat
+        self.option_prefix = ("" if chat else " ") if option_prefix is None else option_prefix
         self.revision = revision
         self.layer_map = layer_map
 
@@ -95,7 +108,7 @@ class HFSubject(Subject):
             return score_options(
                 queries,
                 forward=self._forward,
-                encode_prompt=lambda text: self.tokenizer(text)["input_ids"],
+                encode_prompt=self._encode_prompt,
                 encode_option=self._encode_option,
                 pad_token_id=self.tokenizer.pad_token_id,
                 device=self.device,
@@ -134,7 +147,7 @@ class HFSubject(Subject):
         return generate_texts(
             queries,
             forward=self._forward,
-            encode_prompt=lambda text: self.tokenizer(text)["input_ids"],
+            encode_prompt=self._encode_prompt,
             decode=lambda tokens: self.tokenizer.decode(tokens, skip_special_tokens=True),
             eos_token_id=self.tokenizer.eos_token_id,
             pad_token_id=self.tokenizer.pad_token_id,
@@ -205,7 +218,8 @@ class HFSubject(Subject):
         stays available and may have been edited since it was loaded.
 
         Returns:
-            The class, model name, revision, dtype, option prefix and weights.
+            The class, model name, revision, dtype, option prefix and weights, and
+            `chat` when prompts go through the chat template.
         """
         return {
             "class": type(self).__name__,
@@ -213,7 +227,8 @@ class HFSubject(Subject):
             "revision": self.revision,
             "dtype": str(next(self.model.parameters()).dtype),
             "option_prefix": self.option_prefix,
-            "weights": weights_digest(self.model)
+            "weights": weights_digest(self.model),
+            **({"chat": True} if self.chat else {})
         }
 
     def runtime(self) -> dict[str, Any]:
@@ -226,6 +241,18 @@ class HFSubject(Subject):
 
     def _forward(self, ids: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         return self.model(input_ids=ids, attention_mask=mask, use_cache=False).logits
+
+    def _encode_prompt(self, text: str) -> list[int]:
+        if not self.chat:
+            return self.tokenizer(text)["input_ids"]
+        written = self.tokenizer.apply_chat_template(
+            [{"role": "user", "content": text}],
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False
+        )
+        # the template already holds any special tokens the model starts with
+        return self.tokenizer(written, add_special_tokens=False)["input_ids"]
 
     def _encode_option(self, text: str) -> list[int]:
         return self.tokenizer(text, add_special_tokens=False)["input_ids"]
