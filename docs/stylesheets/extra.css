@@ -13,8 +13,6 @@
   --cg-muted: var(--cg-slate);
   --cg-link: var(--cg-cobalt);
   --cg-line: #dce4f0;
-  --cg-monitor: var(--cg-navy);
-  --cg-monitor-edge: #2a4372;
   --cg-logo: var(--cg-cobalt);
   --md-text-font: "Geist";
   --md-code-font: "Geist Mono";
@@ -47,8 +45,6 @@
   --cg-muted: #b8c5dc;
   --cg-link: var(--cg-cornflower);
   --cg-line: #2a4372;
-  --cg-monitor: #0d1a36;
-  --cg-monitor-edge: #2a4372;
   --cg-logo: var(--cg-cornflower);
   --md-default-bg-color: var(--cg-navy);
   --md-default-bg-color--light: rgb(20 38 75 / 0.7);
@@ -274,187 +270,6 @@ body {
   content: "$ ";
 }
 
-.cg-reel__screen {
-  background-color: var(--cg-monitor);
-  border-radius: 0.8rem;
-  box-shadow: inset 0 0 0 1px var(--cg-monitor-edge);
-  color: var(--cg-frost);
-  margin: 2.6rem 0 0;
-  max-width: 26rem;
-  padding: 1.1rem 1.1rem 0.5rem;
-}
-
-.md-typeset .cg-reel figure {
-  align-items: stretch;
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  max-width: none;
-  width: auto;
-}
-
-.paper-vid canvas {
-  cursor: pointer;
-  display: block;
-  height: auto;
-  width: 100%;
-}
-
-.paper-vid canvas img {
-  display: block;
-  height: auto;
-  width: 100%;
-}
-
-.md-typeset .figure-control {
-  align-self: flex-end;
-  background: none;
-  border: 0;
-  color: rgb(242 246 255 / 0.72);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.66rem;
-  margin-top: 0.35rem;
-  padding: 0.2rem 0;
-}
-
-.md-typeset .figure-control:hover {
-  color: var(--cg-frost);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-.cg-reel__about {
-  margin: 1.6rem 0 0;
-}
-
-.md-typeset .cg-reel__group {
-  color: var(--cg-muted);
-  font-size: 0.72rem;
-  margin: 0 0 0.35rem;
-}
-
-.md-typeset .cg-reel__title {
-  font-size: 1.7rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.12;
-  margin: 0 0 0.6rem;
-}
-
-.md-typeset .cg-reel__title a {
-  color: var(--cg-text);
-}
-
-.md-typeset .cg-reel__title a:hover,
-.md-typeset .cg-reel__title a:focus-visible {
-  color: var(--cg-link);
-}
-
-.md-typeset .cg-reel__task {
-  font-size: 0.95rem;
-  line-height: 1.5;
-  margin: 0 0 1rem;
-  max-width: 26em;
-}
-
-.md-typeset .cg-reel__note {
-  color: var(--cg-muted);
-  font-size: 0.72rem;
-  line-height: 1.55;
-  margin: 0;
-  max-width: 32em;
-}
-
-.cg-reel__nav {
-  margin: 1.4rem 0 0;
-}
-
-.cg-reel__steps {
-  align-items: center;
-  display: flex;
-  gap: 0.6rem;
-  margin: 0 0 1.1rem;
-}
-
-.cg-reel__step {
-  background: none;
-  border: 1px solid var(--cg-line);
-  border-radius: 999px;
-  color: var(--cg-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.7rem;
-  padding: 0.3rem 0.85rem;
-}
-
-.cg-reel__step:hover {
-  border-color: var(--cg-link);
-  color: var(--cg-link);
-}
-
-.cg-reel__count {
-  color: var(--cg-muted);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-  min-width: 4.6em;
-  text-align: center;
-}
-
-.cg-reel__ticks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem 0.7rem;
-}
-
-.cg-reel__group-ticks > div {
-  display: flex;
-  gap: 0.12rem;
-}
-
-.cg-reel__tick {
-  background: none;
-  border: 0;
-  cursor: pointer;
-  height: 1.2rem;
-  padding: 0;
-  position: relative;
-  width: 0.66rem;
-}
-
-.cg-reel__tick::before {
-  background-color: var(--cg-line);
-  border-radius: 999px;
-  content: "";
-  height: 0.2rem;
-  left: 0;
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.cg-reel__tick:hover::before {
-  background-color: var(--cg-muted);
-}
-
-.cg-reel__tick[aria-current="true"]::before {
-  background-color: var(--cg-link);
-  height: 0.38rem;
-}
-
-.cg-reel__group-name {
-  color: var(--cg-muted);
-  display: block;
-  font-size: 0.62rem;
-  margin-top: 0.1rem;
-}
-
-.cg-reel button:focus-visible {
-  outline: 2px solid var(--cg-link);
-  outline-offset: 2px;
-}
-
 .cg-index {
   margin: 4.2rem 0 0;
   scroll-margin-top: 4rem;
@@ -512,7 +327,7 @@ body {
   border-bottom: 1px solid var(--cg-line);
   display: grid;
   gap: 0.1rem 1rem;
-  grid-template-columns: 8.6rem minmax(0, 1fr) auto;
+  grid-template-columns: 8.6rem minmax(0, 1fr);
   margin: 0;
   padding: 0.55rem 0;
   position: relative;
@@ -554,30 +369,6 @@ body {
   line-height: 1.45;
 }
 
-.cg-result {
-  display: inline-flex;
-  gap: 0.25rem;
-  justify-self: end;
-}
-
-.cg-result--none {
-  color: var(--cg-muted);
-  font-size: 0.66rem;
-  white-space: nowrap;
-}
-
-.cg-dot {
-  border: 1.5px solid var(--cg-link);
-  border-radius: 50%;
-  display: inline-block;
-  height: 0.5rem;
-  width: 0.5rem;
-}
-
-.cg-dot--on {
-  background-color: var(--cg-link);
-}
-
 .cg-run {
   background-color: var(--cg-surface);
   box-shadow: 0 0 0 100vmax var(--cg-surface);
@@ -599,83 +390,6 @@ body {
   border: 1px solid var(--cg-line);
 }
 
-.md-typeset .cg-run table:not([class]) {
-  background-color: var(--cg-bg);
-}
-
-.md-typeset .cg-run__label {
-  color: var(--cg-muted);
-  font-size: 0.72rem;
-  margin: 0 0 0.6rem;
-}
-
-.md-typeset .cg-run__label code {
-  background: none;
-  color: var(--cg-text);
-  padding: 0;
-}
-
-@media screen and (min-width: 45em) {
-  .cg-hero {
-    column-gap: 2.6rem;
-    display: grid;
-    grid-template-columns: minmax(0, 23rem) minmax(0, 1fr);
-  }
-
-  .cg-hero > * {
-    grid-column: 1 / -1;
-  }
-
-  .cg-reel__screen {
-    align-self: start;
-    grid-column: 1;
-    grid-row: 4 / span 2;
-    max-width: none;
-  }
-
-  .cg-reel__about {
-    grid-column: 2;
-    grid-row: 4;
-    margin-top: 2.9rem;
-  }
-
-  .cg-reel__nav {
-    align-self: end;
-    grid-column: 2;
-    grid-row: 5;
-  }
-}
-
-@media screen and (min-width: 76.25em) {
-  .cg-hero {
-    column-gap: 3.4rem;
-    grid-template-columns: minmax(0, 1fr) 22rem;
-    grid-template-rows: auto auto auto auto 1fr;
-  }
-
-  .cg-hero > * {
-    grid-column: 1;
-  }
-
-  .cg-reel__screen {
-    grid-column: 2;
-    grid-row: 1 / -1;
-    margin: 0;
-  }
-
-  .cg-reel__about {
-    grid-column: 1;
-    grid-row: auto;
-    margin-top: 2.6rem;
-  }
-
-  .cg-reel__nav {
-    align-self: start;
-    grid-column: 1;
-    grid-row: auto;
-  }
-}
-
 @media screen and (max-width: 60em) {
   .md-typeset .cg-hero h1 {
     font-size: 2rem;
@@ -689,11 +403,6 @@ body {
 
 @media screen and (max-width: 40em) {
   [dir] .md-typeset .cg-rows li {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .cg-task {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

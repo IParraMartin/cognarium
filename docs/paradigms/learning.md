@@ -40,10 +40,6 @@ results = cg.run(paradigm, subject)
 results.metrics("accuracy", "fidelity", "chain_entropy", "kl")
 ```
 
-### A real run
-
---8<-- "results/iterated_learning.md"
-
 ## CategoryLearning
 
 Learn a category structure from corrective feedback, block by block.
@@ -65,10 +61,6 @@ paradigm = cg.paradigms.CategoryLearning(task=cg.tasks.ShepardCategories(type="I
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/category_learning.md"
 
 ## ArtificialGrammar
 
@@ -92,10 +84,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/artificial_grammar.md"
-
 ## StatisticalLearning
 
 Find the words in a stream of syllables, then judge words and part-words.
@@ -117,7 +105,3 @@ paradigm = cg.paradigms.StatisticalLearning()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/statistical_learning.md"

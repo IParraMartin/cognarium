@@ -30,10 +30,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/semantic_priming.md"
-
 ## StructuralPriming
 
 Read a dative sentence, then choose between two forms of another.
@@ -54,10 +50,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/structural_priming.md"
-
 ## LexicalDecision
 
 Decide whether a string of letters is a word.
@@ -77,10 +69,6 @@ paradigm = cg.paradigms.LexicalDecision()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/lexical_decision.md"
 
 ## GardenPath
 
@@ -104,10 +92,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/garden_path.md"
-
 ## MinimalPairs
 
 Prefer the acceptable sentence of a pair that differs in one place.
@@ -128,10 +112,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/minimal_pairs.md"
-
 ## Fluency
 
 Name as many words as you can from a category, or starting with a letter.
@@ -151,7 +131,3 @@ paradigm = cg.paradigms.Fluency()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/fluency.md"

@@ -6,7 +6,7 @@ hide:
 
 <div class="cg-home" markdown>
 
-<section class="cg-hero cg-reel" markdown>
+<section class="cg-hero" markdown>
 
 # Cognitive science experiments on language models
 
@@ -23,46 +23,34 @@ uv add cognarium
 
 </div>
 
-<div class="cg-reel__screen">
-<figure class="paper-vid" id="cg-reel-screen" data-figure="stroop">
-<canvas width="640" height="624" role="img" aria-label="Stroop on GPT-2. On one trial it gives red 0.64, blue 0.12, green 0.12 and yellow, the correct ink, 0.12. Over the run, interference is found, +1.54 [0.98, 2.02] bits of answer surprisal, and errors are found, +2.12 [1.23, 2.94] nats of answer margin."><img src="assets/reel-stroop.png" width="640" height="624" loading="lazy" decoding="async" alt="Stroop on GPT-2. On one trial it gives red 0.64, blue 0.12, green 0.12 and yellow, the correct ink, 0.12. Over the run, interference is found, +1.54 [0.98, 2.02] bits of answer surprisal, and errors are found, +2.12 [1.23, 2.94] nats of answer margin."></canvas>
-</figure>
-</div>
-<div class="cg-reel__about" aria-live="off">
-<p class="cg-reel__group">Cognitive control</p>
-<p class="cg-reel__title"><a href="paradigms/control/#stroop">Stroop</a></p>
-<p class="cg-reel__task">Name the ink colour of a colour word.</p>
-<p class="cg-reel__note">One trial as GPT-2 read it, then every effect its run scored, found or not. The numbers come from the real runs shown on each paradigm's page.</p>
-</div>
-
 </section>
 
 <section class="cg-index" id="paradigms">
 <div class="cg-index__head">
 <h2>Paradigms</h2>
-<p>Each page says how the paradigm maps onto the human task, what the model version can't capture, and shows one run on GPT-2, whatever it found. The dots count the effects that run found: <span class="cg-dot cg-dot--on"></span> found, <span class="cg-dot"></span> not found.</p>
+<p>Each page says how the paradigm maps onto the human task and what the model version can't capture.</p>
 </div>
 <div class="cg-index__cols">
 <div class="cg-index__col">
 <div class="cg-group">
 <h3><a href="paradigms/control/">Cognitive control</a></h3>
 <ul class="cg-rows">
-<li><a href="paradigms/control/#stroop">Stroop</a><span class="cg-task">Name the ink colour of a colour word.</span><span class="cg-result" role="img" aria-label="2 of 2 effects found in GPT-2" title="2 of 2 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/control/#flanker">Flanker</a><span class="cg-task">Name the middle letter of a row of letters.</span><span class="cg-result" role="img" aria-label="1 of 2 effects found in GPT-2" title="1 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/control/#simon">Simon</a><span class="cg-task">Press the key a colour is mapped to, wherever the shape appears.</span><span class="cg-result" role="img" aria-label="0 of 2 effects found in GPT-2" title="0 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot"></span></span></li>
-<li><a href="paradigms/control/#gonogo">Go/no-go</a><span class="cg-task">Press for every letter except one.</span><span class="cg-result" role="img" aria-label="2 of 2 effects found in GPT-2" title="2 of 2 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/control/#stopsignal">Stop-signal</a><span class="cg-task">Press for each letter unless a stop cue follows it.</span><span class="cg-result" role="img" aria-label="1 of 2 effects found in GPT-2" title="1 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/control/#taskswitching">Task switching</a><span class="cg-task">Judge either the letter or the number of a pair, as each trial&#x27;s cue says.</span><span class="cg-result" role="img" aria-label="0 of 2 effects found in GPT-2" title="0 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot"></span></span></li>
+<li><a href="paradigms/control/#stroop">Stroop</a><span class="cg-task">Name the ink colour of a colour word.</span></li>
+<li><a href="paradigms/control/#flanker">Flanker</a><span class="cg-task">Name the middle letter of a row of letters.</span></li>
+<li><a href="paradigms/control/#simon">Simon</a><span class="cg-task">Press the key a colour is mapped to, wherever the shape appears.</span></li>
+<li><a href="paradigms/control/#gonogo">Go/no-go</a><span class="cg-task">Press for every letter except one.</span></li>
+<li><a href="paradigms/control/#stopsignal">Stop-signal</a><span class="cg-task">Press for each letter unless a stop cue follows it.</span></li>
+<li><a href="paradigms/control/#taskswitching">Task switching</a><span class="cg-task">Judge either the letter or the number of a pair, as each trial&#x27;s cue says.</span></li>
 </ul>
 </div>
 <div class="cg-group">
 <h3><a href="paradigms/memory/">Memory</a></h3>
 <ul class="cg-rows">
-<li><a href="paradigms/memory/#nback">N-back</a><span class="cg-task">Say whether each letter matches the one n letters back.</span><span class="cg-result" role="img" aria-label="0 of 2 effects found in GPT-2" title="0 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot"></span></span></li>
-<li><a href="paradigms/memory/#span">Span</a><span class="cg-task">Repeat a list of digits in order.</span><span class="cg-result" role="img" aria-label="0 of 1 effects found in GPT-2" title="0 of 1 effects found in GPT-2"><span class="cg-dot"></span></span></li>
-<li><a href="paradigms/memory/#sternberg">Sternberg</a><span class="cg-task">Say whether a probe letter was in a memory set.</span><span class="cg-result" role="img" aria-label="0 of 2 effects found in GPT-2" title="0 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot"></span></span></li>
-<li><a href="paradigms/memory/#freerecall">Free recall</a><span class="cg-task">Study a list of words, then write every word you remember.</span><span class="cg-result" role="img" aria-label="0 of 2 effects found in GPT-2" title="0 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot"></span></span></li>
-<li><a href="paradigms/memory/#drm">DRM</a><span class="cg-task">Study lists of related words, then judge whether test words were on the list.</span><span class="cg-result" role="img" aria-label="0 of 2 effects found in GPT-2" title="0 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot"></span></span></li>
+<li><a href="paradigms/memory/#nback">N-back</a><span class="cg-task">Say whether each letter matches the one n letters back.</span></li>
+<li><a href="paradigms/memory/#span">Span</a><span class="cg-task">Repeat a list of digits in order.</span></li>
+<li><a href="paradigms/memory/#sternberg">Sternberg</a><span class="cg-task">Say whether a probe letter was in a memory set.</span></li>
+<li><a href="paradigms/memory/#freerecall">Free recall</a><span class="cg-task">Study a list of words, then write every word you remember.</span></li>
+<li><a href="paradigms/memory/#drm">DRM</a><span class="cg-task">Study lists of related words, then judge whether test words were on the list.</span></li>
 </ul>
 </div>
 </div>
@@ -70,30 +58,30 @@ uv add cognarium
 <div class="cg-group">
 <h3><a href="paradigms/learning/">Learning and transmission</a></h3>
 <ul class="cg-rows">
-<li><a href="paradigms/learning/#iteratedlearning">Iterated learning</a><span class="cg-task">Each generation learns from the last generation&#x27;s responses.</span><span class="cg-result cg-result--none">chain measures</span></li>
-<li><a href="paradigms/learning/#categorylearning">Category learning</a><span class="cg-task">Learn a category structure from corrective feedback, block by block.</span><span class="cg-result" role="img" aria-label="0 of 1 effects found in GPT-2" title="0 of 1 effects found in GPT-2"><span class="cg-dot"></span></span></li>
-<li><a href="paradigms/learning/#artificialgrammar">Artificial grammar</a><span class="cg-task">Study strings from a finite-state grammar, then judge new ones.</span><span class="cg-result" role="img" aria-label="1 of 1 effects found in GPT-2" title="1 of 1 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/learning/#statisticallearning">Statistical learning</a><span class="cg-task">Find the words in a stream of syllables, then judge words and part-words.</span><span class="cg-result" role="img" aria-label="0 of 1 effects found in GPT-2" title="0 of 1 effects found in GPT-2"><span class="cg-dot"></span></span></li>
+<li><a href="paradigms/learning/#iteratedlearning">Iterated learning</a><span class="cg-task">Each generation learns from the last generation&#x27;s responses.</span></li>
+<li><a href="paradigms/learning/#categorylearning">Category learning</a><span class="cg-task">Learn a category structure from corrective feedback, block by block.</span></li>
+<li><a href="paradigms/learning/#artificialgrammar">Artificial grammar</a><span class="cg-task">Study strings from a finite-state grammar, then judge new ones.</span></li>
+<li><a href="paradigms/learning/#statisticallearning">Statistical learning</a><span class="cg-task">Find the words in a stream of syllables, then judge words and part-words.</span></li>
 </ul>
 </div>
 <div class="cg-group">
 <h3><a href="paradigms/language/">Language and semantics</a></h3>
 <ul class="cg-rows">
-<li><a href="paradigms/language/#semanticpriming">Semantic priming</a><span class="cg-task">Decide whether a target is a word, after a related or an unrelated prime.</span><span class="cg-result" role="img" aria-label="1 of 1 effects found in GPT-2" title="1 of 1 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/language/#structuralpriming">Structural priming</a><span class="cg-task">Read a dative sentence, then choose between two forms of another.</span><span class="cg-result" role="img" aria-label="1 of 1 effects found in GPT-2" title="1 of 1 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/language/#lexicaldecision">Lexical decision</a><span class="cg-task">Decide whether a string of letters is a word.</span><span class="cg-result" role="img" aria-label="0 of 1 effects found in GPT-2" title="0 of 1 effects found in GPT-2"><span class="cg-dot"></span></span></li>
-<li><a href="paradigms/language/#gardenpath">Garden path</a><span class="cg-task">Score the word that resolves a temporarily ambiguous sentence.</span><span class="cg-result" role="img" aria-label="1 of 1 effects found in GPT-2" title="1 of 1 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/language/#minimalpairs">Minimal pairs</a><span class="cg-task">Prefer the acceptable sentence of a pair that differs in one place.</span><span class="cg-result" role="img" aria-label="1 of 1 effects found in GPT-2" title="1 of 1 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/language/#fluency">Fluency</a><span class="cg-task">Name as many words as you can from a category, or starting with a letter.</span><span class="cg-result" role="img" aria-label="0 of 1 effects found in GPT-2" title="0 of 1 effects found in GPT-2"><span class="cg-dot"></span></span></li>
+<li><a href="paradigms/language/#semanticpriming">Semantic priming</a><span class="cg-task">Decide whether a target is a word, after a related or an unrelated prime.</span></li>
+<li><a href="paradigms/language/#structuralpriming">Structural priming</a><span class="cg-task">Read a dative sentence, then choose between two forms of another.</span></li>
+<li><a href="paradigms/language/#lexicaldecision">Lexical decision</a><span class="cg-task">Decide whether a string of letters is a word.</span></li>
+<li><a href="paradigms/language/#gardenpath">Garden path</a><span class="cg-task">Score the word that resolves a temporarily ambiguous sentence.</span></li>
+<li><a href="paradigms/language/#minimalpairs">Minimal pairs</a><span class="cg-task">Prefer the acceptable sentence of a pair that differs in one place.</span></li>
+<li><a href="paradigms/language/#fluency">Fluency</a><span class="cg-task">Name as many words as you can from a category, or starting with a letter.</span></li>
 </ul>
 </div>
 <div class="cg-group">
 <h3><a href="paradigms/judgment/">Judgment and reasoning</a></h3>
 <ul class="cg-rows">
-<li><a href="paradigms/judgment/#anchoring">Anchoring</a><span class="cg-task">Compare a quantity with a number, then estimate it.</span><span class="cg-result" role="img" aria-label="1 of 1 effects found in GPT-2" title="1 of 1 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/judgment/#framing">Framing</a><span class="cg-task">Choose between a sure outcome and a gamble, described as gains or as losses.</span><span class="cg-result" role="img" aria-label="1 of 1 effects found in GPT-2" title="1 of 1 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span></span></li>
-<li><a href="paradigms/judgment/#conjunctionfallacy">Conjunction fallacy</a><span class="cg-task">Judge whether a single property or that property joined with another is likelier.</span><span class="cg-result" role="img" aria-label="0 of 2 effects found in GPT-2" title="0 of 2 effects found in GPT-2"><span class="cg-dot"></span><span class="cg-dot"></span></span></li>
-<li><a href="paradigms/judgment/#falsebelief">False belief</a><span class="cg-task">Say where someone will look for an object that was moved, seen or unseen.</span><span class="cg-result" role="img" aria-label="1 of 2 effects found in GPT-2" title="1 of 2 effects found in GPT-2"><span class="cg-dot cg-dot--on"></span><span class="cg-dot"></span></span></li>
+<li><a href="paradigms/judgment/#anchoring">Anchoring</a><span class="cg-task">Compare a quantity with a number, then estimate it.</span></li>
+<li><a href="paradigms/judgment/#framing">Framing</a><span class="cg-task">Choose between a sure outcome and a gamble, described as gains or as losses.</span></li>
+<li><a href="paradigms/judgment/#conjunctionfallacy">Conjunction fallacy</a><span class="cg-task">Judge whether a single property or that property joined with another is likelier.</span></li>
+<li><a href="paradigms/judgment/#falsebelief">False belief</a><span class="cg-task">Say where someone will look for an object that was moved, seen or unseen.</span></li>
 </ul>
 </div>
 </div>
@@ -110,6 +98,13 @@ These four lines run Stroop on GPT-2. The run builds the trials, queries the mod
 scores the effects and saves everything to `runs/stroop/`, so running it again reads
 the saved run instead.
 
+A model has no reaction times, so each score names the human measure it stands in for.
+[Read the quickstart](quickstart.md) for what the score table holds.
+
+</div>
+
+<div markdown>
+
 ```python
 import cognarium as cg
 
@@ -120,23 +115,7 @@ results.score()
 
 </div>
 
-<div markdown>
-
-<p class="cg-run__label"><code>results.score()</code> on GPT-2, from the real run</p>
-
-| effect | measure | difference | 95% interval | detected |
-|---|---|---|---|---|
-| interference | answer surprisal | 1.54 | 0.98 to 2.02 | yes |
-| errors | answer margin | 2.12 | 1.23 to 2.94 | yes |
-
-A model has no reaction times, so each score names the human measure it stands in for.
-[Read the quickstart](quickstart.md) for the rest of the table.
-
-</div>
-
 </section>
 
 </div>
 
-<script src="javascripts/paradigm-runs.js" defer></script>
-<script src="javascripts/figures.js" defer></script>

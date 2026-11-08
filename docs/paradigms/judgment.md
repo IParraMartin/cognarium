@@ -32,10 +32,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/anchoring.md"
-
 ## Framing
 
 Choose between a sure outcome and a gamble, described as gains or as losses.
@@ -57,10 +53,6 @@ paradigm = cg.paradigms.Framing()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/framing.md"
 
 ## ConjunctionFallacy
 
@@ -84,10 +76,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/conjunction_fallacy.md"
-
 ## FalseBelief
 
 Say where someone will look for an object that was moved, seen or unseen.
@@ -109,7 +97,3 @@ paradigm = cg.paradigms.FalseBelief()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/false_belief.md"

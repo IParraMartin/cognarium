@@ -54,8 +54,7 @@ the last saved step, and a folder that holds a different run is refused.
 
 The [docs](docs/index.md) cover installing, a longer quickstart, the concepts, writing
 your own paradigm, recording hidden states, metrics, data and reproducibility. Each
-paradigm's page says how it maps onto the human task, what it can't capture, and shows
-one real GPT-2 run, whatever it found.
+paradigm's page says how it maps onto the human task and what it can't capture.
 
 ## Contents
 
@@ -70,7 +69,7 @@ one real GPT-2 run, whatever it found.
   - `data/`: CSV and JSON conversion, the dataset registry and its downloads
   - `runner.py`: `run`, which saves each step as it finishes
   - `results.py`: `Results`, which reads a run back
-- `examples/`: runnable scripts, including the tour that produced the docs' real runs
+- `examples/`: runnable scripts, including a tour that runs every paradigm on one model
 - `docs/`: the documentation site
 - `tests/`: the test suite, which also runs every code block in the docs
 

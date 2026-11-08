@@ -30,10 +30,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/n_back.md"
-
 ## Span
 
 Repeat a list of digits in order.
@@ -53,10 +49,6 @@ paradigm = cg.paradigms.Span()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/span.md"
 
 ## Sternberg
 
@@ -78,10 +70,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/sternberg.md"
-
 ## FreeRecall
 
 Study a list of words, then write every word you remember.
@@ -101,10 +89,6 @@ paradigm = cg.paradigms.FreeRecall()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/free_recall.md"
 
 ## DRM
 
@@ -135,7 +119,3 @@ paradigm = cg.paradigms.DRM(stimuli=lists)
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/drm.md"

@@ -30,10 +30,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/stroop.md"
-
 ## Flanker
 
 Name the middle letter of a row of letters.
@@ -53,10 +49,6 @@ paradigm = cg.paradigms.Flanker()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/flanker.md"
 
 ## Simon
 
@@ -78,10 +70,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/simon.md"
-
 ## GoNoGo
 
 Press for every letter except one.
@@ -101,10 +89,6 @@ paradigm = cg.paradigms.GoNoGo()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/go_no_go.md"
 
 ## StopSignal
 
@@ -126,10 +110,6 @@ results = cg.run(paradigm, subject)
 results.score()
 ```
 
-### A real run
-
---8<-- "results/stop_signal.md"
-
 ## TaskSwitching
 
 Judge either the letter or the number of a pair, as each trial's cue says.
@@ -149,7 +129,3 @@ paradigm = cg.paradigms.TaskSwitching()
 results = cg.run(paradigm, subject)
 results.score()
 ```
-
-### A real run
-
---8<-- "results/task_switching.md"

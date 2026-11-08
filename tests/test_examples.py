@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 from pathlib import Path
-
-from cognarium.paradigms import PARADIGMS
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
 TOURED = (
@@ -50,7 +47,11 @@ def test_example_runs_all_four_subject_types(tiny_model_and_tokenizer, tmp_path)
     assert rerun["store"].manifest["key"] == results["hf"].manifest["key"]
 
 
-def test_tour_runs_on_a_tiny_model(byte_model_and_tokenizer, tmp_path):
+def test_tour_runs_on_a_tiny_model(
+    byte_model_and_tokenizer,
+    tmp_path,
+    capsys
+):
     model, tokenizer = byte_model_and_tokenizer
     model.save_pretrained(tmp_path / "model")
     tokenizer.save_pretrained(tmp_path / "model")
@@ -60,51 +61,14 @@ def test_tour_runs_on_a_tiny_model(byte_model_and_tokenizer, tmp_path):
         "--device",
         "cpu",
         "--out",
-        str(tmp_path / "runs"),
-        "--docs",
-        str(tmp_path / "results"),
-        "--screen",
-        str(tmp_path / "runs.js")
+        str(tmp_path / "runs")
     ]
     for name in TOURED:
         args += ["--only", name]
     results = load_main("paradigm_tour")(args)
     assert set(results) == set(TOURED)
+    printed = capsys.readouterr().out
     for name in TOURED:
-        page = (tmp_path / "results" / f"{name}.md").read_text(encoding="utf-8")
-        assert str(tmp_path / "model") in page
-        assert "Sample prompt" in page
-        assert "| effect |" in page
         assert not results[name].score().empty
-    screen = (tmp_path / "runs.js").read_text(encoding="utf-8")
-    runs = json.loads(screen[screen.index("["):screen.rindex("]") + 1])
-    assert [run["name"] for run in runs] == [name for name in PARADIGMS if name in TOURED]
-    stroop = runs[0]
-    assert stroop["page"] == "control" and stroop["anchor"] == "stroop"
-    assert stroop["options"] == ["red", "blue", "green", "yellow"]
-    assert abs(sum(stroop["probabilities"]) - 1) < 1e-6
-    assert [effect["effect"] for effect in stroop["effects"]] == ["interference", "errors"]
+        assert f"{name}: " in printed
 
-
-def test_tour_keeps_the_screen_entries_it_did_not_rerun(byte_model_and_tokenizer, tmp_path):
-    model, tokenizer = byte_model_and_tokenizer
-    model.save_pretrained(tmp_path / "model")
-    tokenizer.save_pretrained(tmp_path / "model")
-    args = [
-        "--model",
-        str(tmp_path / "model"),
-        "--device",
-        "cpu",
-        "--out",
-        str(tmp_path / "runs"),
-        "--docs",
-        str(tmp_path / "results"),
-        "--screen",
-        str(tmp_path / "runs.js")
-    ]
-    tour = load_main("paradigm_tour")
-    tour([*args, "--only", "framing"])
-    tour([*args, "--only", "stroop"])
-    screen = (tmp_path / "runs.js").read_text(encoding="utf-8")
-    runs = json.loads(screen[screen.index("["):screen.rindex("]") + 1])
-    assert [run["name"] for run in runs] == ["stroop", "framing"]
