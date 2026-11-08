@@ -22,7 +22,7 @@ for learner in (cg.subjects.ExemplarLearner(), cg.subjects.BayesianLearner()):
 
 Each generation learns from the last generation's responses.
 
-Every chain starts from the task's seed structure. Each generation sees a random subset of the previous generation's labels, labels every item, and passes those labels on.
+Every chain starts from the task's starting labels. Each generation sees `n_prev_examples` of the previous generation's labelled items as examples, labels every item, and passes those labels on. The task is either the Shepard structures or a `cg.tasks.Mapping`, which holds any category system or function on a fixed set of labels.
 
 ### Maps onto
 
@@ -30,7 +30,7 @@ Iterated learning experiments, where each learner is trained on what the previou
 
 ### What it can't capture
 
-A language model reads the transmitted labels in its prompt rather than learning them, and every generation is the same model with a fresh context, so the chains show the model's in-context biases rather than a population of different people. The paradigm declares no single effect: its measures are per generation, such as `accuracy` against the seed structure, `fidelity` to the previous generation, `chain_entropy` across chains and `kl` from a reference distribution. The eight objects are abstract, not human-normed.
+A language model reads the transmitted labels in its prompt rather than learning them, and every generation is the same model with a fresh context, so the chains show the model's in-context biases rather than a population of different people. A language model also reads features as written numbers or words, where people see colours, bars or animals. The paradigm declares no single effect: its measures are per generation, such as `accuracy` against the starting labels, `fidelity` to the previous generation, `chain_entropy` across chains and `kl` from a reference distribution. The eight Shepard objects are abstract, not human-normed.
 
 ### Run it
 
@@ -39,6 +39,70 @@ paradigm = cg.paradigms.IteratedLearning(task=cg.tasks.ShepardCategories(type="V
 results = cg.run(paradigm, subject)
 results.metrics("accuracy", "fidelity", "chain_entropy", "kl")
 ```
+
+### Any category system
+
+A `cg.tasks.Mapping` takes one feature vector per item and the fixed set of labels a subject picks from. Each item and its label are written `Features: [60, 40, 0] -> Label: wug`, and `instructions` come before the examples. With no `start`, each chain starts from its own random labelling. These are 12 hues around a circle, in CIELAB coordinates:
+
+```python
+import math
+
+chips = [
+    [60, round(40 * math.cos(math.radians(hue))), round(40 * math.sin(math.radians(hue)))]
+    for hue in range(0, 360, 30)
+]
+colours = cg.tasks.Mapping(chips, ("wug", "dax", "fep", "kiki"))
+paradigm = cg.paradigms.IteratedLearning(
+    colours,
+    generations=5,
+    chains=4,
+    n_prev_examples=6,
+    instructions="Name each colour with one of the words wug, dax, fep or kiki."
+)
+results = cg.run(paradigm, subject)
+```
+
+Animals, kinship terms or spatial relations work the same way, with their features as numbers or as words. Items described by words can't use the bottleneck measures below, which need distances between items.
+
+### Measuring the naming systems
+
+A chain's naming system in a generation is its answer for every item. As in Imel and Zaslavsky (2026), `ib_complexity` and `ib_accuracy` place each system on the information bottleneck trade-off of Zaslavsky et al. (2018), `efficiency_loss` is how far it falls from the optimal trade-off, and `ib_alignment` is 1 minus the gNID between the system and the nearest optimal one. Each item's meaning is a Gaussian over the items around it, with a width set by `sigma` on the `Mapping`. The values are averages over chains, and `by` keeps one row per chain:
+
+```python
+results.metrics("ib_complexity", "ib_accuracy", "efficiency_loss", "ib_alignment")
+```
+
+To compare with a known system, pass it as `reference`, either one label per item or an items × labels table of probabilities. `alignment` is 1 minus the gNID to it, and `co_naming_mse` compares how likely each pair of items is to share a label, so the label names don't have to match:
+
+```python
+reference = ["red"] * 3 + ["yellow"] * 3 + ["green"] * 3 + ["blue"] * 3
+results.metrics("alignment", "co_naming_mse", reference=reference, by=["generation", "chain"])
+```
+
+### Remembering its own answers
+
+With `memory`, each generation names its items one at a time in a random order and also sees its own last `memory` answers, as in the iterated in-context learning of Imel and Zaslavsky (2026). Each answer is then a separate step:
+
+```python
+paradigm = cg.paradigms.IteratedLearning(colours, generations=3, chains=2, n_prev_examples=6, memory=4)
+results = cg.run(paradigm, subject)
+```
+
+For an instruction-tuned model, `cg.load(name, chat=True)` sends each prompt as one user message through the model's chat template, and scores the options as the start of its reply.
+
+### Function learning
+
+`Mapping.from_function` builds the function-learning task of Kalish, Griffiths and Lewandowsky (2007): each x is an item, the points of a scale are the labels, and the first generation sees the scale point nearest to the function. In the paper, chains that started from a negative slope drifted to y = x, and they reported the median correlation with y = x across chains. A smaller version:
+
+```python
+negative = cg.tasks.Mapping.from_function(range(1, 21), lambda x: 21 - x, scale=range(1, 21))
+paradigm = cg.paradigms.IteratedLearning(negative, generations=3, chains=2, n_prev_examples=10)
+results = cg.run(paradigm, subject)
+per_chain = results.metrics("correlation", reference=lambda x: x, by=["generation", "chain"])
+per_chain.groupby("generation")["value"].median()
+```
+
+`mse` gives the mean squared distance from the reference instead. `examples/function_learning.py` runs the paper's design: four starting functions, eight chains, nine generations and 50 examples.
 
 ## CategoryLearning
 

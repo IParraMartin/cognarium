@@ -22,6 +22,7 @@ cg.metrics.entropy(log_probs)
 | Geometry | `linear_cka`, `rbf_cka`, `rsa`, `procrustes`, `mse`, `svcca`, `pwcca`, `participation_ratio`, `intrinsic_dimension`, `layer_matrix` |
 | Statistics | `cohens_d`, `hedges_g`, `bootstrap_ci`, `permutation_test`, `fdr` |
 | Human comparison | `item_correlation`, `split_half_ceiling`, `effect_comparison` |
+| Naming | `meanings`, `ib_complexity`, `ib_accuracy`, `ib_frontier`, `efficiency_loss`, `gnid`, `co_naming_mse` |
 
 ## On results
 
@@ -49,6 +50,29 @@ x = torch.randn(50, 16, generator=torch.Generator().manual_seed(1))
 rotation, _ = torch.linalg.qr(torch.randn(16, 16, generator=torch.Generator().manual_seed(2)))
 cg.metrics.linear_cka(x, x @ rotation)
 ```
+
+## Naming systems
+
+A naming system is an items × words table, where each row gives the probability of each
+word for an item. `ib_frontier` traces the optimal systems for a set of meanings by
+reverse deterministic annealing, and `efficiency_loss` gives how far a system falls from
+them, with the trade-off value where it comes closest (Zaslavsky et al., 2018). The
+frontier for 330 items takes about a minute, so compute it once and reuse it.
+
+```python
+points = torch.arange(10, dtype=torch.float64)[:, None]
+prior = torch.full((10,), 0.1, dtype=torch.float64)
+meanings = cg.metrics.meanings(points, sigma=1.0)
+frontier = cg.metrics.ib_frontier(prior, meanings)
+
+halves = torch.tensor([[1.0, 0.0]] * 5 + [[0.0, 1.0]] * 5, dtype=torch.float64)
+epsilon, beta = cg.metrics.efficiency_loss(halves, prior, meanings, frontier)
+cg.metrics.gnid(halves, frontier.encoder_at(beta), prior)
+```
+
+`gnid` and `co_naming_mse` compare two systems whatever their words are called. On
+iterated learning results, the same measures score each chain's answers, as the
+[learning paradigms](paradigms/learning.md) page shows.
 
 ## Comparing with people
 

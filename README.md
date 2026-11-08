@@ -12,7 +12,7 @@ This is version 0.1.0. It has 25 paradigms across cognitive control, memory,
 learning, language and judgment, CSV and JSON conversion, a registry of open datasets
 pinned by checksum, comparison with human data, per-trial logits, the logit lens,
 hidden-state datasets, resumable runs, and information, classification, signal
-detection, geometry and statistics metrics. Batching, quantization and multi-GPU sweeps
+detection, geometry, statistics and naming metrics. Batching, quantization and multi-GPU sweeps
 come next, then speech, vision and perception paradigms.
 
 ## Install
@@ -60,7 +60,8 @@ paradigm's page says how it maps onto the human task and what it can't capture.
 
 - `src/cognarium/`: the library
   - `paradigms/`: the built-in experiments, grouped by what they measure
-  - `tasks/`: what a paradigm presents, such as the Shepard structures
+  - `tasks/`: what a paradigm presents, such as the Shepard structures or any mapping
+    from items to a fixed set of labels
   - `subjects/`: Hugging Face models, custom modules, exemplar and Bayesian learners
   - `models/`: the bundled LSTM and its tokenizer
   - `recording/`: layer maps, state capture, the state store and the logit lens
@@ -70,6 +71,7 @@ paradigm's page says how it maps onto the human task and what it can't capture.
   - `runner.py`: `run`, which saves each step as it finishes
   - `results.py`: `Results`, which reads a run back
 - `examples/`: runnable scripts, including a tour that runs every paradigm on one model
+  and a reproduction of iterated function learning (Kalish, Griffiths and Lewandowsky, 2007)
 - `docs/`: the documentation site
 - `tests/`: the test suite, which also runs every code block in the docs
 

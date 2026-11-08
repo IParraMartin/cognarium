@@ -20,6 +20,8 @@
 
 ::: cognarium.PromptTemplate
 
+::: cognarium.tasks.Mapping
+
 ::: cognarium.context
 
 ## Subjects
@@ -53,3 +55,5 @@
 ::: cognarium.metrics.statistics
 
 ::: cognarium.metrics.comparison
+
+::: cognarium.metrics.naming

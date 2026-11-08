@@ -3,6 +3,9 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pandas as pd
+import pytest
+
 EXAMPLES = Path(__file__).parent.parent / "examples"
 TOURED = (
     "stroop",
@@ -72,3 +75,50 @@ def test_tour_runs_on_a_tiny_model(
         assert not results[name].score().empty
         assert f"{name}: " in printed
 
+
+
+def test_function_learning_reports_the_median_correlation_per_generation(tmp_path):
+    args = [
+        "--model",
+        "exemplar",
+        "--chains",
+        "2",
+        "--generations",
+        "2",
+        "--conditions",
+        "positive",
+        "negative",
+        "--out",
+        str(tmp_path / "runs")
+    ]
+    medians = load_main("function_learning")(args)
+    assert len(medians) == 2 * 3
+    first = medians[medians["generation"] == 0].set_index("condition")["correlation"]
+    assert first.tolist() == pytest.approx([1.0, -1.0])
+    answers = pd.read_csv(tmp_path / "runs" / "answers.csv")
+    assert len(answers) == 2 * 2 * 2 * 100
+    assert answers["y"].between(1, 100).all()
+
+
+def test_function_learning_runs_on_a_language_model(byte_model_and_tokenizer, tmp_path):
+    model, tokenizer = byte_model_and_tokenizer
+    model.save_pretrained(tmp_path / "model")
+    tokenizer.save_pretrained(tmp_path / "model")
+    args = [
+        "--model",
+        str(tmp_path / "model"),
+        "--device",
+        "cpu",
+        "--chains",
+        "1",
+        "--generations",
+        "1",
+        "--examples",
+        "5",
+        "--conditions",
+        "random",
+        "--out",
+        str(tmp_path / "runs")
+    ]
+    medians = load_main("function_learning")(args)
+    assert medians["generation"].tolist() == [0, 1]
