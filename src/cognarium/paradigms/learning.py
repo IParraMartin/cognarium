@@ -25,6 +25,7 @@ from cognarium.settings import Settings
 from cognarium.stimuli import Observation, Stimulus, Trial
 
 if TYPE_CHECKING:
+    from cognarium.tasks.mapping import Mapping
     from cognarium.tasks.shepard import ShepardCategories
 
 # separate seed streams, so adding draws to one never shifts another
@@ -73,12 +74,14 @@ _STREAM_ATTEMPTS = 1000
 class IteratedLearning(Paradigm):
     """Each generation learns from the last generation's responses.
 
-    Every chain starts from the task's seed structure. Each generation sees a
-    random subset of the previous generation's labels, labels every item, and
-    passes those labels on.
+    Each chain starts from the task's first labelling for it. Each generation sees
+    a random subset of the previous generation's labels, labels every item, and
+    passes those labels on. A trial's answer is its chain's first label for the
+    item, so `accuracy` measures agreement with where the chain started.
 
     Args:
-        task: The task being transmitted.
+        task: The task being transmitted, such as `cg.tasks.ShepardCategories` or
+            `cg.tasks.Mapping`.
         generations: How many learners follow each other in a chain.
         chains: How many independent chains to run.
         n_prev_examples: How many items each generation sees labelled by the
@@ -105,7 +108,7 @@ class IteratedLearning(Paradigm):
 
     def __init__(
         self,
-        task: ShepardCategories,
+        task: ShepardCategories | Mapping,
         generations: int = 10,
         chains: int = 50,
         n_prev_examples: int = 4,
@@ -160,6 +163,7 @@ class IteratedLearning(Paradigm):
             return None
         parents = self._parent_labels(index, previous)
         seed = self.settings.seed
+        starts = self._starts()
         queries = []
         columns = {
             "chain": [],
@@ -180,7 +184,7 @@ class IteratedLearning(Paradigm):
                         trial=Trial(
                             stimulus,
                             options=self.task.options,
-                            answer=self.task.seed_labels[item],
+                            answer=starts[chain][item],
                             item=item
                         ),
                         context=context,
@@ -265,10 +269,13 @@ class IteratedLearning(Paradigm):
         """
         return self.task.hypothesis_space()
 
+    def _starts(self) -> list[tuple[str, ...]]:
+        return [self.task.start(chain, self.settings.seed) for chain in range(self.chains)]
+
     def _parent_labels(self, index: int, previous: pd.DataFrame | None) -> np.ndarray:
         n_items = len(self.task.stimuli)
         if index == 0:
-            return np.array([self.task.seed_labels] * self.chains, dtype=object)
+            return np.array(self._starts(), dtype=object)
         if previous is None:
             raise ValueError(f"Generation {index} needs the previous generation's results.")
         labels = np.empty((self.chains, n_items), dtype=object)

@@ -95,6 +95,18 @@ class ShepardCategories:
             for item in _OBJECTS
         )
 
+    def start(self, chain: int, seed: int) -> tuple[str, ...]:
+        """Gives a chain's first labelling.
+
+        Args:
+            chain: The chain.
+            seed: The run's seed.
+
+        Returns:
+            The seed structure, which every chain starts from.
+        """
+        return self.seed_labels
+
     def group_of(self, labels: Sequence[str]) -> str:
         """Names the group a full labelling of the 8 objects belongs to.
 
