@@ -50,6 +50,8 @@ Entries come in four tiers.
 Some entries are disabled, each with a note saying why, such as a download that needs a
 login. `cg.data.available(include_disabled=True)` lists them too.
 
+With the `Acceptability` paradigm from [custom paradigms](custom-paradigms.md):
+
 <!-- no-run -->
 ```python
 pairs = cg.data.load("blimp", phenomena=["causative"])

@@ -20,9 +20,21 @@
 
 ::: cognarium.PromptTemplate
 
-::: cognarium.tasks.Mapping
-
 ::: cognarium.context
+
+## Paradigms
+
+::: cognarium.paradigms.IteratedLearning
+
+::: cognarium.paradigms.CategoryLearning
+
+::: cognarium.paradigms.ArtificialGrammar
+
+## Tasks
+
+::: cognarium.tasks.ShepardCategories
+
+::: cognarium.tasks.Mapping
 
 ## Subjects
 

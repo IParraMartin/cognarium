@@ -10,6 +10,14 @@ and a Bayesian learner, which infers a labelling from a space of hypotheses. A m
 results can be read against what learning by similarity and learning by rule each
 predict.
 
+| Paradigm | The learner | What people show | Built on |
+|---|---|---|---|
+| [IteratedLearning](#iteratedlearning) | Learns from the previous generation's answers and passes its own on | Chains drift toward what learners find easiest, which reveals their inductive biases | Kirby, Cornish and Smith (2008); Kalish, Griffiths and Lewandowsky (2007); Griffiths and Kalish (2007) |
+| [CategoryLearning](#categorylearning) | Labels each item and then sees its correct label | Shepard type I is learned fastest, type II next, types III to V more slowly and type VI slowest | Shepard, Hovland and Jenkins (1961); Nosofsky et al. (1994) |
+| [ArtificialGrammar](#artificialgrammar) | Studies strings from a grammar, then judges new ones | New strings are judged above chance, and familiar chunks are endorsed whatever their grammaticality | Reber (1967); Knowlton and Squire (1996) |
+
+Full citations are under [References](#references).
+
 ```python
 import cognarium as cg
 
@@ -53,7 +61,9 @@ asked with the same examples unless `memory` is set.
 
 ### Maps onto
 
-Iterated learning experiments, where each learner is trained on what the previous learner produced and chains drift toward the structures learners find easiest (Kirby, Cornish and Smith, 2008; Griffiths, Christian and Kalish, 2008). For a Bayesian learner that samples from its posterior, the chains converge to its prior (Griffiths and Kalish, 2007), which the test suite checks exactly.
+Iterated learning experiments, where each learner is trained on what the previous learner produced. Chains of people drift toward what they find easiest to learn: languages become structured and easier to learn (Kirby, Cornish and Smith, 2008), functions become linear with a positive slope whatever the starting function (Kalish, Griffiths and Lewandowsky, 2007), category structures become simpler (Griffiths, Christian and Kalish, 2008), and colour terms come to resemble those of the world's languages (Xu, Dowman and Griffiths, 2013). For a Bayesian learner that samples from its posterior, the chains converge to its prior (Griffiths and Kalish, 2007), which the test suite checks exactly.
+
+With language models, iterated in-context learning has been used to elicit a model's priors (Zhu and Griffiths, 2024) and to follow colour naming systems as they become efficient (Imel and Zaslavsky, 2026). Ren et al. (2024) apply the same framework to models that learn from other models' outputs.
 
 ### What it can't capture
 
@@ -119,7 +129,7 @@ For an instruction-tuned model, `cg.load(name, chat=True)` sends each prompt as 
 
 ### The World Color Survey
 
-`examples/color_naming.py` runs the design of Imel and Zaslavsky (2026) on the 330 chips of the World Color Survey: vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, which the paper found worked better for text-only models than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`. With `lab_to_srgb` from the example:
+`examples/color_naming.py` runs the design of Imel and Zaslavsky (2026) on the 330 chips of the World Color Survey (Kay et al., 2009): vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, which the paper found worked better for text-only models than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`. With `lab_to_srgb` from the example:
 
 <!-- no-run -->
 ```python
@@ -127,6 +137,18 @@ chips = cg.data.load("wcs_chips", accept_terms=True).to_pandas()
 lab = chips[["L", "a", "b"]].to_numpy()
 colours = cg.tasks.Mapping(lab_to_srgb(lab).round(3).tolist(), ("Narp", "Tovo", "Feglu"), points=lab.tolist(), sigma=8.0)
 ```
+
+On Qwen3.5-4B-Base, in bfloat16 with four chains per vocabulary size, the naming systems grow more efficient at every size. Each cell is a mean over the four chains:
+
+| Words | Efficiency loss, random start | Efficiency loss, generation 13 | Alignment, generation 13 | Words in use, generation 13 |
+|---|---|---|---|---|
+| 2 | 0.86 | 0.11 | 0.07 | 1.5 |
+| 3 | 1.30 | 0.17 | 0.15 | 2.0 |
+| 4 | 1.57 | 0.23 | 0.14 | 2.5 |
+| 5 | 1.79 | 0.25 | 0.28 | 3.0 |
+| 6 | 1.91 | 0.39 | 0.45 | 4.5 |
+
+Part of the fall comes from simplification: words drop out of use, and a system with fewer words lies nearer the frontier's simple end. The gain isn't only that, though. The 6-word systems lose some complexity, from 2.57 to 2.02 bits, while their accuracy triples, from 0.51 to 1.54 bits, and their alignment with the nearest optimal system rises from 0.04 to 0.45. The categories that form are contiguous regions of the chip grid. This is one run, reported as it came out.
 
 ### Function learning
 
@@ -184,8 +206,11 @@ probability of an error per block that Nosofsky et al. (1994) report for people.
 
 Supervised category learning. With the Shepard, Hovland and Jenkins (1961)
 structures, people learn type I fastest, type II next, types III to V more slowly
-and type VI slowest (Nosofsky et al., 1994). With a function read on a scale, it is
-function learning from feedback (DeLosh, Busemeyer and McDaniel, 1997).
+and type VI slowest (Nosofsky et al., 1994). The order has been explained by
+selective attention to the relevant features (Kruschke, 1992) and by the Boolean
+complexity of each structure's simplest rule (Feldman, 2000), and it is a standard
+test for models of categorization. With a function read on a scale, it is function
+learning from feedback (DeLosh, Busemeyer and McDaniel, 1997).
 
 ### What it can't capture
 
@@ -236,6 +261,7 @@ over six blocks, with ten learners per type:
 | Exemplar (GCM) | 0.381 | 0.492 | 0.438 | 0.415 | 0.474 | 0.529 | 0.58 |
 | Bayesian, simplicity prior | 0.033 | 0.055 | 0.067 | 0.064 | 0.064 | 0.083 | 0.94 |
 | GPT-2 | 0.396 | 0.449 | 0.376 | 0.358 | 0.427 | 0.488 | 0.21 |
+| Qwen3.5-4B-Base | 0.063 | 0.105 | 0.102 | 0.102 | 0.113 | 0.138 | 0.70 |
 
 The exemplar learner weighs every feature equally, so it finds type II harder than
 types III to V, the order an exemplar model gives without attention learning
@@ -250,6 +276,12 @@ first block to between 0.25 and 0.44 in the sixth, but its order matches people'
 only weakly: type VI is its hardest, as for people, while types II and V are harder
 for it than types III and IV, and type I isn't its easiest. This is one run, reported
 as it came out.
+
+Qwen3.5-4B-Base, in bfloat16, learns every type within about three blocks, and by the
+sixth its probability of an error is at most 0.005. Its order is close to people's:
+type I is its easiest and type VI its hardest, the gap clearest in the second block
+(0.03 against 0.31), while type II falls among types III to V rather than ahead of
+them. This is also one run, reported as it came out.
 
 ## ArtificialGrammar
 
@@ -315,7 +347,11 @@ test string's `chunk_strength`, and under the probability test the
 Artificial grammar learning, where people who studied grammatical strings judge new
 ones above chance without being able to say the rules (Reber, 1967), and also endorse
 strings made of familiar chunks, whatever their grammaticality (Knowlton and Squire,
-1996).
+1996). Knowlton and Squire crossed grammaticality with chunk strength to separate
+learning of the grammar from familiarity with its fragments, and the ungrammatical
+strings here are matched on chunk strength for the same reason. For language models,
+Hu and Levy (2023) found that a model's answer to a judgment prompt can misreport
+what its string probabilities know, which is why there is a probability test.
 
 ### What it can't capture
 
@@ -340,8 +376,8 @@ pairs.score()
 ### Rules or chunks
 
 `examples/grammar_learning.py` runs both tests. With 20 learners, each studying 16
-strings and tested on 8 and their changes, the two baselines come apart, and GPT-2
-shows neither effect. Each cell is the difference in the probability of answering
+strings and tested on 8 and their changes, the two baselines come apart, and the
+language models barely show either effect. Each cell is the difference in the probability of answering
 grammatical, with its 95% interval over strings:
 
 | Learner | Grammaticality | Chunk strength |
@@ -349,6 +385,7 @@ grammatical, with its 95% interval over strings:
 | Exemplar (GCM) | 0.003 [0.001, 0.004] | 0.003 [0.002, 0.005] |
 | Bayesian | 1.000 [1.000, 1.000] | 0.003 [-0.132, 0.133] |
 | GPT-2 | 4e-6 [1.5e-6, 5e-6] | 2e-6 [-2e-7, 3e-6] |
+| Qwen3.5-4B-Base | 0.003 [0.002, 0.005] | 0.001 [0.000, 0.003] |
 
 The Bayesian learner infers the grammar and ignores chunk strength. The exemplar
 learner, which compares letter pairs, follows both a little, since an illegal change
@@ -363,3 +400,80 @@ has a probability of 0.818 averaged over strings, against 0.5 for chance, with a
 interval of [0.778, 0.859], and it is the likelier one in 82% of pairs. The preference hardly
 follows the pair's difference in chunk strength (r = 0.08), so it isn't familiarity
 with chunks alone. This is one run, reported as it came out.
+
+Qwen3.5-4B-Base, in bfloat16, also answers grammatical to nearly every string, with a
+mean probability of 0.996 for grammatical strings against 0.992 for ungrammatical
+ones, so both effects are detected but tiny. Its probability test is stronger than
+GPT-2's: the grammatical string has a probability of 0.863 [0.830, 0.894], it is the
+likelier one in 94% of pairs, and the preference doesn't follow the chunk difference
+(r = 0.02).
+
+## References
+
+DeLosh, E. L., Busemeyer, J. R., & McDaniel, M. A. (1997). Extrapolation: The sine qua
+non for abstraction in function learning. *Journal of Experimental Psychology:
+Learning, Memory, and Cognition*, 23(4), 968–986.
+
+Feldman, J. (2000). Minimization of Boolean complexity in human concept learning.
+*Nature*, 407, 630–633.
+
+Griffiths, T. L., Christian, B. R., & Kalish, M. L. (2008). Using category structures
+to test iterated learning as a method for identifying inductive biases. *Cognitive
+Science*, 32(1), 68–107.
+
+Griffiths, T. L., & Kalish, M. L. (2007). Language evolution by iterated learning with
+Bayesian agents. *Cognitive Science*, 31(3), 441–480.
+
+Hu, J., & Levy, R. (2023). Prompting is not a substitute for probability measurements
+in large language models. In *Proceedings of the 2023 Conference on Empirical Methods
+in Natural Language Processing*.
+
+Imel, N., & Zaslavsky, N. (2026). Evolution and compression in LLMs: On the emergence
+of human-aligned categorization. In *International Conference on Learning
+Representations*. arXiv:2509.08093.
+
+Kalish, M. L., Griffiths, T. L., & Lewandowsky, S. (2007). Iterated learning:
+Intergenerational knowledge transmission reveals inductive biases. *Psychonomic
+Bulletin & Review*, 14(2), 288–294.
+
+Kay, P., Berlin, B., Maffi, L., Merrifield, W. R., & Cook, R. (2009). *The World Color
+Survey*. CSLI Publications.
+
+Kirby, S., Cornish, H., & Smith, K. (2008). Cumulative cultural evolution in the
+laboratory: An experimental approach to the origins of structure in human language.
+*Proceedings of the National Academy of Sciences*, 105(31), 10681–10686.
+
+Knowlton, B. J., & Squire, L. R. (1996). Artificial grammar learning depends on
+implicit acquisition of both abstract and exemplar-specific information. *Journal of
+Experimental Psychology: Learning, Memory, and Cognition*, 22(1), 169–181.
+
+Kruschke, J. K. (1992). ALCOVE: An exemplar-based connectionist model of category
+learning. *Psychological Review*, 99(1), 22–44.
+
+Nosofsky, R. M. (1986). Attention, similarity, and the identification–categorization
+relationship. *Journal of Experimental Psychology: General*, 115(1), 39–57.
+
+Nosofsky, R. M., Gluck, M. A., Palmeri, T. J., McKinley, S. C., & Glauthier, P. (1994).
+Comparing models of rule-based classification learning: A replication and extension
+of Shepard, Hovland, and Jenkins (1961). *Memory & Cognition*, 22(3), 352–369.
+
+Reber, A. S. (1967). Implicit learning of artificial grammars. *Journal of Verbal
+Learning and Verbal Behavior*, 6(6), 855–863.
+
+Ren, Y., Guo, S., Qiu, L., Wang, B., & Sutherland, D. J. (2024). Bias amplification in
+language model evolution: An iterated learning perspective. In *Advances in Neural
+Information Processing Systems 37*.
+
+Shepard, R. N., Hovland, C. I., & Jenkins, H. M. (1961). Learning and memorization of
+classifications. *Psychological Monographs: General and Applied*, 75(13), 1–42.
+
+Xu, J., Dowman, M., & Griffiths, T. L. (2013). Cultural transmission results in
+convergence towards colour term universals. *Proceedings of the Royal Society B*,
+280(1758), 20123073.
+
+Zaslavsky, N., Kemp, C., Regier, T., & Tishby, N. (2018). Efficient compression in
+color naming and its evolution. *Proceedings of the National Academy of Sciences*,
+115(31), 7937–7942.
+
+Zhu, J.-Q., & Griffiths, T. L. (2024). Eliciting the priors of large language models
+using iterated in-context learning. arXiv:2406.01860.

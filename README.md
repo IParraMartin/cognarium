@@ -8,14 +8,24 @@ Bayesian learners, on CPU, MPS or CUDA.
 
 ## Status
 
-This is version 0.1.0. It has three learning paradigms: in-context iterated learning
-and category learning on any category system or function, and artificial grammar
-learning with judgment and string-probability tests. Each also runs on exemplar and
-Bayesian learners as baselines. It has CSV and JSON conversion, a registry of open
-datasets pinned by checksum, comparison with human data, per-trial logits, the logit
-lens, hidden-state datasets, resumable runs, and information, classification, signal
-detection, geometry, statistics and naming metrics. Batching, quantization and
-multi-GPU sweeps come next, then speech, vision and perception paradigms.
+This is version 0.1.0. It has three learning paradigms, each of which also runs on
+exemplar and Bayesian learners as baselines. It has CSV and JSON conversion, a registry
+of open datasets pinned by checksum, comparison with human data, per-trial logits, the
+logit lens, hidden-state datasets, resumable runs, and information, classification,
+signal detection, geometry, statistics and naming metrics. Quantization and multi-GPU
+sweeps come next.
+
+## Experiments
+
+| Paradigm | What it does | Built on |
+|---|---|---|
+| `IteratedLearning` | Each generation learns from the previous generation's answers and passes its own on, for the Shepard structures or any category system or function | Kirby, Cornish and Smith (2008); Kalish, Griffiths and Lewandowsky (2007); Griffiths and Kalish (2007); Imel and Zaslavsky (2026) |
+| `CategoryLearning` | Learns the Shepard structures, any category system or a function from corrective feedback, block by block | Shepard, Hovland and Jenkins (1961); Nosofsky et al. (1994) |
+| `ArtificialGrammar` | Studies strings from a finite-state grammar, then judges new ones, with grammaticality and chunk strength crossed, or compares them by string probability | Reber (1967); Knowlton and Squire (1996); Hu and Levy (2023) |
+
+The [paradigms page](docs/paradigms/learning.md) explains each one, how it maps onto the
+human task, what it can't capture, and results on GPT-2 and Qwen3.5-4B-Base, with full
+references.
 
 ## Install
 
@@ -56,12 +66,13 @@ the last saved step, and a folder that holds a different run is refused.
 
 The [docs](docs/index.md) cover installing, a longer quickstart, the concepts, writing
 your own paradigm, recording hidden states, metrics, data and reproducibility. Each
-paradigm's section says how it maps onto the human task and what it can't capture.
+paradigm's section says how it maps onto the human task, the work it builds on, and
+what it can't capture.
 
 ## Contents
 
 - `src/cognarium/`: the library
-  - `paradigms/`: the built-in experiments, grouped by what they measure
+  - `paradigms/`: the base `Paradigm` class and the three built-in experiments
   - `tasks/`: what a paradigm presents, such as the Shepard structures or any mapping
     from items to a fixed set of labels
   - `subjects/`: Hugging Face models, custom modules, exemplar and Bayesian learners
@@ -72,11 +83,11 @@ paradigm's section says how it maps onto the human task and what it can't captur
   - `data/`: CSV and JSON conversion, the dataset registry and its downloads
   - `runner.py`: `run`, which saves each step as it finishes
   - `results.py`: `Results`, which reads a run back
-- `examples/`: runnable scripts: a tour that runs every paradigm on one model, the six
-  Shepard types against the human order, grammar learning with both tests, and a
-  reproduction of iterated function learning (Kalish, Griffiths and Lewandowsky, 2007),
-  and in-context iterated learning of colour names on the World Color Survey chips
-  (Imel and Zaslavsky, 2026)
+- `examples/`: runnable scripts: a tour that runs every built-in paradigm on one model,
+  iterated learning on every kind of subject, the six Shepard types against the human
+  order, grammar learning with both tests, the iterated function learning design of
+  Kalish, Griffiths and Lewandowsky (2007), and in-context iterated learning of colour
+  names on the World Color Survey chips (Imel and Zaslavsky, 2026)
 - `docs/`: the documentation site
 - `tests/`: the test suite, which also runs every code block in the docs
 

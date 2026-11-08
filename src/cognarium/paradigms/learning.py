@@ -77,6 +77,14 @@ class IteratedLearning(Paradigm):
     passes those labels on. A trial's answer is its chain's first label for the
     item, so `accuracy` measures agreement with where the chain started.
 
+    Maps onto iterated learning experiments, where chains of people drift toward
+    what they find easiest to learn, such as structured languages (Kirby, Cornish
+    and Smith, 2008) and positive linear functions (Kalish, Griffiths and
+    Lewandowsky, 2007). For a Bayesian learner that samples from its posterior, the
+    chains converge to its prior (Griffiths and Kalish, 2007). What it can't
+    capture: every generation is the same model with a fresh context, so the chains
+    show one model's in-context biases rather than a population of different people.
+
     Args:
         task: The task being transmitted, such as `cg.tasks.ShepardCategories` or
             `cg.tasks.Mapping`.
