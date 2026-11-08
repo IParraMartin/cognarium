@@ -51,6 +51,7 @@ SPEC = {
         "natural_stories",
         "fantom",
         "simlex999",
+        "wcs_chips",
         "semantic_priming_project",
         "elp_trials",
         "brysbaert_concreteness",

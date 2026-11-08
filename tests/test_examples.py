@@ -198,3 +198,67 @@ def test_grammar_learning_gives_a_feature_learner_only_the_judgment_test(tmp_pat
         str(tmp_path / "runs")
     ]
     assert list(load_main("grammar_learning")(args)) == ["judgment"]
+
+
+def write_chips(folder):
+    rows = [
+        f"{number}\t{'ABCDEFGHIJ'[number % 10]}\t{number}\t4\t5R\t5.0\t{lightness}\t{a}\t{b}"
+        for number, (lightness, a, b) in enumerate(
+            [(lightness, a, b) for lightness in (20, 40, 60, 80, 95) for a, b in ((-20, 0), (20, 0), (0, -20), (0, 20))],
+            start=1
+        )
+    ]
+    path = folder / "chips.txt"
+    path.write_text("#cnum\tV\tH\tC\tMunH\tMunV\tL*\ta*\tb*\n" + "\n".join(rows) + "\n")
+    return path
+
+
+def color_args(folder, model, *extra):
+    return [
+        "--model",
+        model,
+        "--chips",
+        str(write_chips(folder)),
+        "--chains",
+        "2",
+        "--generations",
+        "2",
+        "--memory",
+        "2",
+        "--out",
+        str(folder / "runs"),
+        *extra
+    ]
+
+
+def test_color_naming_measures_each_generation_from_the_random_start(tmp_path, capsys):
+    measures = load_main("color_naming")(color_args(tmp_path, "exemplar", "--words", "2", "3"))
+    assert set(measures["metric"]) == {"ib_complexity", "ib_accuracy", "efficiency_loss", "ib_alignment", "terms"}
+    assert sorted(measures["generation"].unique()) == [0, 1, 2]
+    assert len(measures) == 2 * 3 * 2 * 5
+    assert measures["value"].notna().all()
+    terms = measures[measures["metric"] == "terms"]
+    assert (terms["value"] <= terms["words"]).all()
+    assert (tmp_path / "runs" / "measures.csv").exists()
+    assert "efficiency_loss" in capsys.readouterr().out
+
+
+def test_color_naming_runs_on_a_language_model(byte_model_and_tokenizer, tmp_path):
+    model, tokenizer = byte_model_and_tokenizer
+    model.save_pretrained(tmp_path / "model")
+    tokenizer.save_pretrained(tmp_path / "model")
+    args = color_args(tmp_path, str(tmp_path / "model"), "--device", "cpu", "--words", "2", "--generations", "1")
+    measures = load_main("color_naming")(args)
+    assert sorted(measures["generation"].unique()) == [0, 1]
+
+
+def test_color_naming_converts_cielab_to_srgb():
+    spec = importlib.util.spec_from_file_location("color_naming_example", EXAMPLES / "color_naming.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    lab = pd.DataFrame([[100, 0, 0], [0, 0, 0], [53.24, 80.09, 67.20], [50, 0, 0]]).to_numpy(dtype=float)
+    rgb = module.lab_to_srgb(lab)
+    assert rgb[0] == pytest.approx([1, 1, 1], abs=1e-3)
+    assert rgb[1] == pytest.approx([0, 0, 0], abs=1e-6)
+    assert rgb[2] == pytest.approx([1, 0, 0], abs=5e-3)
+    assert rgb[3] == pytest.approx([0.466] * 3, abs=2e-3)

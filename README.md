@@ -74,7 +74,9 @@ paradigm's section says how it maps onto the human task and what it can't captur
   - `results.py`: `Results`, which reads a run back
 - `examples/`: runnable scripts: a tour that runs every paradigm on one model, the six
   Shepard types against the human order, grammar learning with both tests, and a
-  reproduction of iterated function learning (Kalish, Griffiths and Lewandowsky, 2007)
+  reproduction of iterated function learning (Kalish, Griffiths and Lewandowsky, 2007),
+  and in-context iterated learning of colour names on the World Color Survey chips
+  (Imel and Zaslavsky, 2026)
 - `docs/`: the documentation site
 - `tests/`: the test suite, which also runs every code block in the docs
 

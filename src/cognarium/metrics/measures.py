@@ -671,6 +671,7 @@ def _meaning_space(task: str) -> tuple[torch.Tensor, torch.Tensor]:
     points, sigma, prior = MappingTask(
         config["features"],
         config["labels"],
+        points=config.get("points"),
         sigma=config.get("sigma"),
         prior=config.get("prior")
     ).meaning_space()

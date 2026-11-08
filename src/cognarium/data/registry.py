@@ -575,6 +575,22 @@ _ENTRIES = (
         note="Its README asks you to cite the paper."
     ),
     Entry(
+        name="wcs_chips",
+        tier="B",
+        title="World Color Survey chip coordinates",
+        licence=NO_LICENCE,
+        citation=(
+            "Kay, P., Berlin, B., Maffi, L., Merrifield, W. R., & Cook, R. (2009). The World Color Survey. "
+            "CSLI Publications."
+        ),
+        url="https://linguistics.berkeley.edu/wcs/data/cnum-maps/cnum-vhcm-lab-new.txt",
+        sha256="82864ac378e051b6daa85e396f8e6f6d187c56d815938914b580e046dd95e3dc",
+        size=12528,
+        loader=loaders.wcs_chips,
+        verified="2026-11-07",
+        note="The archive asks that published work based on its data cite it."
+    ),
+    Entry(
         name="semantic_priming_project",
         tier="B",
         title="Semantic Priming Project",

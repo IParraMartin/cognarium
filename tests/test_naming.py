@@ -119,6 +119,17 @@ def test_results_report_the_bottleneck_measures_by_generation(tmp_path):
     assert (table.loc[table["metric"] == "ib_alignment", "value"].between(0, 1)).all()
 
 
+def test_the_bottleneck_measures_use_the_points_when_a_task_gives_them(tmp_path):
+    features = [[value] for value in range(8)]
+    plain = run_mapping(tmp_path / "plain", cg.tasks.Mapping(features, ("wug", "dax")))
+    spread = [[value * 10.0] for value in range(8)]
+    moved = run_mapping(tmp_path / "moved", cg.tasks.Mapping(features, ("wug", "dax"), points=spread, sigma=1.0))
+    first = plain.metrics("ib_accuracy").set_index("generation")["value"]
+    second = moved.metrics("ib_accuracy").set_index("generation")["value"]
+    assert plain.to_pandas()["response"].tolist() == moved.to_pandas()["response"].tolist()
+    assert not first.equals(second)
+
+
 def test_results_compare_each_chain_with_a_reference_labelling(tmp_path):
     start = ["wug"] * 4 + ["dax"] * 4
     task = cg.tasks.Mapping([[value] for value in range(8)], ("wug", "dax"), start=start)

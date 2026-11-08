@@ -89,11 +89,11 @@ paradigm = cg.paradigms.IteratedLearning(
 results = cg.run(paradigm, subject)
 ```
 
-Animals, kinship terms or spatial relations work the same way, with their features as numbers or as words. Items described by words can't use the bottleneck measures below, which need distances between items.
+Animals, kinship terms or spatial relations work the same way, with their features as numbers or as words. Items described by words can use the bottleneck measures below only when `points` gives each item coordinates, since the measures need distances between items.
 
 ### Measuring the naming systems
 
-A chain's naming system in a generation is its answer for every item. As in Imel and Zaslavsky (2026), `ib_complexity` and `ib_accuracy` place each system on the information bottleneck trade-off of Zaslavsky et al. (2018), `efficiency_loss` is how far it falls from the optimal trade-off, and `ib_alignment` is 1 minus the gNID between the system and the nearest optimal one. Each item's meaning is a Gaussian over the items around it, with a width set by `sigma` on the `Mapping`. The values are averages over chains, and `by` keeps one row per chain:
+A chain's naming system in a generation is its answer for every item. As in Imel and Zaslavsky (2026), `ib_complexity` and `ib_accuracy` place each system on the information bottleneck trade-off of Zaslavsky et al. (2018), `efficiency_loss` is how far it falls from the optimal trade-off, and `ib_alignment` is 1 minus the gNID between the system and the nearest optimal one. Each item's meaning is a Gaussian over the items around it, in the coordinates the `Mapping` gets as `points`, which default to its features, with a width set by `sigma`. The values are averages over chains, and `by` keeps one row per chain:
 
 ```python
 results.metrics("ib_complexity", "ib_accuracy", "efficiency_loss", "ib_alignment")
@@ -116,6 +116,17 @@ results = cg.run(paradigm, subject)
 ```
 
 For an instruction-tuned model, `cg.load(name, chat=True)` sends each prompt as one user message through the model's chat template, and scores the options as the start of its reply.
+
+### The World Color Survey
+
+`examples/color_naming.py` runs the design of Imel and Zaslavsky (2026) on the 330 chips of the World Color Survey: vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, which the paper found worked better for text-only models than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`. With `lab_to_srgb` from the example:
+
+<!-- no-run -->
+```python
+chips = cg.data.load("wcs_chips", accept_terms=True).to_pandas()
+lab = chips[["L", "a", "b"]].to_numpy()
+colours = cg.tasks.Mapping(lab_to_srgb(lab).round(3).tolist(), ("Narp", "Tovo", "Feglu"), points=lab.tolist(), sigma=8.0)
+```
 
 ### Function learning
 

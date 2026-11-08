@@ -43,7 +43,7 @@ Entries come in four tiers.
 | Tier | What `load` does | Examples |
 |---|---|---|
 | A, openly licensed | Downloads, then prints the citation | `wordsim353`, `blimp`, `syntaxgym`, `provo`, `things_triplets`, `thingsplus`, `bigtom`, `many_labs_2` |
-| B, restrictive or no stated licence | Shows the terms, and loads only with `accept_terms=True`. A dataset with no stated licence says that no rights are granted | `tomi`, `cifar10h`, `natural_stories`, `fantom`, `simlex999`, `semantic_priming_project`, `elp_trials`, `brysbaert_concreteness`, `warriner` |
+| B, restrictive or no stated licence | Shows the terms, and loads only with `accept_terms=True`. A dataset with no stated licence says that no rights are granted | `tomi`, `cifar10h`, `natural_stories`, `fantom`, `simlex999`, `wcs_chips`, `semantic_priming_project`, `elp_trials`, `brysbaert_concreteness`, `warriner` |
 | C, gated | Says how to get a copy, then reads yours from `path=` | `psych101_test`, `elp_items` |
 | D, not offered | Raises an error until a source and licence are confirmed | `men`, `usf_norms`, `kuperman_aoa`, `drm_lists`, `cogbench` |
 

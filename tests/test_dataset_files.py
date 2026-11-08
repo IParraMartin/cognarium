@@ -27,6 +27,7 @@ EXPECTED = {
     "natural_stories": (848875, ("WorkerId", "item", "zone", "RT", "word")),
     "fantom": (870, ("set_id", "full_context", "beliefQAs")),
     "simlex999": (999, ("word1", "word2", "SimLex999")),
+    "wcs_chips": (330, ("chip", "row", "column", "L", "a", "b")),
     "semantic_priming_project": (847723, ("Subject", "prime", "target", "target.RT", "rel")),
     "elp_trials": (2745951, ("subject", "session", "item", "rt", "accuracy")),
     "brysbaert_concreteness": (39954, ("Word", "Conc.M", "Conc.SD")),

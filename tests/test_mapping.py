@@ -125,6 +125,9 @@ def test_from_function_rounds_the_start_to_the_scale():
         {"features": []},
         {"features": [[0, 1], [0]]},
         {"sigma": 0},
+        {"points": [[0, 0], [0, 1], [1, 0]]},
+        {"points": [[0, 0], [0, 1], [1, 0], [1]]},
+        {"points": [[0, 0], [0, 1], [1, 0], [1, float("nan")]]},
         {"prior": [1, 1, 1]},
         {"prior": [1, -1, 1, 1]}
     ]
@@ -148,6 +151,19 @@ def test_config_is_json_safe_and_tracks_the_items():
     assert config["task"]["labels"] == list(LABELS)
     other = cg.tasks.Mapping([[0, 0], [0, 1], [1, 0], [1, 2]], LABELS)
     assert other.config() != task.config()
+
+
+def test_points_replace_the_features_in_the_meaning_space_only():
+    points = [[0, 0, 0], [0, 0, 10], [0, 10, 0], [10, 0, 0]]
+    task = cg.tasks.Mapping(FEATURES, LABELS, points=points)
+    assert task.stimuli[1].text == "[0, 1]"
+    meanings, sigma, prior = task.meaning_space()
+    assert meanings.tolist() == points
+    assert sigma == pytest.approx(10.0)
+    assert prior.tolist() == [0.25] * 4
+    assert task.config()["points"] == points
+    words = cg.tasks.Mapping(["red", "green", "blue", "grey"], LABELS, points=points)
+    assert words.meaning_space()[0].tolist() == points
 
 
 def test_an_exemplar_learner_runs_on_numeric_features(tmp_path):

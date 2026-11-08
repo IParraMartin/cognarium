@@ -378,6 +378,35 @@ def simlex999(path: Path) -> Dataset:
     return Dataset(table)
 
 
+def wcs_chips(path: Path) -> Dataset:
+    """Reads the 330 colour chips of the World Color Survey grid with their coordinates.
+
+    Args:
+        path: The downloaded `cnum-vhcm-lab-new.txt`.
+
+    Returns:
+        One row per chip, in chip-number order, with `chip`, its WCS number from 1 to
+        330, its place in the grid as `row`, from A to J, and `column`, from 0 for the
+        achromatic chips to 40, its Munsell `munsell_hue`, `munsell_value` and
+        `chroma`, and its CIELAB coordinates `L`, `a` and `b`.
+    """
+    table = pd.read_csv(path, sep="\t")
+    table = table.rename(
+        columns={
+            "#cnum": "chip",
+            "V": "row",
+            "H": "column",
+            "C": "chroma",
+            "MunH": "munsell_hue",
+            "MunV": "munsell_value",
+            "L*": "L",
+            "a*": "a",
+            "b*": "b"
+        }
+    )
+    return Dataset(table.sort_values("chip").reset_index(drop=True), item="chip")
+
+
 def semantic_priming_project(path: Path) -> Dataset:
     """Reads every lexical decision trial of the Semantic Priming Project.
 

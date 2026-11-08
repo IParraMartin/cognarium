@@ -37,9 +37,14 @@ class Mapping:
             random labelling from the run's seed, one per chain in iterated
             learning and one for the whole run in category learning.
         template: How an item and its label are written.
+        points: Where each item sits for the naming measures, one sequence of
+            numbers per item, when that differs from what the prompt shows. Colours
+            written as RGB triples, for example, are compared in CIELAB, where
+            distance follows perceived difference. Defaults to the features.
         sigma: How far each item's meaning spreads over the others, for the naming
-            measures. Defaults to the median distance from an item to its nearest
-            neighbour. Only numeric features have one.
+            measures, in the units of `points`. Defaults to the median distance from
+            an item to its nearest neighbour. Only numeric features or points have
+            one.
         prior: How often each item comes up, for the naming measures. Defaults to
             uniform.
         group_by: Turns one labelling, a label per item in item order, into a group
@@ -50,8 +55,9 @@ class Mapping:
     Raises:
         ValueError: If there are no items, items of numbers differ in length, there
             are fewer than two labels or a repeated one, `start` doesn't give one
-            known label per item, `sigma` isn't positive, or `prior` doesn't give
-            one weight per item with a positive total and none negative.
+            known label per item, `points` doesn't give one finite vector of the same
+            length per item, `sigma` isn't positive, or `prior` doesn't give one
+            weight per item with a positive total and none negative.
     """
 
     def __init__(
@@ -61,6 +67,7 @@ class Mapping:
         *,
         start: Sequence[str] | None = None,
         template: PromptTemplate | None = None,
+        points: Sequence[Sequence[float]] | None = None,
         sigma: float | None = None,
         prior: Sequence[float] | None = None,
         group_by: Callable[[tuple[str, ...]], str] | None = None,
@@ -84,6 +91,16 @@ class Mapping:
         widths = {len(_values(item)) for item in items}
         if numeric and len(widths) > 1:
             raise ValueError(f"Every item needs the same number of features, got lengths {sorted(widths)}.")
+        if points is not None:
+            points = [[float(value) for value in _values(_plain(point))] for point in points]
+            if (
+                len(points) != len(items)
+                or len({len(point) for point in points}) != 1
+                or not all(_numeric(value) for point in points for value in point)
+            ):
+                raise ValueError(
+                    f"points needs one finite vector of the same length for each of the {len(items)} items."
+                )
         if sigma is not None and not sigma > 0:
             raise ValueError(f"sigma must be positive, got {sigma}.")
         if prior is not None:
@@ -98,6 +115,7 @@ class Mapping:
         self.template = _TEMPLATE if template is None else template
         self.numeric = numeric
         self.modalities = frozenset({"text", "features"}) if numeric else frozenset({"text"})
+        self.points = points
         self.sigma = sigma
         self.prior = prior
         self.group_by = group_by
@@ -188,15 +206,17 @@ class Mapping:
         """Gives what the naming measures need about the items.
 
         Returns:
-            The features, shape (n_items, n_features), in float64, the meaning width,
-            and the prior over items.
+            The points, or else the features, shape (n_items, n_dimensions), in
+            float64, the meaning width, and the prior over items.
 
         Raises:
-            MissingAbilityError: If the features aren't numbers.
+            MissingAbilityError: If there are no points and the features aren't
+                numbers.
         """
-        if not self.numeric:
-            raise MissingAbilityError("The naming measures need items described by numbers.")
-        points = torch.tensor([_values(item) for item in self.items], dtype=torch.float64)
+        if self.points is None and not self.numeric:
+            raise MissingAbilityError("The naming measures need items described by numbers, or points=.")
+        values = self.points if self.points is not None else [_values(item) for item in self.items]
+        points = torch.tensor(values, dtype=torch.float64)
         prior = torch.ones(len(points), dtype=torch.float64) if self.prior is None else torch.tensor(self.prior)
         return points, self.sigma or _nearest_spacing(points), (prior / prior.sum()).double()
 
@@ -217,6 +237,7 @@ class Mapping:
                 "response": self.template.response,
                 "separator": self.template.separator
             },
+            "points": self.points,
             "sigma": self.sigma,
             "prior": self.prior,
             "group_by": None if self.group_by is None else getattr(self.group_by, "__qualname__", repr(self.group_by))
