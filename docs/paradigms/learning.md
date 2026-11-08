@@ -129,7 +129,7 @@ For an instruction-tuned model, `cg.load(name, chat=True)` sends each prompt as 
 
 ### The World Color Survey
 
-`examples/color_naming.py` runs a design on the 330 chips of the World Color Survey (Kay et al., 2009): vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, which the paper found worked better for text-only models than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`. With `lab_to_srgb` from the example:
+`examples/color_naming.py` runs a design on the 330 chips of the World Color Survey (Kay et al., 2009): vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, a format text-only models have been found to handle better than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`. With `lab_to_srgb` from the example:
 
 <!-- no-run -->
 ```python
