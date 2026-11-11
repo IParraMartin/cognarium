@@ -5,7 +5,6 @@ from __future__ import annotations
 import functools
 import itertools
 from collections import Counter
-from dataclasses import replace
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +20,7 @@ from cognarium.paradigms.base import (
     Paradigm,
     Step
 )
-from cognarium.responses import PromptTemplate, Query
+from cognarium.responses import PromptTemplate, Query, text_only
 from cognarium.settings import Settings
 from cognarium.stimuli import Observation, Stimulus, Trial
 
@@ -63,7 +62,6 @@ _REBER = {
 }
 _LETTERS = ("T", "P", "S", "X", "V")
 _LONGEST = 8
-_FEEDBACK = ("trial", "block")
 _GRAMMAR_TESTS = ("judgment", "probability")
 _GRAMMATICAL = "grammatical"
 _UNGRAMMATICAL = "ungrammatical"
@@ -150,6 +148,7 @@ class IteratedLearning(Paradigm):
         self.noise = noise
         self.memory = memory
         self.modalities = task.modalities
+        self.template = task.template
         self.settings = Settings(
             temperature=temperature,
             top_p=top_p,
@@ -388,10 +387,10 @@ class IteratedLearning(Paradigm):
         lines = [] if self.settings.instructions is None else [self.settings.instructions]
         for stimulus in self.task.stimuli:
             for option in self.task.options:
-                lines.append(template.render_observation(Observation(stimulus, option)))
+                lines.append(text_only(template.observation_parts(Observation(stimulus, option))))
         for example in self.settings.examples:
             if example.stimulus.text is not None:
-                lines.append(template.render_observation(example))
+                lines.append(text_only(template.observation_parts(example)))
         return lines
 
     def hypothesis_space(self) -> HypothesisSpace:
@@ -509,166 +508,11 @@ class _StudyThenTest(Paradigm):
         for participant in range(self.n_participants):
             for block in blocks:
                 lines.extend(
-                    self.template.render_observation(observation)
+                    text_only(self.template.observation_parts(observation))
                     for observation in self.study(participant, block)
                     if observation.stimulus.text is not None
                 )
         return lines
-
-
-class CategoryLearning(_StudyThenTest):
-    """Learn a category structure, or a function, from corrective feedback.
-
-    Every block shows each item `repeats` times, in a new order, and asks for its
-    label. With `feedback="trial"`, each trial's context holds every earlier trial
-    with its correct label, so the subject learns as it goes, as a person does who
-    sees the correct answer after each response. With `feedback="block"`, every
-    trial in a block shares one context, holding the earlier blocks only, which is
-    faster but leaves the first block at chance. Each participant is a separate
-    learner with their own orders.
-
-    The task says what is learned: a Shepard structure, or a `cg.tasks.Mapping`,
-    which holds any items and labels. The mapping's `start` is the labelling taught,
-    and without one a random labelling is drawn from the run's seed. A function read
-    on a scale, from `Mapping.from_function`, makes this function learning from
-    feedback, scored with the `mse` and `correlation` metrics by block.
-
-    Maps onto supervised category learning, such as the Shepard, Hovland and Jenkins
-    (1961) structures, where people learn type I fastest, type II next, types III to
-    V more slowly and type VI slowest (Nosofsky et al., 1994). What it can't capture:
-    a person's context holds their own responses and they forget, while the model
-    reads every earlier item with its correct label and nothing else, so there is no
-    forgetting and no effect of its own errors. The Shepard objects are the eight
-    abstract ones of the task, not human-normed.
-
-    Args:
-        task: What to learn. Its starting labelling is the correct answer.
-        blocks: How many blocks to run.
-        repeats: How many times each item appears in a block. Nosofsky et al. (1994)
-            showed each of the eight objects twice per block.
-        feedback: `"trial"` to show the correct label after every trial, or
-            `"block"` to show a block's labels only once it is over.
-        **settings: What every paradigm takes, such as `n_participants`.
-
-    Raises:
-        ValueError: If there are fewer than two blocks, `repeats` is below 1, or
-            `feedback` is unknown.
-    """
-
-    group_by = ("block",)
-
-    def __init__(
-        self,
-        task: ShepardCategories | Mapping,
-        blocks: int = 6,
-        repeats: int = 1,
-        feedback: str = "trial",
-        **settings: Any
-    ) -> None:
-        if blocks < 2:
-            raise ValueError(f"blocks must be at least 2, so the first and last can be compared, got {blocks}.")
-        if repeats < 1:
-            raise ValueError(f"repeats must be at least 1, got {repeats}.")
-        if feedback not in _FEEDBACK:
-            raise ValueError(f"Unknown feedback '{feedback}'. Choose from {list(_FEEDBACK)}.")
-        self.task = task
-        super().__init__(
-            blocks=blocks,
-            repeats=repeats,
-            feedback=feedback,
-            **settings
-        )
-        self.template = task.template
-        self.target = tuple(task.start(0, self.settings.seed))
-
-    @property
-    def effects(self) -> tuple[Effect, ...]:
-        """The probability of the correct label in the last block against the first."""
-        return (
-            Effect(
-                "learning",
-                "answer_probability",
-                by="block",
-                levels=(self.blocks - 1, 0)
-            ),
-        )
-
-    def trials(self, rng: np.random.Generator) -> Iterable[Trial]:
-        """Tests every item `repeats` times per block, against its correct label.
-
-        Args:
-            rng: Unused, since each block's order is shuffled afterwards.
-
-        Yields:
-            One trial per item, repeat and block.
-        """
-        for block in range(self.blocks):
-            for _ in range(self.repeats):
-                for item, stimulus in enumerate(self.task.stimuli):
-                    yield Trial(
-                        stimulus,
-                        options=self.task.options,
-                        answer=self.target[item],
-                        item=item,
-                        block=block
-                    )
-
-    def step(self, index: int, previous: pd.DataFrame | None) -> Step | None:
-        """Builds one block's tests for every participant.
-
-        Args:
-            index: The position of the block to build.
-            previous: Ignored, since what is shown never depends on responses.
-
-        Returns:
-            The block's queries, or None after the last block.
-        """
-        if self.feedback == "block":
-            return super().step(index, previous)
-        if index >= self.blocks:
-            return None
-        chosen = [
-            (participant, position, [seen.answer for seen in row[:position]])
-            for participant, row in enumerate(self.sequences())
-            for position, trial in enumerate(row)
-            if trial.block == index
-        ]
-        built = self._build_step(index, chosen)
-        # each trial has its own context, so a learner that trains on it trains once per trial
-        queries = tuple(replace(query, group=number) for number, query in enumerate(built.queries))
-        return replace(built, queries=queries)
-
-    def study(self, participant: int, block: int) -> tuple[Observation, ...]:
-        """Gives every earlier block's items with their correct labels.
-
-        Args:
-            participant: The participant.
-            block: The block about to be tested.
-
-        Returns:
-            The labelled items, in the order the participant was tested on them.
-        """
-        return tuple(
-            Observation(trial.stimulus, trial.answer)
-            for trial in self.sequences()[participant]
-            if trial.block < block
-        )
-
-    def config(self) -> dict[str, Any]:
-        """Describes the paradigm in JSON-safe form.
-
-        Returns:
-            What every paradigm reports, and the task.
-        """
-        return {**super().config(), "task": self.task.config()}
-
-    def hypothesis_space(self) -> HypothesisSpace:
-        """Gives the hypotheses a Bayesian learner considers on the task.
-
-        Returns:
-            The task's hypothesis space.
-        """
-        return self.task.hypothesis_space()
 
 
 class ArtificialGrammar(_StudyThenTest):

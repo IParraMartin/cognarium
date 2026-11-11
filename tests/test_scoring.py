@@ -96,7 +96,7 @@ def test_a_complete_template_scores_every_option_up_to_the_end_of_an_answer():
 def test_a_prompt_scorer_replaces_running_each_option_with_its_prompt():
     seen = []
 
-    def score_after_prompt(prompt, options):
+    def score_after_prompt(index, prompt, options):
         seen.append((prompt, options))
         return torch.tensor([-1.0, -2.0], dtype=torch.float64)
 
@@ -117,7 +117,7 @@ def test_a_prompt_scorer_can_decline_and_leave_the_query_to_the_pairs():
         [query(options=("a", "ba"))],
         last_token_forward,
         prompts,
-        score_after_prompt=lambda prompt, options: None
+        score_after_prompt=lambda index, prompt, options: None
     ).scores
     plain = run_scoring([query(options=("a", "ba"))], last_token_forward, prompts).scores
     assert torch.equal(declined, plain)

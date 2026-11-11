@@ -5,6 +5,7 @@ from __future__ import annotations
 from cognarium import (
     context,
     data,
+    media,
     metrics,
     models,
     paradigms,
@@ -47,6 +48,7 @@ __all__ = [
     "context",
     "data",
     "load",
+    "media",
     "metrics",
     "models",
     "paradigms",

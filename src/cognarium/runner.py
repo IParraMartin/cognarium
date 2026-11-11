@@ -212,6 +212,12 @@ def _validate(
     unknown = sorted(set(record) - set(_RECORDABLE))
     if unknown:
         raise ValueError(f"Can't record {unknown}. Choose from {list(_RECORDABLE)}.")
+    unread = sorted(paradigm.template.placed_media - subject.modalities)
+    if unread and "text" in subject.modalities:
+        raise MissingAbilityError(
+            f"Paradigm '{paradigm.name}' places {unread} in its prompts, which {type(subject).__name__} can't read. "
+            "Load a model that reads them with cg.load(name, multimodal=True)."
+        )
     if not paradigm.modalities & subject.modalities:
         raise MissingAbilityError(
             f"{type(subject).__name__} reads {sorted(subject.modalities)}, but paradigm "

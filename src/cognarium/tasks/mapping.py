@@ -11,6 +11,7 @@ import numpy as np
 import torch
 
 from cognarium.errors import MissingAbilityError
+from cognarium.media import MEDIA_KINDS, as_media
 from cognarium.responses import PromptTemplate
 from cognarium.stimuli import Stimulus
 
@@ -26,16 +27,26 @@ class Mapping:
     made-up words as labels. So is a function read on a scale, with one x value per
     item and the points of the scale as labels. Items and their labels are written
     `Features: [0.2, 0.7, 0.1] -> Label: wug`. Iterated learning passes a mapping
-    down chains of learners, and category learning teaches it from feedback.
+    down chains of learners.
+
+    Items can also be images, videos or sounds, alone or mixed, and with features or
+    without. A colour can be a chip image for a vision-language model and its
+    CIELAB values for an exemplar learner, in the same run and with the same
+    measures. The template places each medium in the prompt, as in
+    `"Color: {image} -> Label:"`. With media and no features, the default template
+    places every medium given, as in `Item: {image} -> Label:`.
 
     Args:
         features: One entry per item: a sequence of numbers or words, or a single
-            value, which is written without brackets.
+            value, which is written without brackets. None for items that are only
+            media.
         labels: The fixed set of labels a subject chooses from.
-        start: One label per item: the first generation's labels in iterated
-            learning, and the labels taught in category learning. None draws a
-            random labelling from the run's seed, one per chain in iterated
-            learning and one for the whole run in category learning.
+        images: One image per item, in any form `cg.media.Image` takes.
+        video: One video per item, in any form `cg.media.Video` takes.
+        audio: One sound per item: a `cg.media.Audio`, a path, or a
+            `(waveform, sampling_rate)` pair.
+        start: One label per item, the first generation's labels. None draws a
+            random labelling for each chain from the run's seed.
         template: How an item and its label are written.
         points: Where each item sits for the naming measures, one sequence of
             numbers per item, when that differs from what the prompt shows. Colours
@@ -53,7 +64,8 @@ class Mapping:
         name: Names the task in results.
 
     Raises:
-        ValueError: If there are no items, items of numbers differ in length, there
+        ValueError: If there are no items, the features and media give different
+            numbers of items, items of numbers differ in length, there
             are fewer than two labels or a repeated one, `start` doesn't give one
             known label per item, `points` doesn't give one finite vector of the same
             length per item, `sigma` isn't positive, or `prior` doesn't give one
@@ -62,9 +74,12 @@ class Mapping:
 
     def __init__(
         self,
-        features: Sequence[Any],
+        features: Sequence[Any] | None,
         labels: Sequence[str],
         *,
+        images: Sequence[Any] | None = None,
+        video: Sequence[Any] | None = None,
+        audio: Sequence[Any] | None = None,
         start: Sequence[str] | None = None,
         template: PromptTemplate | None = None,
         points: Sequence[Sequence[float]] | None = None,
@@ -73,48 +88,62 @@ class Mapping:
         group_by: Callable[[tuple[str, ...]], str] | None = None,
         name: str = "mapping"
     ) -> None:
-        items = [_plain(item) for item in features]
-        if not items:
-            raise ValueError("A mapping needs at least one item.")
+        media = {
+            kind: [as_media(kind, value) for value in values]
+            for kind, values in zip(MEDIA_KINDS, (images, video, audio), strict=True)
+            if values is not None
+        }
+        items = [] if features is None else [_plain(item) for item in features]
+        counts = {len(values) for values in media.values()} | ({len(items)} if features is not None else set())
+        if len(counts) > 1:
+            raise ValueError(
+                f"features, images, video and audio need one entry per item, got {sorted(counts)} entries."
+            )
+        n_items = counts.pop() if counts else 0
+        if not n_items:
+            raise ValueError("A mapping needs at least one item, given as features or media.")
         labels = tuple(str(label) for label in labels)
         if len(labels) < 2 or len(set(labels)) != len(labels):
             raise ValueError(f"Give at least two different labels, got {list(labels)}.")
         if start is not None:
             start = tuple(str(label) for label in start)
             unknown = sorted(set(start) - set(labels))
-            if len(start) != len(items) or unknown:
+            if len(start) != n_items or unknown:
                 raise ValueError(
-                    f"start needs one of the labels {list(labels)} for each of the {len(items)} items, "
+                    f"start needs one of the labels {list(labels)} for each of the {n_items} items, "
                     f"got {len(start)} labels{f' including {unknown}' if unknown else ''}."
                 )
-        numeric = all(_numeric(value) for item in items for value in _values(item))
+        numeric = features is not None and all(_numeric(value) for item in items for value in _values(item))
         widths = {len(_values(item)) for item in items}
         if numeric and len(widths) > 1:
             raise ValueError(f"Every item needs the same number of features, got lengths {sorted(widths)}.")
         if points is not None:
             points = [[float(value) for value in _values(_plain(point))] for point in points]
             if (
-                len(points) != len(items)
+                len(points) != n_items
                 or len({len(point) for point in points}) != 1
                 or not all(_numeric(value) for point in points for value in point)
             ):
                 raise ValueError(
-                    f"points needs one finite vector of the same length for each of the {len(items)} items."
+                    f"points needs one finite vector of the same length for each of the {n_items} items."
                 )
         if sigma is not None and not sigma > 0:
             raise ValueError(f"sigma must be positive, got {sigma}.")
         if prior is not None:
             prior = [float(weight) for weight in prior]
-            if len(prior) != len(items) or min(prior) < 0 or sum(prior) <= 0:
+            if len(prior) != n_items or min(prior) < 0 or sum(prior) <= 0:
                 raise ValueError(
-                    f"prior needs one weight per item ({len(items)}), none negative and a positive total."
+                    f"prior needs one weight per item ({n_items}), none negative and a positive total."
                 )
         self.name = name
         self.items = tuple(items)
+        self.n_items = n_items
+        self.media = {kind: tuple(values) for kind, values in media.items()}
         self.options = labels
-        self.template = _TEMPLATE if template is None else template
+        self.template = _default_template(features is not None, media) if template is None else template
         self.numeric = numeric
-        self.modalities = frozenset({"text", "features"}) if numeric else frozenset({"text"})
+        written = set() if features is None else {"text", "features"} if numeric else {"text"}
+        self.modalities = frozenset(written | set(media))
         self.points = points
         self.sigma = sigma
         self.prior = prior
@@ -123,10 +152,11 @@ class Mapping:
         self._start = start
         self.stimuli = tuple(
             Stimulus(
-                text=_written(item),
-                features=torch.tensor(_values(item), dtype=torch.float32) if numeric else None
+                text=_written(items[index]) if features is not None else None,
+                features=torch.tensor(_values(items[index]), dtype=torch.float32) if numeric else None,
+                **{kind: values[index] for kind, values in media.items()}
             )
-            for item in items
+            for index in range(n_items)
         )
 
     @classmethod
@@ -175,7 +205,7 @@ class Mapping:
         if self._start is not None:
             return self._start
         rng = np.random.default_rng([seed, _START_STREAM, chain])
-        return tuple(self.options[index] for index in rng.integers(len(self.options), size=len(self.items)))
+        return tuple(self.options[index] for index in rng.integers(len(self.options), size=self.n_items))
 
     def group_of(self, labels: Sequence[str]) -> str:
         """Names the group a full labelling belongs to.
@@ -198,8 +228,8 @@ class Mapping:
         """
         raise MissingAbilityError(
             "A Bayesian learner needs every possible labelling as a hypothesis, and a Mapping "
-            f"with {len(self.items)} items and {len(self.options)} labels has "
-            f"{len(self.options)}^{len(self.items)} of them. Use a neural or exemplar subject."
+            f"with {self.n_items} items and {len(self.options)} labels has "
+            f"{len(self.options)}^{self.n_items} of them. Use a neural or exemplar subject."
         )
 
     def meaning_space(self) -> tuple[torch.Tensor, float, torch.Tensor]:
@@ -224,12 +254,13 @@ class Mapping:
         """Describes the task in JSON-safe form.
 
         Returns:
-            The items, labels, start, wording and meaning settings. A `group_by` rule
-            appears by its name, so renaming it is the way to mark a changed rule.
+            The items, labels, start, wording and meaning settings, with a digest for
+            each medium when there are any. A `group_by` rule appears by its name, so
+            renaming it is the way to mark a changed rule.
         """
-        return {
+        described = {
             "name": self.name,
-            "features": list(self.items),
+            "features": list(self.items) if self.items else None,
             "labels": list(self.options),
             "start": None if self._start is None else list(self._start),
             "template": {
@@ -242,6 +273,15 @@ class Mapping:
             "prior": self.prior,
             "group_by": None if self.group_by is None else getattr(self.group_by, "__qualname__", repr(self.group_by))
         }
+        if self.media:
+            described["media"] = {kind: [medium.digest for medium in values] for kind, values in self.media.items()}
+        return described
+
+
+def _default_template(has_features: bool, media: dict[str, Any]) -> PromptTemplate:
+    if has_features or not media:
+        return _TEMPLATE
+    return PromptTemplate(stimulus="Item: " + " ".join(f"{{{kind}}}" for kind in media) + " -> Label:", response="")
 
 
 def _plain(value: Any) -> Any:

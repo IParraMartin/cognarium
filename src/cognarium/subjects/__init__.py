@@ -7,11 +7,13 @@ from cognarium.subjects.bayesian import BayesianLearner
 from cognarium.subjects.custom import LSTM, CustomSubject
 from cognarium.subjects.exemplar import ExemplarLearner
 from cognarium.subjects.hf import HFSubject
+from cognarium.subjects.multimodal import HFMultimodalSubject
 
 __all__ = [
     "BayesianLearner",
     "CustomSubject",
     "ExemplarLearner",
+    "HFMultimodalSubject",
     "HFSubject",
     "LSTM",
     "Subject"

@@ -668,8 +668,12 @@ def _meaning_space(task: str) -> tuple[torch.Tensor, torch.Tensor]:
         raise MissingAbilityError(
             "The bottleneck measures need a cg.tasks.Mapping task, whose items are described by numbers."
         )
+    # a task of media alone is described for the measures by its points
+    features = config["features"] if config["features"] is not None else config.get("points")
+    if features is None:
+        raise MissingAbilityError("The bottleneck measures need items described by numbers, or points=.")
     points, sigma, prior = MappingTask(
-        config["features"],
+        features,
         config["labels"],
         points=config.get("points"),
         sigma=config.get("sigma"),
@@ -684,7 +688,10 @@ def _frontier(task: str) -> naming.Frontier:
 
 
 def _item_count(frame: pd.DataFrame, manifest: Mapping[str, Any]) -> int:
-    features = manifest.get("paradigm", {}).get("task", {}).get("features")
+    task = manifest.get("paradigm", {}).get("task", {})
+    features = task.get("features")
+    if features is None and task.get("media"):
+        features = next(iter(task["media"].values()))
     return len(features) if features is not None else int(frame["item"].max()) + 1
 
 

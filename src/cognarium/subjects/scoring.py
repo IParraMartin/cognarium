@@ -12,8 +12,8 @@ from cognarium.responses import Query, Responses
 def score_options(
     queries: Sequence[Query],
     *,
-    forward: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
-    encode_prompt: Callable[[str], list[int]],
+    forward: Callable[..., torch.Tensor],
+    encode_prompt: Callable[[str], list[int]] | None = None,
     encode_option: Callable[[str], list[int]],
     pad_token_id: int,
     device: torch.device,
@@ -23,7 +23,8 @@ def score_options(
     max_length: int | None = None,
     capture_logits: bool = False,
     on_batch: Callable[[torch.Tensor, Sequence[int]], None] | None = None,
-    score_after_prompt: Callable[[list[int], list[list[int]]], torch.Tensor | None] | None = None
+    score_after_prompt: Callable[[int, list[int], list[list[int]]], torch.Tensor | None] | None = None,
+    encode_query: Callable[[int, Query], list[int]] | None = None
 ) -> Responses:
     """Scores each query's options by their log probability after its prompt.
 
@@ -39,8 +40,12 @@ def score_options(
     Args:
         queries: The queries to answer.
         forward: Maps right-padded ids and an attention mask to logits of shape
-            (batch, time, vocab).
-        encode_prompt: Turns a prompt into token ids.
+            (batch, time, vocab). With `encode_query`, it is called as
+            `forward(ids, mask, rows)`, where `rows` gives the query behind each row,
+            so a subject can add what the query shows besides text, such as images.
+            Each row's ids start with that query's prompt.
+        encode_prompt: Turns a prompt's text into token ids. Required unless
+            `encode_query` is given.
         encode_option: Turns an option, after `option_prefix`, into token ids.
         pad_token_id: The id used for padding.
         device: Where the model runs.
@@ -52,9 +57,12 @@ def score_options(
         on_batch: Called as `on_batch(mask, queries)` right after the forward pass of
             each batch of prompts. Every query then goes through that pass exactly
             once, whatever the length of its options.
-        score_after_prompt: Scores one prompt's multi-token options from their token
-            ids, by running the prompt once and reusing what the model kept from it.
-            When it returns None, that query runs each option with its prompt.
+        score_after_prompt: Scores one prompt's multi-token options from the query's
+            index, the prompt's token ids and the options' token ids, by running the
+            prompt once and reusing what the model kept from it. When it returns
+            None, that query runs each option with its prompt.
+        encode_query: Turns a query, with its index, into token ids, for subjects
+            whose prompts hold more than text. Replaces `encode_prompt`.
 
     Returns:
         One row of scores per query, on CPU.
@@ -63,7 +71,7 @@ def score_options(
         ValueError: If an option can't be told apart from another or isn't in the
             vocabulary, a prompt is empty, or a sequence exceeds `max_length`.
     """
-    prompts = [encode_prompt(query.prompt()) for query in queries]
+    prompts = _encode_prompts(queries, encode_prompt, encode_query)
     # queries in a run often share one option list, so each list is tokenized once
     encoded: dict[tuple[tuple[str, ...], str, bool], list[list[int]]] = {}
     options = []
@@ -94,14 +102,15 @@ def score_options(
             pad_token_id=pad_token_id,
             device=device,
             batch_size=batch_size,
-            on_batch=on_batch
+            on_batch=on_batch,
+            with_rows=encode_query is not None
         )
         if capture_logits:
             logits = torch.cat(last)
         if score_after_prompt is not None:
             declined = []
             for index in multi:
-                row = score_after_prompt(prompts[index], options[index])
+                row = score_after_prompt(index, prompts[index], options[index])
                 if row is None:
                     declined.append(index)
                 else:
@@ -115,9 +124,45 @@ def score_options(
             forward=forward,
             pad_token_id=pad_token_id,
             device=device,
-            batch_size=batch_size
+            batch_size=batch_size,
+            with_rows=encode_query is not None
         )
     return Responses(scores=scores, logits=logits)
+
+
+def _encode_prompts(
+    queries: Sequence[Query],
+    encode_prompt: Callable[[str], list[int]] | None,
+    encode_query: Callable[[int, Query], list[int]] | None
+) -> list[list[int]]:
+    """Encodes every query's prompt, through the query itself when the subject asks."""
+    if encode_query is not None:
+        return [encode_query(index, query) for index, query in enumerate(queries)]
+    if encode_prompt is None:
+        raise TypeError("Scoring needs encode_prompt or encode_query.")
+    return [encode_prompt(query.prompt()) for query in queries]
+
+
+def call_forward(
+    forward: Callable[..., torch.Tensor],
+    ids: torch.Tensor,
+    mask: torch.Tensor,
+    rows: Sequence[int],
+    with_rows: bool
+) -> torch.Tensor:
+    """Runs a forward function, passing the rows' queries only if it takes them.
+
+    Args:
+        forward: The subject's forward function.
+        ids: Right-padded token ids.
+        mask: Their attention mask.
+        rows: The query behind each row.
+        with_rows: Whether `forward` takes `rows`.
+
+    Returns:
+        The logits, shape (batch, time, vocab).
+    """
+    return forward(ids, mask, list(rows)) if with_rows else forward(ids, mask)
 
 
 def _score_from_prompts(
@@ -127,11 +172,12 @@ def _score_from_prompts(
     options: list[list[list[int]]],
     scores: torch.Tensor,
     *,
-    forward: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+    forward: Callable[..., torch.Tensor],
     pad_token_id: int,
     device: torch.device,
     batch_size: int,
-    on_batch: Callable[[torch.Tensor, Sequence[int]], None] | None
+    on_batch: Callable[[torch.Tensor, Sequence[int]], None] | None,
+    with_rows: bool
 ) -> list[torch.Tensor]:
     """Runs each prompt once, which is enough for single-token options."""
     collected = []
@@ -139,7 +185,7 @@ def _score_from_prompts(
         ids, mask = pad_sequences([prompts[i] for i in batch], pad_token_id, device)
         positions = mask.sum(dim=1) - 1
         rows = torch.arange(len(batch), device=device)
-        output = forward(ids, mask)
+        output = call_forward(forward, ids, mask, batch, with_rows)
         if on_batch is not None:
             on_batch(mask, batch)
         logits = output[rows, positions].float().cpu()
@@ -158,17 +204,19 @@ def _score_from_pairs(
     options: list[list[list[int]]],
     scores: torch.Tensor,
     *,
-    forward: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+    forward: Callable[..., torch.Tensor],
     pad_token_id: int,
     device: torch.device,
-    batch_size: int
+    batch_size: int,
+    with_rows: bool
 ) -> None:
     """Runs each prompt with each option, which multi-token options need."""
     pairs = [(i, k) for i in indices for k in range(len(options[i]))]
     for batch in _batches(pairs, batch_size):
         sequences = [prompts[i] + options[i][k] for i, k in batch]
         ids, mask = pad_sequences(sequences, pad_token_id, device)
-        log_probs = forward(ids, mask).float().log_softmax(dim=-1).cpu().double()
+        rows = [i for i, _ in batch]
+        log_probs = call_forward(forward, ids, mask, rows, with_rows).float().log_softmax(dim=-1).cpu().double()
         for row, (i, k) in enumerate(batch):
             start = len(prompts[i]) - 1
             tokens = options[i][k]

@@ -94,3 +94,19 @@ def byte_model_and_tokenizer():
     )
     torch.manual_seed(0)
     return GPT2LMHeadModel(config).eval(), tokenizer
+
+
+@pytest.fixture(scope="session")
+def vision_model_and_processor():
+    """Builds a random Qwen3.5 that reads images and video, with its processor, without network access."""
+    from helpers import tiny_vision_model
+
+    return tiny_vision_model()
+
+
+@pytest.fixture(scope="session")
+def omni_model_and_processor():
+    """Builds a random Qwen2.5-Omni thinker that reads images, video and audio, without network access."""
+    from helpers import tiny_omni_model
+
+    return tiny_omni_model()

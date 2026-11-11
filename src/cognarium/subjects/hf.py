@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Callable, Sequence
-from contextlib import nullcontext
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager, nullcontext
 from typing import Any
 
 import torch
@@ -105,7 +105,7 @@ class HFSubject(Subject):
                 be found.
         """
         hooks = nullcontext() if capture_states is None else hook_layers(self._blocks(), capture_states)
-        with hooks as on_batch:
+        with hooks as on_batch, self._prompts() as encode_query:
             return score_options(
                 queries,
                 forward=self._forward,
@@ -116,10 +116,11 @@ class HFSubject(Subject):
                 unk_token_id=self.tokenizer.unk_token_id,
                 batch_size=self.batch_size,
                 option_prefix=self.option_prefix,
-                max_length=getattr(self.model.config, "max_position_embeddings", None),
+                max_length=self._max_length(),
                 capture_logits=capture_logits,
                 on_batch=on_batch,
-                score_after_prompt=self._score_after_prompt
+                score_after_prompt=self._score_after_prompt,
+                encode_query=encode_query
             )
 
     def generate(
@@ -146,21 +147,23 @@ class HFSubject(Subject):
         Raises:
             ValueError: If a prompt leaves no room for `max_new_tokens`.
         """
-        return generate_texts(
-            queries,
-            forward=self._forward,
-            encode_prompt=self._encode_prompt,
-            decode=lambda tokens: self.tokenizer.decode(tokens, skip_special_tokens=True),
-            eos_token_id=self.tokenizer.eos_token_id,
-            pad_token_id=self.tokenizer.pad_token_id,
-            device=self.device,
-            batch_size=self.batch_size,
-            max_length=getattr(self.model.config, "max_position_embeddings", None),
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k
-        )
+        with self._prompts() as encode_query:
+            return generate_texts(
+                queries,
+                forward=self._forward,
+                encode_prompt=self._encode_prompt,
+                decode=lambda tokens: self.tokenizer.decode(tokens, skip_special_tokens=True),
+                eos_token_id=self.tokenizer.eos_token_id,
+                pad_token_id=self.tokenizer.pad_token_id,
+                device=self.device,
+                batch_size=self.batch_size,
+                max_length=self._max_length(),
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                encode_query=encode_query
+            )
 
     def state_layers(self) -> tuple[str, ...]:
         """Names the model's blocks.
@@ -241,10 +244,31 @@ class HFSubject(Subject):
         """
         return {"device": str(self.device), "batch_size": self.batch_size}
 
-    def _forward(self, ids: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    @contextmanager
+    def _prompts(self) -> Iterator[Callable[[int, Query], list[int]] | None]:
+        """Opens a call's prompts. A text model encodes each prompt from its text alone."""
+        yield None
+
+    def _forward(self, ids: torch.Tensor, mask: torch.Tensor, rows: Sequence[int] | None = None) -> torch.Tensor:
         return self.model(input_ids=ids, attention_mask=mask, use_cache=False).logits
 
-    def _score_after_prompt(self, prompt: list[int], options: list[list[int]]) -> torch.Tensor | None:
+    def _prefill_inputs(self, index: int, prompt: list[int]) -> dict[str, Any]:
+        """Gives the model's inputs for one query's prompt alone."""
+        return {"input_ids": torch.tensor([prompt], device=self.device)}
+
+    def _continue_inputs(self, ids: torch.Tensor, mask: torch.Tensor, seen: int) -> dict[str, Any]:
+        """Gives the inputs for option tokens that continue from a prompt's cache."""
+        prompt_mask = torch.ones((len(ids), seen), dtype=mask.dtype, device=self.device)
+        return {"input_ids": ids, "attention_mask": torch.cat([prompt_mask, mask], dim=1)}
+
+    def _max_length(self) -> int | None:
+        config = self.model.config
+        found = getattr(config, "max_position_embeddings", None)
+        if found is None:
+            found = getattr(getattr(config, "text_config", None), "max_position_embeddings", None)
+        return found
+
+    def _score_after_prompt(self, index: int, prompt: list[int], options: list[list[int]]) -> torch.Tensor | None:
         """Scores multi-token options by running the prompt once and reusing its cache.
 
         Each batch of options continues from a copy of the prompt's cache, so a long
@@ -252,6 +276,7 @@ class HFSubject(Subject):
         pass over the prompt instead of one per option.
 
         Args:
+            index: The query's position in the call.
             prompt: The prompt's token ids.
             options: Each option's token ids.
 
@@ -259,33 +284,31 @@ class HFSubject(Subject):
             One summed log probability per option, or None if the model keeps no cache
             that can be copied, in which case the caller scores the options the slow way.
         """
-        output = self.model(input_ids=torch.tensor([prompt], device=self.device), use_cache=True)
+        output = self.model(**self._prefill_inputs(index, prompt), use_cache=True)
         cache = getattr(output, "past_key_values", None)
         if cache is None or not hasattr(cache, "reorder_cache"):
             return None
-        first = output.logits[0, -1].float().log_softmax(dim=-1).double().cpu()
+        first = output.logits[0, -1].float().log_softmax(dim=-1).cpu().double()
         scores = torch.tensor([first[tokens[0]].item() for tokens in options], dtype=torch.float64)
-        longer = [index for index, tokens in enumerate(options) if len(tokens) > 1]
+        longer = [number for number, tokens in enumerate(options) if len(tokens) > 1]
         for start in range(0, len(longer), self.batch_size):
             batch = longer[start : start + self.batch_size]
             copied = copy.deepcopy(cache)
             # every row of the batch continues from the same prompt
             copied.reorder_cache(torch.zeros(len(batch), dtype=torch.long, device=self.device))
             ids, mask = pad_sequences(
-                [options[index][:-1] for index in batch],
+                [options[number][:-1] for number in batch],
                 self.tokenizer.pad_token_id,
                 self.device
             )
-            seen = torch.ones((len(batch), len(prompt)), dtype=mask.dtype, device=self.device)
             log_probs = self.model(
-                input_ids=ids,
-                attention_mask=torch.cat([seen, mask], dim=1),
+                **self._continue_inputs(ids, mask, len(prompt)),
                 past_key_values=copied,
                 use_cache=True
-            ).logits.float().log_softmax(dim=-1).double().cpu()
-            for row, index in enumerate(batch):
-                rest = torch.tensor(options[index][1:])
-                scores[index] += log_probs[row, torch.arange(len(rest)), rest].sum()
+            ).logits.float().log_softmax(dim=-1).cpu().double()
+            for row, number in enumerate(batch):
+                rest = torch.tensor(options[number][1:])
+                scores[number] += log_probs[row, torch.arange(len(rest)), rest].sum()
         return scores
 
     def _encode_prompt(self, text: str) -> list[int]:

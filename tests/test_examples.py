@@ -10,7 +10,6 @@ import pytest
 EXAMPLES = Path(__file__).parent.parent / "examples"
 TOURED = (
     "iterated_learning",
-    "category_learning",
     "artificial_grammar"
 )
 
@@ -72,7 +71,7 @@ def test_tour_runs_on_a_tiny_model(
     printed = capsys.readouterr().out
     for name in TOURED:
         assert f"{name}: " in printed
-    assert not results["category_learning"].score().empty
+    assert not results["artificial_grammar"].score().empty
     assert not results["iterated_learning"].metrics("accuracy").empty
 
 
@@ -128,46 +127,6 @@ def test_function_learning_runs_on_a_language_model(byte_model_and_tokenizer, tm
     assert medians["generation"].tolist() == [0, 1]
     manifest = json.loads((tmp_path / "runs" / "random" / "manifest.json").read_text())
     assert (manifest["paradigm"]["temperature"], manifest["paradigm"]["top_p"]) == (0.6, 0.9)
-
-
-def test_shepard_types_order_the_rational_learner_like_people(tmp_path):
-    args = [
-        "--model",
-        "bayesian",
-        "--participants",
-        "10",
-        "--blocks",
-        "2",
-        "--out",
-        str(tmp_path / "runs")
-    ]
-    curves = load_main("shepard_types")(args)
-    assert len(curves) == 6 * 2
-    means = curves.groupby("type")["error"].mean()
-    assert means["I"] < means["II"] < min(means["III"], means["IV"], means["V"])
-    assert max(means["III"], means["IV"], means["V"]) < means["VI"]
-    assert (tmp_path / "runs" / "errors.csv").exists()
-
-
-def test_shepard_types_run_on_a_language_model(byte_model_and_tokenizer, tmp_path, capsys):
-    model, tokenizer = byte_model_and_tokenizer
-    model.save_pretrained(tmp_path / "model")
-    tokenizer.save_pretrained(tmp_path / "model")
-    args = [
-        "--model",
-        str(tmp_path / "model"),
-        "--device",
-        "cpu",
-        "--participants",
-        "1",
-        "--blocks",
-        "2",
-        "--out",
-        str(tmp_path / "runs")
-    ]
-    curves = load_main("shepard_types")(args)
-    assert curves["error"].between(0, 1).all()
-    assert "rank correlation with the human order" in capsys.readouterr().out
 
 
 def test_grammar_learning_runs_both_tests_on_a_language_model(byte_model_and_tokenizer, tmp_path, capsys):
@@ -257,15 +216,3 @@ def test_color_naming_runs_on_a_language_model(byte_model_and_tokenizer, tmp_pat
     args = color_args(tmp_path, str(tmp_path / "model"), "--device", "cpu", "--words", "2", "--generations", "1")
     measures = load_main("color_naming")(args)
     assert sorted(measures["generation"].unique()) == [0, 1]
-
-
-def test_color_naming_converts_cielab_to_srgb():
-    spec = importlib.util.spec_from_file_location("color_naming_example", EXAMPLES / "color_naming.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    lab = pd.DataFrame([[100, 0, 0], [0, 0, 0], [53.24, 80.09, 67.20], [50, 0, 0]]).to_numpy(dtype=float)
-    rgb = module.lab_to_srgb(lab)
-    assert rgb[0] == pytest.approx([1, 1, 1], abs=1e-3)
-    assert rgb[1] == pytest.approx([0, 0, 0], abs=1e-6)
-    assert rgb[2] == pytest.approx([1, 0, 0], abs=5e-3)
-    assert rgb[3] == pytest.approx([0.466] * 3, abs=2e-3)

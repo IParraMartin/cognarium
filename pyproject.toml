@@ -59,7 +59,10 @@ docs = [
     "mkdocs-material>=9.8.1",
     "mkdocstrings[python]>=1.0.8"
 ]
-all = []
+vision = ["pillow>=10", "torchvision"]
+audio = ["scipy>=1.11", "soundfile>=0.12"]
+video = ["av>=12"]
+all = ["cognarium[vision,audio,video]"]
 
 [tool.hatch.version]
 path = "src/cognarium/__init__.py"

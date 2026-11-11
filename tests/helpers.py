@@ -177,3 +177,173 @@ class TrainableScriptedSubject(ScriptedSubject):
         longest = max(len(query.context) for query in queries)
         self.max_context_seen = max(self.max_context_seen, longest)
         return super().respond(queries, capture_logits=capture_logits)
+
+
+_OMNI_TOKENS = {
+    "image_token": "<|IMAGE|>",
+    "audio_token": "<|AUDIO|>",
+    "video_token": "<|VIDEO|>",
+    "vision_bos_token": "<|vision_bos|>",
+    "vision_eos_token": "<|vision_eos|>",
+    "audio_bos_token": "<|audio_bos|>",
+    "audio_eos_token": "<|audio_eos|>"
+}
+_VISION_TOKENS = ("<|vision_start|>", "<|vision_end|>", "<|image_pad|>", "<|video_pad|>")
+_SMALL_IMAGES = {"shortest_edge": 32 * 32, "longest_edge": 64 * 64}
+_SMALL_VIDEOS = {"shortest_edge": 32 * 32, "longest_edge": 4 * 64 * 64}
+
+
+def media_tokenizer(special, named=None):
+    """Builds a byte-level tokenizer that also knows the given special tokens."""
+    from tokenizers import (
+        Tokenizer,
+        decoders,
+        models,
+        pre_tokenizers
+    )
+    from transformers import PreTrainedTokenizerFast
+
+    symbols = sorted(pre_tokenizers.ByteLevel.alphabet())
+    vocabulary = {token: index for index, token in enumerate(["<|endoftext|>", *special, *symbols])}
+    backend = Tokenizer(models.BPE(vocab=vocabulary, merges=[]))
+    backend.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
+    backend.decoder = decoders.ByteLevel()
+    tokenizer = PreTrainedTokenizerFast(
+        tokenizer_object=backend,
+        pad_token="<|endoftext|>",
+        eos_token="<|endoftext|>",
+        extra_special_tokens=named or {}
+    )
+    tokenizer.add_special_tokens({"additional_special_tokens": list(special)})
+    return tokenizer
+
+
+def tiny_vision_model():
+    """Builds a random two-layer Qwen3.5 that reads images and video, with its processor."""
+    from transformers import (
+        Qwen2VLImageProcessor,
+        Qwen3_5Config,
+        Qwen3_5ForConditionalGeneration,
+        Qwen3VLProcessor,
+        Qwen3VLVideoProcessor
+    )
+
+    tokenizer = media_tokenizer(_VISION_TOKENS)
+    processor = Qwen3VLProcessor(
+        image_processor=Qwen2VLImageProcessor(patch_size=16, size=_SMALL_IMAGES),
+        video_processor=Qwen3VLVideoProcessor(patch_size=16, size=_SMALL_VIDEOS),
+        tokenizer=tokenizer
+    )
+    ids = tokenizer.convert_tokens_to_ids
+    config = Qwen3_5Config(
+        text_config={
+            "vocab_size": len(tokenizer),
+            "hidden_size": 16,
+            "intermediate_size": 32,
+            "num_hidden_layers": 2,
+            "num_attention_heads": 2,
+            "num_key_value_heads": 1,
+            "head_dim": 8,
+            "linear_key_head_dim": 8,
+            "linear_value_head_dim": 8,
+            "linear_num_key_heads": 2,
+            "linear_num_value_heads": 2,
+            "layer_types": ["linear_attention", "full_attention"],
+            "max_position_embeddings": 4096,
+            "rope_parameters": {
+                "mrope_interleaved": True,
+                "mrope_section": [2, 1, 1],
+                "rope_type": "default",
+                "rope_theta": 10000.0,
+                "partial_rotary_factor": 1.0
+            },
+            "eos_token_id": 0,
+            "pad_token_id": 0
+        },
+        vision_config={
+            "depth": 1,
+            "hidden_size": 16,
+            "intermediate_size": 32,
+            "num_heads": 2,
+            "out_hidden_size": 16,
+            "patch_size": 16,
+            "spatial_merge_size": 2,
+            "temporal_patch_size": 2,
+            "num_position_embeddings": 64,
+            "deepstack_visual_indexes": []
+        },
+        image_token_id=ids("<|image_pad|>"),
+        video_token_id=ids("<|video_pad|>"),
+        vision_start_token_id=ids("<|vision_start|>"),
+        vision_end_token_id=ids("<|vision_end|>")
+    )
+    torch.manual_seed(0)
+    return Qwen3_5ForConditionalGeneration(config).eval(), processor
+
+
+def tiny_omni_model():
+    """Builds a random Qwen2.5-Omni thinker that reads images, video and audio, with its processor."""
+    from transformers import (
+        Qwen2_5OmniProcessor,
+        Qwen2_5OmniThinkerConfig,
+        Qwen2_5OmniThinkerForConditionalGeneration,
+        Qwen2VLImageProcessor,
+        Qwen2VLVideoProcessor,
+        WhisperFeatureExtractor
+    )
+
+    tokenizer = media_tokenizer(tuple(_OMNI_TOKENS.values()), _OMNI_TOKENS)
+    processor = Qwen2_5OmniProcessor(
+        image_processor=Qwen2VLImageProcessor(patch_size=16, size=_SMALL_IMAGES),
+        video_processor=Qwen2VLVideoProcessor(patch_size=16, size=_SMALL_VIDEOS, cap_pixels_per_frame=True),
+        feature_extractor=WhisperFeatureExtractor(feature_size=16, sampling_rate=16000),
+        tokenizer=tokenizer
+    )
+    ids = tokenizer.convert_tokens_to_ids
+    config = Qwen2_5OmniThinkerConfig(
+        audio_config={
+            "num_mel_bins": 16,
+            "encoder_layers": 1,
+            "encoder_attention_heads": 2,
+            "encoder_ffn_dim": 32,
+            "d_model": 16,
+            "output_dim": 16,
+            "n_window": 50
+        },
+        vision_config={
+            "depth": 1,
+            "hidden_size": 16,
+            "intermediate_size": 32,
+            "num_heads": 2,
+            "out_hidden_size": 16,
+            "patch_size": 16,
+            "spatial_merge_size": 2,
+            "temporal_patch_size": 2,
+            "window_size": 64,
+            "fullatt_block_indexes": [0]
+        },
+        text_config={
+            "vocab_size": len(tokenizer),
+            "hidden_size": 16,
+            "intermediate_size": 32,
+            "num_hidden_layers": 2,
+            "num_attention_heads": 2,
+            "num_key_value_heads": 1,
+            "max_position_embeddings": 8192,
+            "rope_parameters": {
+                "rope_type": "default",
+                "rope_theta": 10000.0,
+                "mrope_section": [2, 1, 1]
+            }
+        },
+        audio_token_index=ids("<|AUDIO|>"),
+        image_token_index=ids("<|IMAGE|>"),
+        video_token_index=ids("<|VIDEO|>"),
+        audio_start_token_id=ids("<|audio_bos|>"),
+        audio_end_token_id=ids("<|audio_eos|>")
+    )
+    # the thinker reads these when it places media, though its config doesn't declare them
+    config.vision_start_token_id = ids("<|vision_bos|>")
+    config.vision_end_token_id = ids("<|vision_eos|>")
+    torch.manual_seed(0)
+    return Qwen2_5OmniThinkerForConditionalGeneration(config).eval(), processor

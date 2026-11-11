@@ -24,11 +24,14 @@ NETWORK_ONLY = ("cg.data.load(", "push_to_hub(")
 
 
 @pytest.fixture
-def tiny_load(byte_model_and_tokenizer, monkeypatch):
+def tiny_load(byte_model_and_tokenizer, omni_model_and_processor, monkeypatch):
     model, tokenizer = byte_model_and_tokenizer
+    omni, processor = omni_model_and_processor
     real = cg.load
 
     def load(name, **settings):
+        if settings.get("multimodal"):
+            return real(omni, processor=processor, device="cpu")
         return real(model, tokenizer=tokenizer, device="cpu")
 
     monkeypatch.setattr(cg, "load", load)
@@ -85,6 +88,6 @@ def test_every_paradigm_has_a_documented_section(name):
 
 def test_every_shown_prompt_is_what_the_paradigm_writes():
     shown = [match for page in PAGES for match in PREVIEW.findall(page.read_text(encoding="utf-8"))]
-    assert len(shown) >= 4
+    assert len(shown) >= 3
     for expression, text in shown:
         assert eval(expression, {"cg": cg}) == text.rstrip("\n"), expression

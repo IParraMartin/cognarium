@@ -7,14 +7,14 @@ from collections.abc import Callable, Sequence
 import torch
 
 from cognarium.responses import Query, sample_responses, shape_log_probs
-from cognarium.subjects.scoring import pad_sequences
+from cognarium.subjects.scoring import call_forward, pad_sequences
 
 
 def generate_texts(
     queries: Sequence[Query],
     *,
-    forward: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
-    encode_prompt: Callable[[str], list[int]],
+    forward: Callable[..., torch.Tensor],
+    encode_prompt: Callable[[str], list[int]] | None = None,
     decode: Callable[[list[int]], str],
     eos_token_id: int | None,
     pad_token_id: int,
@@ -24,7 +24,8 @@ def generate_texts(
     max_new_tokens: int = 32,
     temperature: float = 1.0,
     top_p: float = 1.0,
-    top_k: int | None = None
+    top_k: int | None = None,
+    encode_query: Callable[[int, Query], list[int]] | None = None
 ) -> list[str]:
     """Writes each query's free response, one token at a time.
 
@@ -34,8 +35,10 @@ def generate_texts(
     Args:
         queries: The queries to answer.
         forward: Maps right-padded ids and an attention mask to logits of shape
-            (batch, time, vocab).
-        encode_prompt: Turns a prompt into token ids.
+            (batch, time, vocab). With `encode_query`, it is called as
+            `forward(ids, mask, rows)`, where `rows` gives the query behind each row.
+        encode_prompt: Turns a prompt's text into token ids. Required unless
+            `encode_query` is given.
         decode: Turns generated token ids into text.
         eos_token_id: The token that ends a response, if the model has one.
         pad_token_id: The id used for padding, which also ends a response.
@@ -46,6 +49,8 @@ def generate_texts(
         temperature: Divides log probabilities before a token is sampled.
         top_p: Keeps the smallest set of tokens covering this much probability.
         top_k: Keeps only this many of the most likely tokens.
+        encode_query: Turns a query, with its index, into token ids, for subjects
+            whose prompts hold more than text. Replaces `encode_prompt`.
 
     Returns:
         One text per query, without the end token. A response that ends at once is empty.
@@ -53,7 +58,12 @@ def generate_texts(
     Raises:
         ValueError: If a prompt is empty, or leaves no room for `max_new_tokens`.
     """
-    prompts = [encode_prompt(query.prompt()) for query in queries]
+    if encode_query is not None:
+        prompts = [encode_query(index, query) for index, query in enumerate(queries)]
+    elif encode_prompt is not None:
+        prompts = [encode_prompt(query.prompt()) for query in queries]
+    else:
+        raise TypeError("Generation needs encode_prompt or encode_query.")
     _check_room(prompts, max_length, max_new_tokens)
     generated: list[list[int]] = [[] for _ in queries]
     with torch.inference_mode():
@@ -64,7 +74,8 @@ def generate_texts(
                     break
                 ids, mask = pad_sequences([prompts[i] + generated[i] for i in active], pad_token_id, device)
                 last = mask.sum(dim=1) - 1
-                logits = forward(ids, mask)[torch.arange(len(active), device=device), last].float().cpu()
+                output = call_forward(forward, ids, mask, active, encode_query is not None)
+                logits = output[torch.arange(len(active), device=device), last].float().cpu()
                 shaped = shape_log_probs(
                     logits.log_softmax(dim=-1),
                     temperature=temperature,

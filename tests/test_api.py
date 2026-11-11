@@ -68,7 +68,7 @@ def test_every_public_name_is_exposed():
             assert hasattr(module, name), f"{module.__name__}.{name}"
     for name in names[cg]:
         assert name in cg.__all__, name
-    assert len(cg.paradigms.PARADIGMS) == 3
+    assert len(cg.paradigms.PARADIGMS) == 2
     assert set(names[cg.paradigms]) <= set(cg.paradigms.__all__)
 
 

@@ -13,6 +13,10 @@ from cognarium.recording.layers import LayerMap
 from cognarium.subjects.base import Subject
 from cognarium.subjects.custom import CustomSubject
 from cognarium.subjects.hf import HFSubject
+from cognarium.subjects.multimodal import HFMultimodalSubject
+
+# the auto classes tried in turn for a model that reads media, before its own class
+_MULTIMODAL_AUTO_CLASSES = ("AutoModelForImageTextToText", "AutoModelForMultimodalLM")
 
 
 def load(
@@ -28,7 +32,11 @@ def load(
     layer_map: LayerMap | None = None,
     layers: Mapping[str, str] | None = None,
     readout: str | None = None,
-    chat: bool = False
+    chat: bool = False,
+    multimodal: bool = False,
+    processor: Any = None,
+    media_tokens: Mapping[str, str] | None = None,
+    processor_kwargs: Mapping[str, Any] | None = None
 ) -> Subject:
     """Turns a model into a subject that can run experiments.
 
@@ -50,18 +58,44 @@ def load(
             lens reads states through.
         chat: Whether a Hugging Face model gets each prompt as one user message
             through its chat template, as instruction-tuned models expect.
+        multimodal: Whether to load a Hugging Face model by name with its processor,
+            so it reads the images, video and audio of a stimulus along with text.
+            Without it, a vision-language checkpoint loads as a text model.
+        processor: The processor of a Hugging Face model object that reads media. A
+            model object comes with either this or `tokenizer`.
+        media_tokens: The text that stands for each kind of medium in a prompt, for a
+            processor whose tokens can't be detected.
+        processor_kwargs: Passed to every processor call, such as
+            `{"images_kwargs": {"size": {"shortest_edge": 1024, "longest_edge": 4096}}}`
+            to keep images small.
 
     Returns:
         The subject.
 
     Raises:
         TypeError: If the model isn't a supported type, a model object comes without
-            a tokenizer, or a setting doesn't apply to this kind of model.
-        ValueError: If `chat` is on and the tokenizer has no chat template.
+            a tokenizer or processor, or a setting doesn't apply to this kind of model.
+        ValueError: If `chat` is on and there is no chat template.
     """
     if isinstance(model, Subject):
         return model
     resolved_device = resolve_device(device)
+    media = {"media_tokens": media_tokens, "processor_kwargs": processor_kwargs}
+    if not multimodal and processor is None:
+        _refuse_settings(media, "for models that read media. Pass multimodal=True or a processor")
+    if isinstance(model, str) and multimodal:
+        _refuse_custom_settings(layers, readout)
+        return _load_multimodal_by_name(
+            model,
+            processor=processor,
+            device=resolved_device,
+            dtype=resolve_dtype(dtype, resolved_device),
+            batch_size=batch_size,
+            revision=revision,
+            layer_map=layer_map,
+            chat=chat,
+            **media
+        )
     if isinstance(model, str):
         _refuse_custom_settings(layers, readout)
         return _load_by_name(
@@ -76,12 +110,25 @@ def load(
         )
     if not isinstance(model, torch.nn.Module):
         raise TypeError(f"Can't load a model of type {type(model).__name__}.")
-    if tokenizer is None:
-        raise TypeError("A model object needs a tokenizer.")
+    if tokenizer is None and processor is None:
+        raise TypeError("A model object needs a tokenizer, or a processor for a model that reads media.")
     if dtype != "auto":
         model = model.to(resolve_dtype(dtype, resolved_device))
     from transformers import PreTrainedModel
 
+    if isinstance(model, PreTrainedModel) and processor is not None:
+        _refuse_custom_settings(layers, readout)
+        return HFMultimodalSubject(
+            model,
+            processor,
+            device=resolved_device,
+            batch_size=batch_size,
+            layer_map=layer_map,
+            chat=chat,
+            **media
+        )
+    if processor is not None:
+        raise TypeError("processor is for Hugging Face models that read media.")
     if isinstance(model, PreTrainedModel):
         _refuse_custom_settings(layers, readout)
         return HFSubject(
@@ -109,9 +156,65 @@ def load(
 
 
 def _refuse_custom_settings(layers: Mapping[str, str] | None, readout: str | None) -> None:
-    for name, value in {"layers": layers, "readout": readout}.items():
+    _refuse_settings(
+        {"layers": layers, "readout": readout},
+        "for custom modules. Use layer_map on a Hugging Face model"
+    )
+
+
+def _refuse_settings(settings: Mapping[str, Any], reason: str) -> None:
+    for name, value in settings.items():
         if value is not None:
-            raise TypeError(f"{name} is for custom modules. Use layer_map on a Hugging Face model.")
+            raise TypeError(f"{name} is {reason}.")
+
+
+def _load_multimodal_by_name(
+    name: str,
+    *,
+    processor: Any,
+    device: torch.device,
+    dtype: torch.dtype,
+    batch_size: int,
+    revision: str | None,
+    layer_map: LayerMap | None,
+    chat: bool,
+    media_tokens: Mapping[str, str] | None,
+    processor_kwargs: Mapping[str, Any] | None
+) -> HFMultimodalSubject:
+    import transformers
+
+    if processor is None:
+        processor = transformers.AutoProcessor.from_pretrained(name, revision=revision)
+    config = transformers.AutoConfig.from_pretrained(name, revision=revision)
+    candidates = [getattr(transformers, auto) for auto in _MULTIMODAL_AUTO_CLASSES if hasattr(transformers, auto)]
+    candidates += [
+        getattr(transformers, architecture)
+        for architecture in config.architectures or ()
+        if hasattr(transformers, architecture)
+    ]
+    model = None
+    for candidate in candidates:
+        try:
+            model = candidate.from_pretrained(name, revision=revision, dtype=dtype)
+            break
+        except ValueError:
+            continue
+    if model is None:
+        raise TypeError(
+            f"No Hugging Face class loads {name} as a model that reads media. Load the model yourself and pass "
+            "it to cg.load with its processor."
+        )
+    return HFMultimodalSubject(
+        model,
+        processor,
+        device=device,
+        batch_size=batch_size,
+        revision=_resolve_revision(name, revision),
+        layer_map=layer_map,
+        chat=chat,
+        media_tokens=media_tokens,
+        processor_kwargs=processor_kwargs
+    )
 
 
 def _load_by_name(

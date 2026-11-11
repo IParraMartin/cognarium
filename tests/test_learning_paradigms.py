@@ -1,4 +1,4 @@
-"""Category learning and artificial grammar learning."""
+"""Artificial grammar learning."""
 
 from __future__ import annotations
 
@@ -40,10 +40,6 @@ REBER = {
         "V": None
     }
 }
-
-
-def CATEGORY(**options):
-    return learning.CategoryLearning(ShepardCategories(type="II"), blocks=3, **options)
 
 
 def GRAMMAR(**options):
@@ -100,45 +96,11 @@ def posterior_group(paradigm):
     return paradigm.hypothesis_space().groups[int(log_posterior.argmax())]
 
 
-@pytest.mark.parametrize("build", [CATEGORY, GRAMMAR])
-def test_runs_on_exemplar_and_bayesian_learners(build, tmp_path):
-    paradigm = build()
+def test_runs_on_exemplar_and_bayesian_learners(tmp_path):
+    paradigm = GRAMMAR()
     for subject in [cg.subjects.ExemplarLearner(criterion=0.5), cg.subjects.BayesianLearner(decision="average")]:
         results = run_quietly(paradigm, subject, tmp_path / type(subject).__name__)
         assert results.score().iloc[0]["mean_a"] >= 0
-
-
-def _final_accuracy(type_name, subject, folder):
-    paradigm = learning.CategoryLearning(ShepardCategories(type=type_name), blocks=4)
-    return run_quietly(paradigm, subject, folder).score().iloc[0]["mean_a"]
-
-
-def _assumed_noise(labels, label, noise):
-    # feedback is always correct, but a learner that allows for errors learns gradually
-    return torch.where(labels == label, math.log(0.75), math.log(0.25))
-
-
-def test_every_learner_finds_shepard_type_one_easier_than_type_six(tmp_path):
-    simple_first = ShepardCategories().type_prior({
-        "I": 32,
-        "II": 16,
-        "III": 8,
-        "IV": 8,
-        "V": 4,
-        "VI": 1
-    })
-    learners = {
-        "exemplar": lambda: cg.subjects.ExemplarLearner(),
-        "bayesian": lambda: cg.subjects.BayesianLearner(
-            prior=simple_first,
-            likelihood=_assumed_noise,
-            decision="average"
-        )
-    }
-    for name, make in learners.items():
-        easy = _final_accuracy("I", make(), tmp_path / f"{name}-I")
-        hard = _final_accuracy("VI", make(), tmp_path / f"{name}-VI")
-        assert easy > hard, name
 
 
 def test_exemplar_criterion_zero_keeps_scores_and_run_key(tmp_path):
@@ -316,128 +278,7 @@ def test_grammar_refuses_more_strings_than_it_has():
         learning.ArtificialGrammar(n_train=30, n_test=20)
 
 
-def test_category_learning_feedback_holds_every_earlier_block_with_correct_labels():
-    paradigm = CATEGORY(n_participants=2)
-    for participant in range(2):
-        row = trials_of(paradigm, participant)
-        for block in range(3):
-            studied = paradigm.study(participant, block)
-            earlier = [trial for trial in row if trial.block < block]
-            assert [observation.stimulus for observation in studied] == [trial.stimulus for trial in earlier]
-            assert [observation.label for observation in studied] == [
-                paradigm.target[trial.item] for trial in earlier
-            ]
-
-
-def test_trial_feedback_shows_every_earlier_trial_with_its_correct_label():
-    paradigm = CATEGORY(n_participants=2)
-    for block in range(3):
-        step = paradigm.step(block, None)
-        for query, participant, position in zip(
-            step.queries,
-            step.columns["participant"],
-            step.columns["trial"],
-            strict=True
-        ):
-            earlier = trials_of(paradigm, participant)[:position]
-            assert [observation.stimulus for observation in query.context] == [trial.stimulus for trial in earlier]
-            assert [observation.label for observation in query.context] == [trial.answer for trial in earlier]
-        assert len({query.group for query in step.queries}) == len(step.queries)
-    assert paradigm.step(3, None) is None
-
-
-def test_block_feedback_shares_one_context_per_block_and_participant():
-    paradigm = CATEGORY(n_participants=2, feedback="block")
-    step = paradigm.step(1, None)
-    contexts = {(participant, id(query.context)) for query, participant in zip(
-        step.queries,
-        step.columns["participant"],
-        strict=True
-    )}
-    assert len(contexts) == 2
-    assert all(len(query.context) == 8 for query in step.queries)
-
-
-def test_repeats_show_each_item_several_times_per_block():
-    row = trials_of(CATEGORY(repeats=2))
-    for block in range(3):
-        items = [trial.item for trial in row if trial.block == block]
-        assert sorted(items) == sorted(list(range(8)) * 2)
-
-
-def test_category_learning_refuses_bad_settings():
-    with pytest.raises(ValueError, match="repeats"):
-        CATEGORY(repeats=0)
-    with pytest.raises(ValueError, match="feedback"):
-        CATEGORY(feedback="never")
-
-
-def test_a_mapping_teaches_its_start_labels():
-    task = cg.tasks.Mapping(["cat", "dog", "fish", "bird"], ("wug", "dax"), start=["wug", "dax", "dax", "wug"])
-    paradigm = learning.CategoryLearning(task, blocks=2)
-    assert {(trial.item, trial.answer) for trial in trials_of(paradigm)} == {
-        (0, "wug"),
-        (1, "dax"),
-        (2, "dax"),
-        (3, "wug")
-    }
-    assert paradigm.modalities == frozenset({"text"})
-    assert paradigm.config()["task"]["start"] == ["wug", "dax", "dax", "wug"]
-
-
-def test_a_mapping_without_a_start_teaches_a_random_labelling_set_by_the_seed():
-    task = cg.tasks.Mapping([[value] for value in range(12)], ("wug", "dax", "fep"))
-    first = learning.CategoryLearning(task, blocks=2, seed=1).target
-    assert first == learning.CategoryLearning(task, blocks=2, seed=1).target
-    assert first != learning.CategoryLearning(task, blocks=2, seed=2).target
-    assert set(first) <= {"wug", "dax", "fep"}
-
-
-def test_an_exemplar_learner_learns_a_mapping_and_a_bayesian_one_is_refused(tmp_path):
-    task = cg.tasks.Mapping(
-        [[value] for value in range(8)],
-        ("low", "high"),
-        start=["low"] * 4 + ["high"] * 4
-    )
-    paradigm = learning.CategoryLearning(task, blocks=3)
-    results = run_quietly(paradigm, cg.subjects.ExemplarLearner(criterion=0.5), tmp_path / "exemplar")
-    curve = results.metrics("accuracy").set_index("block")["value"]
-    assert curve[2] > curve[0]
-    with pytest.raises(MissingAbilityError, match="labelling"):
-        run_quietly(paradigm, cg.subjects.BayesianLearner(), tmp_path / "bayes")
-
-
-def test_function_learning_from_feedback_is_scored_against_the_function_by_block(tmp_path):
-    task = cg.tasks.Mapping.from_function(range(1, 9), lambda x: x, scale=range(1, 9))
-    paradigm = learning.CategoryLearning(task, blocks=3)
-    results = run_quietly(paradigm, cg.subjects.ExemplarLearner(criterion=0.5), tmp_path / "run")
-    table = results.metrics("mse", "correlation", reference=lambda x: x)
-    assert sorted(table["block"].unique()) == [0, 1, 2]
-    errors = table[table["metric"] == "mse"].set_index("block")["value"]
-    assert errors[2] < errors[0]
-
-
-def test_category_learning_asks_every_object_once_per_block():
-    row = trials_of(CATEGORY())
-    for block in range(3):
-        assert sorted(trial.item for trial in row if trial.block == block) == list(range(8))
-
-
-def test_category_learning_has_one_step_per_block():
-    paradigm = CATEGORY(n_participants=2)
-    steps = [paradigm.step(index, None) for index in range(4)]
-    assert steps[3] is None
-    assert [len(step.queries) for step in steps[:3]] == [16, 16, 16]
-    shared = {id(query.context) for query in steps[2].queries if query.group == 0}
-    assert len(shared) == 1
-
-
-def test_category_learning_records_the_task():
-    config = CATEGORY().config()
-    assert config["task"] == {"name": "shepard", "type": "II"}
-
-
-def test_lstm_in_weights_mode_trains_once_per_block_with_block_feedback(tmp_path, monkeypatch):
+def test_lstm_in_weights_mode_trains_once_on_the_studied_strings(tmp_path, monkeypatch):
     learned = []
     original = CustomSubject.learn
 
@@ -452,37 +293,15 @@ def test_lstm_in_weights_mode_trains_once_per_block_with_block_feedback(tmp_path
         embedding_dim=4,
         hidden_dim=4
     )
-    results = run_quietly(CATEGORY(feedback="block"), subject, tmp_path / "run")
+    results = run_quietly(GRAMMAR(), subject, tmp_path / "run")
     assert results.manifest["learning"] == "weights"
-    assert learned == [8, 16]
+    assert learned == [12]
 
 
-def test_a_weight_learner_trains_on_every_earlier_trial_with_trial_feedback(tmp_path):
+def test_a_weight_learner_starts_fresh_for_every_participant(tmp_path):
     subject = TrainableScriptedSubject()
-    run_quietly(CATEGORY(n_participants=2), subject, tmp_path / "run")
-    assert sorted(len(observations) for observations in subject.learned) == sorted([*range(1, 24)] * 2)
-    assert subject.max_context_seen == 0
-
-
-def test_a_weight_learner_starts_fresh_for_every_block(tmp_path):
-    subject = TrainableScriptedSubject()
-    run_quietly(CATEGORY(n_participants=2, feedback="block"), subject, tmp_path / "run")
-    assert len(subject.fresh_seeds) == 6
-    assert sorted(len(observations) for observations in subject.learned) == [8, 8, 16, 16]
+    run_quietly(GRAMMAR(n_participants=2), subject, tmp_path / "run")
+    assert len(subject.fresh_seeds) == 2
+    assert [len(observations) for observations in subject.learned] == [12, 12]
     # the context lives in the weights, so the prompt holds none of it
     assert subject.max_context_seen == 0
-
-
-def test_preview_writes_a_query_as_a_reader_sees_it():
-    paradigm = CATEGORY()
-    lines = paradigm.preview(2).split("\n")
-    first = trials_of(paradigm)[:2]
-    assert lines[:4] == [
-        f"Object: {first[0].stimulus.text}",
-        f"Category: {first[0].answer}",
-        f"Object: {first[1].stimulus.text}",
-        f"Category: {first[1].answer}"
-    ]
-    assert lines[-1] == "[options: A | B]"
-    with pytest.raises(ValueError, match="no step"):
-        paradigm.preview(step=3)

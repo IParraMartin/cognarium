@@ -20,13 +20,15 @@
 
 ::: cognarium.PromptTemplate
 
+## Media
+
+::: cognarium.media
+
 ::: cognarium.context
 
 ## Paradigms
 
 ::: cognarium.paradigms.IteratedLearning
-
-::: cognarium.paradigms.CategoryLearning
 
 ::: cognarium.paradigms.ArtificialGrammar
 
@@ -37,6 +39,10 @@
 ::: cognarium.tasks.Mapping
 
 ## Subjects
+
+::: cognarium.subjects.HFSubject
+
+::: cognarium.subjects.HFMultimodalSubject
 
 ::: cognarium.subjects.ExemplarLearner
 

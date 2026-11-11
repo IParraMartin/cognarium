@@ -58,14 +58,11 @@ def build(name: str) -> cg.Paradigm:
         name: The paradigm's name in `cg.paradigms.PARADIGMS`.
 
     Returns:
-        The paradigm. The two that need a category structure get Shepard type I for
-        category learning and type VI for iterated learning.
+        The paradigm. Iterated learning transmits the Shepard type VI structure.
     """
     paradigm = cg.paradigms.PARADIGMS[name]
     if name == "iterated_learning":
         return paradigm(task=cg.tasks.ShepardCategories(type="VI"))
-    if name == "category_learning":
-        return paradigm(task=cg.tasks.ShepardCategories(type="I"))
     return paradigm()
 
 

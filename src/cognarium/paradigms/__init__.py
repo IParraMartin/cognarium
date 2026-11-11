@@ -8,13 +8,12 @@ from cognarium.paradigms.base import (
     Paradigm,
     Step
 )
-from cognarium.paradigms.learning import ArtificialGrammar, CategoryLearning, IteratedLearning
+from cognarium.paradigms.learning import ArtificialGrammar, IteratedLearning
 
 PARADIGMS: dict[str, type[Paradigm]] = {
     paradigm.name: paradigm
     for paradigm in (
         IteratedLearning,
-        CategoryLearning,
         ArtificialGrammar
     )
 }
@@ -22,7 +21,6 @@ PARADIGMS: dict[str, type[Paradigm]] = {
 __all__ = [
     "PARADIGMS",
     "ArtificialGrammar",
-    "CategoryLearning",
     "Effect",
     "HypothesisSpace",
     "IteratedLearning",

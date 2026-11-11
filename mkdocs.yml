@@ -69,6 +69,7 @@ nav:
       - Learning and transmission: paradigms/learning.md
   - User guide:
       - Custom paradigms: custom-paradigms.md
+      - Multimodal stimuli: multimodal.md
       - Recording: recording.md
       - Metrics: metrics.md
       - Data: data.md

@@ -13,7 +13,6 @@ from cognarium.paradigms.base import Effect, Paradigm
 from cognarium.responses import Responses
 from cognarium.stimuli import Trial
 from cognarium.subjects.base import Subject
-from cognarium.tasks.shepard import ShepardCategories
 
 
 class EffectSubject(Subject):
@@ -130,8 +129,5 @@ class Case:
 
 
 CASES: dict[str, Case] = {
-    "category_learning": Case(
-        lambda **options: learning.CategoryLearning(ShepardCategories(type="II"), blocks=3, **options)
-    ),
     "artificial_grammar": Case(lambda **options: learning.ArtificialGrammar(n_train=12, n_test=6, **options))
 }

@@ -17,7 +17,7 @@ import torch
 from cognarium.context import ContextPolicy, isolated
 from cognarium.data.convert import read_rows
 from cognarium.errors import MissingAbilityError
-from cognarium.responses import PromptTemplate, Query
+from cognarium.responses import PromptTemplate, Query, text_only
 from cognarium.settings import Settings
 from cognarium.stimuli import Observation, Stimulus, Trial
 
@@ -344,7 +344,7 @@ class Paradigm:
         return self._build_step(index, chosen)
 
     def preview(self, query: int = 0, step: int = 0) -> str:
-        """Writes out one query as a subject that reads text sees it.
+        """Writes out one query as a subject sees it, with each medium named.
 
         Args:
             query: Which query of the step, in the order the step holds them.
@@ -352,7 +352,8 @@ class Paradigm:
                 prompts never depend on earlier responses.
 
         Returns:
-            The full prompt, then a last line listing the options it scores.
+            The full prompt, with media written as `<image 3f2a9c1b>` and the like,
+            then a last line listing the options it scores.
 
         Raises:
             ValueError: If the step doesn't exist or needs earlier responses.
@@ -362,7 +363,7 @@ class Paradigm:
         if built is None:
             raise ValueError(f"Paradigm '{self.name}' has no step {step}.")
         chosen = built.queries[query]
-        return f"{chosen.prompt()}\n[options: {' | '.join(chosen.trial.options)}]"
+        return f"{chosen.describe()}\n[options: {' | '.join(chosen.trial.options)}]"
 
     def config(self) -> dict[str, Any]:
         """Describes the paradigm in JSON-safe form.
@@ -446,14 +447,14 @@ class Paradigm:
             for trial in row:
                 if trial.stimulus.text is None:
                     continue
-                lines.append(self.template.render_query(trial.stimulus))
+                lines.append(text_only(self.template.query_parts(trial.stimulus)))
                 lines.extend(
-                    self.template.render_observation(Observation(trial.stimulus, option))
+                    text_only(self.template.observation_parts(Observation(trial.stimulus, option)))
                     for option in trial.options
                 )
         for example in self.settings.examples:
             if example.stimulus.text is not None:
-                lines.append(self.template.render_observation(example))
+                lines.append(text_only(self.template.observation_parts(example)))
         return lines
 
     def hypothesis_space(self) -> HypothesisSpace:
@@ -654,11 +655,11 @@ def _describe_trial(trial: Trial) -> dict[str, Any]:
 
 
 def _describe_stimulus(stimulus: Stimulus) -> dict[str, Any]:
-    described = {"text": stimulus.text}
-    for field in ("image", "audio", "features"):
-        value = getattr(stimulus, field)
-        if value is not None:
-            described[field] = hashlib.sha256(np.asarray(value).tobytes()).hexdigest()
+    described: dict[str, Any] = {"text": stimulus.text}
+    for kind, medium in stimulus.media.items():
+        described[kind] = medium.digest
+    if stimulus.features is not None:
+        described["features"] = hashlib.sha256(np.asarray(stimulus.features).tobytes()).hexdigest()
     return described
 
 

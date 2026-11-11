@@ -40,7 +40,6 @@ uv add cognarium
 <h3><a href="paradigms/learning/">Learning and transmission</a></h3>
 <ul class="cg-rows">
 <li><a href="paradigms/learning/#iteratedlearning">Iterated learning</a><span class="cg-task">Each generation learns from the last generation&#x27;s answers, for any category system or function. After Kirby, Cornish and Smith (2008) and Griffiths and Kalish (2007).</span></li>
-<li><a href="paradigms/learning/#categorylearning">Category learning</a><span class="cg-task">Learn the Shepard structures, any category system or a function from corrective feedback. After Shepard, Hovland and Jenkins (1961) and Nosofsky et al. (1994).</span></li>
 <li><a href="paradigms/learning/#artificialgrammar">Artificial grammar</a><span class="cg-task">Study strings from a finite-state grammar, then judge new ones, or compare them by probability. After Reber (1967) and Knowlton and Squire (1996).</span></li>
 </ul>
 </div>
@@ -50,6 +49,7 @@ uv add cognarium
 <h3><a href="concepts/#subjects">Learners</a></h3>
 <ul class="cg-rows">
 <li><a href="concepts/#subjects">Hugging Face models</a><span class="cg-task">Any causal language model, learning in context from its prompt, with logits, hidden states and the logit lens recorded.</span></li>
+<li><a href="multimodal/">Multimodal models</a><span class="cg-task">Vision-language, audio and omni models that see images and video or hear sound in their prompt, alone or mixed.</span></li>
 <li><a href="concepts/#subjects">PyTorch modules</a><span class="cg-task">The bundled LSTM or your own PyTorch module, learning in context or by training its weights.</span></li>
 <li><a href="concepts/#subjects">Exemplar learner</a><span class="cg-task">Labels by similarity to the examples it has stored, as in the Generalized Context Model (Nosofsky, 1986).</span></li>
 <li><a href="concepts/#subjects">Bayesian learner</a><span class="cg-task">Infers a labelling from a space of hypotheses and samples, averages or takes the most probable (Griffiths and Kalish, 2007).</span></li>

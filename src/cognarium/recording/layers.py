@@ -83,6 +83,11 @@ def _detect(model: torch.nn.Module) -> LayerMap:
         for name, module in model.named_modules()
         if isinstance(module, torch.nn.ModuleList) and len(module) > 0 and len({type(block) for block in module}) == 1
     ]
+    # a vision-language model has blocks in its vision tower too, so the language model's come first
+    decoder = _decoder_path(model)
+    if decoder is not None:
+        inside = [(name, module) for name, module in candidates if name.startswith(f"{decoder}.")]
+        candidates = inside or candidates
     if head is None or not candidates:
         raise MissingAbilityError(
             f"Can't find the blocks and output head of {type(model).__name__}. "
@@ -98,3 +103,17 @@ def _detect(model: torch.nn.Module) -> LayerMap:
     norm = None if not norms else f"{parent}.{norms[-1]}" if parent else norms[-1]
     head_path = next(name for name, module in model.named_modules() if module is head)
     return LayerMap(layers, norm, head_path)
+
+
+def _decoder_path(model: torch.nn.Module) -> str | None:
+    """Finds the path of the model's language decoder, if it names one."""
+    get_decoder = getattr(model, "get_decoder", None)
+    if not callable(get_decoder):
+        return None
+    try:
+        decoder = get_decoder()
+    except (AttributeError, NotImplementedError):
+        return None
+    if decoder is None or decoder is model:
+        return None
+    return next((name for name, module in model.named_modules() if module is decoder), None)

@@ -13,7 +13,6 @@ predict.
 | Paradigm | The learner | What people show | Built on |
 |---|---|---|---|
 | [IteratedLearning](#iteratedlearning) | Learns from the previous generation's answers and passes its own on | Chains drift toward what learners find easiest, which reveals their inductive biases | Kirby, Cornish and Smith (2008); Kalish, Griffiths and Lewandowsky (2007); Griffiths and Kalish (2007) |
-| [CategoryLearning](#categorylearning) | Labels each item and then sees its correct label | Shepard type I is learned fastest, type II next, types III to V more slowly and type VI slowest | Shepard, Hovland and Jenkins (1961); Nosofsky et al. (1994) |
 | [ArtificialGrammar](#artificialgrammar) | Studies strings from a grammar, then judges new ones | New strings are judged above chance, and familiar chunks are endorsed whatever their grammaticality | Reber (1967); Knowlton and Squire (1996) |
 
 Full citations are under [References](#references).
@@ -129,14 +128,23 @@ For an instruction-tuned model, `cg.load(name, chat=True)` sends each prompt as 
 
 ### The World Color Survey
 
-`examples/color_naming.py` runs a design on the 330 chips of the World Color Survey (Kay et al., 2009): vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, a format text-only models have been found to handle better than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`. With `lab_to_srgb` from the example:
+`examples/color_naming.py` runs a design on the 330 chips of the World Color Survey (Kay et al., 2009): vocabularies of 2 to 6 made-up words, a random first naming, 6 examples per word, `memory=10`, 13 generations, temperature 0.6 and top-p 0.9. The prompt shows each chip's sRGB values from 0 to 1, a format text-only models have been found to handle better than CIELAB. The measures use the chip's CIELAB coordinates instead, passed as `points`, with `sigma=8` as in Zaslavsky et al. (2018). The chips are in the registry as `wcs_chips`, which states no licence, so loading it needs `accept_terms=True`:
 
 <!-- no-run -->
 ```python
 chips = cg.data.load("wcs_chips", accept_terms=True).to_pandas()
 lab = chips[["L", "a", "b"]].to_numpy()
-colours = cg.tasks.Mapping(lab_to_srgb(lab).round(3).tolist(), ("Narp", "Tovo", "Feglu"), points=lab.tolist(), sigma=8.0)
+colours = cg.tasks.Mapping(
+    cg.media.lab_to_srgb(lab).round(3).tolist(),
+    ("Narp", "Tovo", "Feglu"),
+    points=lab.tolist(),
+    sigma=8.0
+)
 ```
+
+`--show image` shows each chip as a coloured square to a vision-language model instead,
+with the same examples, measures and points. [Multimodal stimuli](../multimodal.md)
+explains how.
 
 On Qwen3.5-4B-Base, in bfloat16 with four chains per vocabulary size, the naming systems grow more efficient at every size. Each cell is a mean over the four chains:
 
@@ -163,125 +171,6 @@ per_chain.groupby("generation")["value"].median()
 ```
 
 `mse` gives the mean squared distance from the reference instead. `examples/function_learning.py` runs the paper's design: four starting functions, eight chains, nine generations and 50 examples.
-
-## CategoryLearning
-
-Learn a category structure, or a function, from corrective feedback.
-
-Every block shows each item `repeats` times in a new order and asks for its label.
-With `feedback="trial"`, the default, each trial's context holds every earlier trial
-with its correct label, so the subject learns as it goes. With `feedback="block"`,
-every trial of a block shares one context holding the earlier blocks only, which is
-faster for learners that train their weights, but leaves the first block at chance.
-Each participant is a separate learner with their own orders.
-
-The task says what is learned: one of the six Shepard structures, or a
-`cg.tasks.Mapping`, which holds any items and labels, with its `start` as the labelling
-taught. With no `start`, the run's seed draws a random labelling.
-
-### How it runs on a language model
-
-The prompt holds every earlier trial with its correct label, then the current item.
-This is the fourth trial of type II:
-
-<!-- preview: cg.paradigms.CategoryLearning(cg.tasks.ShepardCategories(type="II")).preview(3) -->
-```text
-Object: large red circle
-Category: B
-Object: large red square
-Category: B
-Object: small blue circle
-Category: B
-Object: small red circle
-Category:
-[options: A | B]
-```
-
-The measure is the probability of the correct label, normalised over the labels,
-before the model sees it. One minus its mean per block is the learning curve, the
-probability of an error per block that Nosofsky et al. (1994) report for people.
-`score()` compares the last block with the first.
-
-### Maps onto
-
-Supervised category learning. With the Shepard, Hovland and Jenkins (1961)
-structures, people learn type I fastest, type II next, types III to V more slowly
-and type VI slowest (Nosofsky et al., 1994). The order has been explained by
-selective attention to the relevant features (Kruschke, 1992) and by the Boolean
-complexity of each structure's simplest rule (Feldman, 2000), and it is a standard
-test for models of categorization. With a function read on a scale, it is function
-learning from feedback (DeLosh, Busemeyer and McDaniel, 1997).
-
-### What it can't capture
-
-A person's context holds their own responses, and they forget. The model reads every
-earlier item with its correct label and nothing else, so there is no forgetting and no
-effect of its own errors, much as in observational training, where people see each
-item with its label. The eight Shepard objects are abstract, not human-normed.
-
-### Run it
-
-```python
-paradigm = cg.paradigms.CategoryLearning(cg.tasks.ShepardCategories(type="II"), blocks=4)
-results = cg.run(paradigm, subject)
-results.metrics("answer_probability", "accuracy")
-```
-
-### Any category system or function
-
-A `Mapping` with items described by words works the same way:
-
-```python
-animals = cg.tasks.Mapping(
-    [["fur", "four legs"], ["feathers", "two legs"], ["fur", "two legs"], ["scales", "no legs"]],
-    ("dax", "wug"),
-    start=["dax", "wug", "dax", "wug"]
-)
-results = cg.run(cg.paradigms.CategoryLearning(animals, blocks=3), subject)
-```
-
-With `Mapping.from_function`, the subject learns a function from feedback, and `mse`
-and `correlation` score each participant's answers in a block against it:
-
-```python
-line = cg.tasks.Mapping.from_function(range(1, 11), lambda x: x, scale=range(1, 11))
-results = cg.run(cg.paradigms.CategoryLearning(line, blocks=3), subject)
-results.metrics("mse", "correlation", reference=lambda x: x)
-```
-
-### The six Shepard types
-
-`examples/shepard_types.py` runs every type and prints the probability of an error by
-block and type, each type's mean, and the rank correlation between the means and the
-human order, with types III to V tied. These are the mean probabilities of an error
-over six blocks, with ten learners per type:
-
-| Learner | I | II | III | IV | V | VI | Rank correlation |
-|---|---|---|---|---|---|---|---|
-| Exemplar (GCM) | 0.381 | 0.492 | 0.438 | 0.415 | 0.474 | 0.529 | 0.58 |
-| Bayesian, simplicity prior | 0.033 | 0.055 | 0.067 | 0.064 | 0.064 | 0.083 | 0.94 |
-| GPT-2 | 0.396 | 0.449 | 0.376 | 0.358 | 0.427 | 0.488 | 0.21 |
-| Qwen3.5-4B-Base | 0.063 | 0.105 | 0.102 | 0.102 | 0.113 | 0.138 | 0.70 |
-
-The exemplar learner weighs every feature equally, so it finds type II harder than
-types III to V, the order an exemplar model gives without attention learning
-(Kruschke, 1992).
-The Bayesian learner considers the 70 labellings with four objects per category, with
-a prior that halves for each unit of Boolean complexity (Feldman, 2000), so it
-prefers simple rules. Every type is learned within a block, so only the first block
-tells the types apart.
-
-GPT-2 learns every type, its probability of an error falling from about 0.5 in the
-first block to between 0.25 and 0.44 in the sixth, but its order matches people's
-only weakly: type VI is its hardest, as for people, while types II and V are harder
-for it than types III and IV, and type I isn't its easiest. This is one run, reported
-as it came out.
-
-Qwen3.5-4B-Base, in bfloat16, learns every type within about three blocks, and by the
-sixth its probability of an error is at most 0.005. Its order is close to people's:
-type I is its easiest and type VI its hardest, the gap clearest in the second block
-(0.03 against 0.31), while type II falls among types III to V rather than ahead of
-them. This is also one run, reported as it came out.
 
 ## ArtificialGrammar
 
@@ -410,13 +299,6 @@ likelier one in 94% of pairs, and the preference doesn't follow the chunk differ
 
 ## References
 
-DeLosh, E. L., Busemeyer, J. R., & McDaniel, M. A. (1997). Extrapolation: The sine qua
-non for abstraction in function learning. *Journal of Experimental Psychology:
-Learning, Memory, and Cognition*, 23(4), 968–986.
-
-Feldman, J. (2000). Minimization of Boolean complexity in human concept learning.
-*Nature*, 407, 630–633.
-
 Griffiths, T. L., Christian, B. R., & Kalish, M. L. (2008). Using category structures
 to test iterated learning as a method for identifying inductive biases. *Cognitive
 Science*, 32(1), 68–107.
@@ -447,15 +329,8 @@ Knowlton, B. J., & Squire, L. R. (1996). Artificial grammar learning depends on
 implicit acquisition of both abstract and exemplar-specific information. *Journal of
 Experimental Psychology: Learning, Memory, and Cognition*, 22(1), 169–181.
 
-Kruschke, J. K. (1992). ALCOVE: An exemplar-based connectionist model of category
-learning. *Psychological Review*, 99(1), 22–44.
-
 Nosofsky, R. M. (1986). Attention, similarity, and the identification–categorization
 relationship. *Journal of Experimental Psychology: General*, 115(1), 39–57.
-
-Nosofsky, R. M., Gluck, M. A., Palmeri, T. J., McKinley, S. C., & Glauthier, P. (1994).
-Comparing models of rule-based classification learning: A replication and extension
-of Shepard, Hovland, and Jenkins (1961). *Memory & Cognition*, 22(3), 352–369.
 
 Reber, A. S. (1967). Implicit learning of artificial grammars. *Journal of Verbal
 Learning and Verbal Behavior*, 6(6), 855–863.
