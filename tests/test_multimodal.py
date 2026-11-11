@@ -78,7 +78,7 @@ def test_load_gives_a_multimodal_subject_that_finds_its_media_tokens(vision_mode
     assert omni.modalities == frozenset({"text", "image", "video", "audio"})
 
 
-def test_media_tokens_come_from_the_chat_template_first(vision_model_and_processor):
+def test_media_tokens_come_from_the_chat_template_without_token_attributes(vision_model_and_processor):
     _, processor = vision_model_and_processor
 
     class Templated:

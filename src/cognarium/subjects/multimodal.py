@@ -337,9 +337,11 @@ def find_media_tokens(processor: Any, given: Mapping[str, str] | None = None) ->
     """Finds the text that stands for each kind of medium in a prompt.
 
     A processor expands that text into the model's media tokens. For each kind the
-    processor handles, `given` is used first. Otherwise the text is read from the
-    chat template, which places media the way the model was trained on, then built
-    from the processor's own medium tokens.
+    processor handles, `given` is used first. Otherwise the text is built from the
+    processor's own medium tokens, with the tokens that open and close a medium when
+    it has them, and for a processor without such tokens it is read from the chat
+    template. Chat templates often add text around a medium, such as `Audio 1:`, so
+    they come last.
 
     Args:
         processor: The model's processor.
@@ -362,7 +364,7 @@ def find_media_tokens(processor: Any, given: Mapping[str, str] | None = None) ->
             continue
         if not any(getattr(processor, name, None) is not None for name in _SUB_PROCESSORS[kind]):
             continue
-        token = _from_chat_template(processor, kind) or _from_attributes(processor, kind)
+        token = _from_attributes(processor, kind) or _from_chat_template(processor, kind)
         if token:
             found[kind] = token
     return found

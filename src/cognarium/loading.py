@@ -199,6 +199,8 @@ def _load_multimodal_by_name(
             break
         except ValueError:
             continue
+    # an omni model that also speaks keeps the part that reads its inputs as its thinker
+    model = getattr(model, "thinker", model)
     if model is None:
         raise TypeError(
             f"No Hugging Face class loads {name} as a model that reads media. Load the model yourself and pass "
