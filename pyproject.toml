@@ -60,9 +60,8 @@ docs = [
     "mkdocstrings[python]>=1.0.8"
 ]
 vision = ["pillow>=10", "torchvision"]
-audio = ["scipy>=1.11", "soundfile>=0.12"]
 video = ["av>=12"]
-all = ["cognarium[vision,audio,video]"]
+all = ["cognarium[vision,video]"]
 
 [tool.hatch.version]
 path = "src/cognarium/__init__.py"

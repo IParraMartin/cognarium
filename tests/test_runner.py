@@ -103,8 +103,8 @@ def test_unsupported_mode_names_the_supported_ones(tmp_path):
 
 
 def test_no_shared_modality_fails(tmp_path):
-    subject = scripted(modalities={"audio"})
-    with pytest.raises(MissingAbilityError, match="audio"):
+    subject = scripted(modalities={"video"})
+    with pytest.raises(MissingAbilityError, match="video"):
         go(paradigm(), subject, tmp_path)
     assert subject.calls == 0
 

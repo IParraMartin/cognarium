@@ -1,4 +1,4 @@
-"""Hugging Face models that read images, video or audio along with text."""
+"""Hugging Face models that read images or video along with text."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 import torch
 
 from cognarium.errors import MissingAbilityError
-from cognarium.media import MEDIA_KINDS, Audio, Image, Media, Video
+from cognarium.media import MEDIA_KINDS, Image, Media, Video
 from cognarium.recording.layers import LayerMap
 from cognarium.responses import Query
 from cognarium.subjects.hf import HFSubject
@@ -19,20 +19,15 @@ from cognarium.subjects.hf import HFSubject
 # the sub-processor that handles each kind of media, under the names processors use
 _SUB_PROCESSORS = {
     "image": ("image_processor",),
-    "video": ("video_processor",),
-    "audio": ("feature_extractor", "audio_processor")
+    "video": ("video_processor",)
 }
 # tokens that open and close a medium in a prompt, for processors that expect them
 _WRAPPERS = {
     "image": (("vision_start_token", "vision_end_token"), ("vision_bos_token", "vision_eos_token")),
-    "video": (("vision_start_token", "vision_end_token"), ("vision_bos_token", "vision_eos_token")),
-    "audio": (("audio_bos_token", "audio_eos_token"), ("audio_start_token", "audio_end_token"))
+    "video": (("vision_start_token", "vision_end_token"), ("vision_bos_token", "vision_eos_token"))
 }
 # a token some processors expand into a whole medium, in place of the bare medium token
-_OPENERS = {
-    "image": "boi_token",
-    "audio": "boa_token"
-}
+_OPENERS = {"image": "boi_token"}
 # processor outputs that run along the tokens, which grow with the options
 _TOKEN_ALIGNED = ("token_type_ids", "mm_token_type_ids")
 _MARKS = ("\x00cg-before\x00", "\x00cg-after\x00")
@@ -54,7 +49,7 @@ class _Encoded:
 
 
 class HFMultimodalSubject(HFSubject):
-    """A Hugging Face model that reads images, video or audio along with text.
+    """A Hugging Face model that reads images or video along with text.
 
     Prompts are written by the paradigm's template, which places each medium among
     the text, as in `"Color: {image} -> Label:"`. Each prompt goes through the
@@ -131,7 +126,7 @@ class HFMultimodalSubject(HFSubject):
         self.media_tokens = find_media_tokens(processor, media_tokens)
         if not self.media_tokens:
             raise MissingAbilityError(
-                f"{type(processor).__name__} handles no images, video or audio. Load the model with cg.load(name) "
+                f"{type(processor).__name__} handles no images or video. Load the model with cg.load(name) "
                 "as a text model instead."
             )
         self.modalities = frozenset({"text", *self.media_tokens})
@@ -217,12 +212,6 @@ class HFMultimodalSubject(HFSubject):
                     {"fps": rate, "total_num_frames": len(frames)}
                     for (frames, _), rate in zip(videos, rates, strict=True)
                 ]
-        sounds = [medium for medium in media if isinstance(medium, Audio)]
-        if sounds:
-            rate = _sampling_rate(self.processor)
-            settings["audio"] = [sound.load(rate) for sound in sounds]
-            if rate is not None:
-                settings["sampling_rate"] = rate
         return dict(self.processor(**settings))
 
     def _forward(self, ids: torch.Tensor, mask: torch.Tensor, rows: Sequence[int] | None = None) -> torch.Tensor:
@@ -318,7 +307,7 @@ def _join(values: Sequence[torch.Tensor]) -> torch.Tensor:
     """Joins media inputs along their first dimension, padding the others with zeros.
 
     Each prompt goes through the processor alone, so inputs a processor pads to the
-    longest in its call, such as audio features and their masks, can differ in
+    longest in its call, such as video frames and their grids, can differ in
     length between prompts. Zero padding is what the processor itself would add.
     """
     if len({value.shape[1:] for value in values}) == 1:
@@ -340,7 +329,7 @@ def find_media_tokens(processor: Any, given: Mapping[str, str] | None = None) ->
     processor handles, `given` is used first. Otherwise the text is built from the
     processor's own medium tokens, with the tokens that open and close a medium when
     it has them, and for a processor without such tokens it is read from the chat
-    template. Chat templates often add text around a medium, such as `Audio 1:`, so
+    template. Chat templates often add text around a medium, such as `Picture 1:`, so
     they come last.
 
     Args:
@@ -407,14 +396,6 @@ def _chat_source(processor: Any) -> Any:
     tokenizer = getattr(processor, "tokenizer", None)
     if tokenizer is not None and getattr(tokenizer, "chat_template", None):
         return tokenizer
-    return None
-
-
-def _sampling_rate(processor: Any) -> int | None:
-    for name in _SUB_PROCESSORS["audio"]:
-        rate = getattr(getattr(processor, name, None), "sampling_rate", None)
-        if rate is not None:
-            return int(rate)
     return None
 
 

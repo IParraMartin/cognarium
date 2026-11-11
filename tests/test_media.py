@@ -8,7 +8,7 @@ import pytest
 import torch
 
 import cognarium as cg
-from cognarium.media import Audio, Image, Video, as_media
+from cognarium.media import Image, Video, as_media
 
 
 def red(size=4):
@@ -37,58 +37,36 @@ def test_an_image_refuses_what_isnt_one(tmp_path):
         Image(tmp_path / "missing.png")
 
 
-def test_audio_needs_its_rate_and_resamples_to_what_a_subject_expects():
-    with pytest.raises(ValueError, match="sampling_rate"):
-        Audio(np.zeros(100))
-    tone = np.sin(np.linspace(0, 2 * np.pi * 5, 8000)).astype(np.float32)
-    sound = Audio(tone, 8000)
-    assert sound.load().shape == (8000,)
-    assert sound.load(16000).shape == (16000,)
-    stereo = Audio(np.stack([tone, tone]), 8000)
-    assert np.allclose(stereo.load(), tone)
-    assert Audio(tone, 8000).digest != Audio(tone, 16000).digest
-
-
-def test_audio_reads_a_file(tmp_path):
-    import soundfile
-
-    tone = (0.5 * np.sin(np.linspace(0, 2 * np.pi * 5, 1600))).astype(np.float32)
-    soundfile.write(tmp_path / "tone.wav", tone, 16000)
-    assert np.allclose(Audio(tmp_path / "tone.wav").load(), tone, atol=1e-4)
-
-
 def test_a_video_takes_frames_in_any_image_form():
-    frames = [red(), red().astype(float) / 255, torch.from_numpy(red()).permute(2, 0, 1)]
+    frames = [red(), red().astype(float) / 255, torch.from_numpy(red()).permute(2, 0, 1), Image(red())]
     video = Video(frames, fps=2.0)
     loaded, fps = video.load()
-    assert loaded.shape == (3, 4, 4, 3)
+    assert loaded.shape == (4, 4, 4, 3)
     assert fps == 2.0
     with pytest.raises(ValueError, match="frames"):
         Video(np.zeros((4, 4, 3)))
 
 
 def test_a_stimulus_turns_its_media_into_media_of_their_kind():
-    stimulus = cg.Stimulus(image=red(), audio=(np.zeros(160, dtype=np.float32), 16000), video=np.stack([red()] * 2))
+    stimulus = cg.Stimulus(image=red(), video=np.stack([red()] * 2))
     assert isinstance(stimulus.image, Image)
-    assert isinstance(stimulus.audio, Audio)
     assert isinstance(stimulus.video, Video)
-    assert stimulus.modalities == frozenset({"image", "audio", "video"})
-    assert list(stimulus.media) == ["image", "video", "audio"]
+    assert stimulus.modalities == frozenset({"image", "video"})
+    assert list(stimulus.media) == ["image", "video"]
     with pytest.raises(TypeError, match="image field"):
-        cg.Stimulus(image=Audio(np.zeros(10), 100))
-    with pytest.raises(TypeError, match="rate"):
-        as_media("audio", np.zeros(10))
+        cg.Stimulus(image=Video(np.stack([red()] * 2)))
+    assert as_media("video", stimulus.video) is stimulus.video
 
 
 def test_a_template_places_media_among_the_text():
-    template = cg.PromptTemplate(stimulus="See {image} and hear {audio}:", response="")
-    stimulus = cg.Stimulus(text="unused", image=red(), audio=(np.zeros(16), 16))
+    template = cg.PromptTemplate(stimulus="See {image} and watch {video}:", response="")
+    stimulus = cg.Stimulus(text="unused", image=red(), video=np.stack([red()] * 2))
     parts = template.query_parts(stimulus)
-    assert parts == ("See ", stimulus.image, " and hear ", stimulus.audio, ":")
-    assert template.placed_media == frozenset({"image", "audio"})
+    assert parts == ("See ", stimulus.image, " and watch ", stimulus.video, ":")
+    assert template.placed_media == frozenset({"image", "video"})
     with pytest.raises(ValueError, match="can't be written as text"):
         template.render_query(stimulus)
-    with pytest.raises(ValueError, match="no audio or image"):
+    with pytest.raises(ValueError, match="no image or video"):
         template.query_parts(cg.Stimulus(text="only text"))
     with pytest.raises(ValueError, match="fields"):
         cg.PromptTemplate(stimulus="{colour}")
@@ -126,11 +104,11 @@ def test_a_mapping_of_images_alone_places_them_by_default():
 
 def test_a_mapping_mixes_features_and_media_item_by_item():
     rgb = [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
-    sounds = [(np.zeros(16, dtype=np.float32), 16), (np.ones(16, dtype=np.float32), 16)]
-    task = cg.tasks.Mapping(rgb, ("wug", "dax"), images=[cg.media.swatch(color) for color in rgb], audio=sounds)
-    assert task.modalities == frozenset({"text", "features", "image", "audio"})
+    clips = [np.stack([red()] * 2), np.stack([red(3)] * 3)]
+    task = cg.tasks.Mapping(rgb, ("wug", "dax"), images=[cg.media.swatch(color) for color in rgb], video=clips)
+    assert task.modalities == frozenset({"text", "features", "image", "video"})
     assert task.stimuli[1].features.tolist() == [0.0, 0.0, 1.0]
-    assert set(task.config()["media"]) == {"image", "audio"}
+    assert set(task.config()["media"]) == {"image", "video"}
     with pytest.raises(ValueError, match="one entry per item"):
         cg.tasks.Mapping(rgb, ("wug", "dax"), images=[cg.media.swatch(rgb[0])])
     with pytest.raises(ValueError, match="at least one item"):

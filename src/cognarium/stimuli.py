@@ -8,9 +8,9 @@ from typing import Any
 
 import torch
 
-from cognarium.media import MEDIA_KINDS, Audio, Image, Media, Video, as_media
+from cognarium.media import MEDIA_KINDS, Image, Media, Video, as_media
 
-_MODALITIES = ("text", "image", "video", "audio", "features")
+_MODALITIES = ("text", "image", "video", "features")
 
 
 @dataclass(frozen=True, eq=False)
@@ -28,8 +28,6 @@ class Stimulus:
             takes, such as a path, a PIL image or an array.
         video: A video: a `cg.media.Video`, a path, or frames of shape
             (frames, height, width, channels).
-        audio: A sound: a `cg.media.Audio`, a path, or a `(waveform, sampling_rate)`
-            pair.
         features: A numeric vector, which lets non-neural learners read the
             same trial a language model reads as text.
 
@@ -40,7 +38,6 @@ class Stimulus:
 
     text: str | None = None
     image: Image | None = None
-    audio: Audio | None = None
     features: torch.Tensor | None = None
     video: Video | None = None
 
@@ -50,7 +47,7 @@ class Stimulus:
             if value is not None:
                 object.__setattr__(self, kind, as_media(kind, value))
         if not self.modalities:
-            raise ValueError("A stimulus needs at least one of text, image, video, audio or features.")
+            raise ValueError("A stimulus needs at least one of text, image, video or features.")
 
     @property
     def modalities(self) -> frozenset[str]:
@@ -59,7 +56,7 @@ class Stimulus:
 
     @property
     def media(self) -> dict[str, Media]:
-        """The images, videos and sounds this stimulus has, by kind."""
+        """The images and videos this stimulus has, by kind."""
         return {kind: getattr(self, kind) for kind in MEDIA_KINDS if getattr(self, kind) is not None}
 
 

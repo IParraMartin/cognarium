@@ -59,7 +59,7 @@ def load(
         chat: Whether a Hugging Face model gets each prompt as one user message
             through its chat template, as instruction-tuned models expect.
         multimodal: Whether to load a Hugging Face model by name with its processor,
-            so it reads the images, video and audio of a stimulus along with text.
+            so it reads the images and video of a stimulus along with text.
             Without it, a vision-language checkpoint loads as a text model.
         processor: The processor of a Hugging Face model object that reads media. A
             model object comes with either this or `tokenizer`.

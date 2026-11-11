@@ -4,14 +4,14 @@ Run cognitive science experiments on language models and other learners. A stand
 experiment takes a few lines: cognarium builds the trials, runs them through the model,
 scores the effect the paradigm is known for, and saves everything needed to reproduce
 it. The same paradigms work on Hugging Face models, LSTMs, exemplar learners and
-Bayesian learners, on CPU, MPS or CUDA. Stimuli can be text, images, video, sound or
-any mix of them, which vision-language, audio and omni models read in context.
+Bayesian learners, on CPU, MPS or CUDA. Stimuli can be text, images, video or any mix
+of them, which vision-language models read in context.
 
 ## Status
 
 This is version 0.1.0. It has two learning paradigms, each of which also runs on
 exemplar and Bayesian learners as baselines, and multimodal stimuli for Hugging Face
-models that read images, video or audio. It has CSV and JSON conversion, a registry
+models that read images or video. It has CSV and JSON conversion, a registry
 of open datasets pinned by checksum, comparison with human data, per-trial logits, the
 logit lens, hidden-state datasets, resumable runs, and information, classification,
 signal detection, geometry, statistics and naming metrics. Quantization and multi-GPU
@@ -56,8 +56,8 @@ results.to_pandas()
 results.metrics("accuracy", "entropy")
 ```
 
-Models that read media load with `multimodal=True`, and the template places each image,
-video or sound in the prompt:
+Models that read media load with `multimodal=True`, and the template places each image
+or video in the prompt:
 
 ```python
 subject = cg.load("Qwen/Qwen3.5-4B-Base", multimodal=True)
@@ -72,7 +72,7 @@ task = cg.tasks.Mapping(
 cg.run(cg.paradigms.IteratedLearning(task, n_prev_examples=2), subject)
 ```
 
-Media need the `vision`, `audio` or `video` extra, or `all` for every kind.
+Media need the `vision` or `video` extra, or `all` for both.
 
 `score()` gives one row per effect the paradigm declares, with a bootstrap interval over
 items and a permutation test. Where a measure stands in for a human one, such as
@@ -97,7 +97,7 @@ what it can't capture.
     from items to a fixed set of labels
   - `subjects/`: Hugging Face models, including ones that read media, custom modules,
     exemplar and Bayesian learners
-  - `media.py`: images, video and sound, and helpers that turn colours into chips
+  - `media.py`: images and video, and helpers that turn colours into chips
   - `models/`: the bundled LSTM and its tokenizer
   - `recording/`: layer maps, state capture, the state store and the logit lens
   - `metrics/`: plain metric functions, human comparison, and the measures behind

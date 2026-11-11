@@ -23,7 +23,7 @@ class PromptTemplate:
     """How stimuli and labels are written out for subjects that read text.
 
     The stimulus format places the stimulus's fields: `{text}` for its text, and
-    `{image}`, `{video}` and `{audio}` for its media, as in
+    `{image}` and `{video}` for its media, as in
     `"Color: {image} -> Label:"`. A multimodal subject reads the media where they
     stand. Media the format doesn't place go before the rest of the stimulus, so a
     stimulus with text and an image shows both under the default format. Subjects
@@ -31,7 +31,7 @@ class PromptTemplate:
 
     Attributes:
         stimulus: A format string for the stimulus, with any of the fields
-            `{text}`, `{image}`, `{video}` and `{audio}`.
+            `{text}`, `{image}` and `{video}`.
         response: The cue the response follows. When it is empty, the response
             continues the stimulus directly, as when scoring the next word of a
             sentence.
@@ -41,7 +41,7 @@ class PromptTemplate:
             that stops halfway, scores lower than one that ends where it should.
 
     Raises:
-        ValueError: If the stimulus format has a field other than those four.
+        ValueError: If the stimulus format has a field other than those three.
     """
 
     stimulus: str = "{text}"
@@ -53,7 +53,7 @@ class PromptTemplate:
         unknown = sorted(self.fields - {"text", *MEDIA_KINDS})
         if unknown:
             raise ValueError(
-                f"The stimulus format has the fields {unknown}. It can place text, image, video and audio."
+                f"The stimulus format has the fields {unknown}. It can place text, image and video."
             )
 
     @property

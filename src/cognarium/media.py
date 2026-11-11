@@ -1,4 +1,4 @@
-"""Images, sounds and videos that stimuli can carry, and helpers for making them."""
+"""Images and videos that stimuli can carry, and helpers for making them."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import torch
 
-MEDIA_KINDS = ("image", "video", "audio")
+MEDIA_KINDS = ("image", "video")
 
 # the reference white of sRGB, D65, and the matrix from CIE XYZ to linear sRGB
 _WHITE = np.array([0.95047, 1.0, 1.08883])
@@ -24,7 +24,7 @@ _LAB_EPSILON = 6 / 29
 
 
 class Media:
-    """Something a subject sees or hears, loaded only when a subject needs it.
+    """Something a subject sees, loaded only when a subject needs it.
 
     A medium is built from a file path or from data already in memory. A path is
     read when a subject first needs the content, so a task can list thousands of
@@ -32,7 +32,7 @@ class Media:
     what results and run keys record in place of the content itself.
 
     Attributes:
-        kind: `"image"`, `"video"` or `"audio"`.
+        kind: `"image"` or `"video"`.
         source: The path or in-memory data the medium was built from.
     """
 
@@ -118,77 +118,13 @@ class Image(Media):
         return super()._content_parts()
 
 
-class Audio(Media):
-    """A sound, kept as one mono waveform.
-
-    Args:
-        source: A path to an audio file, or a waveform of shape (samples,) or
-            (channels, samples), which is averaged to mono.
-        sampling_rate: The samples per second of an in-memory waveform. A file
-            states its own.
-
-    Raises:
-        FileNotFoundError: If `source` is a path that doesn't exist.
-        ValueError: If an in-memory waveform comes without a sampling rate, or has
-            more than two dimensions.
-    """
-
-    kind = "audio"
-
-    def __init__(self, source: Any, sampling_rate: int | None = None) -> None:
-        super().__init__(source)
-        if not isinstance(self.source, Path):
-            if sampling_rate is None:
-                raise ValueError("An in-memory waveform needs its sampling_rate.")
-            if _as_array(self.source).ndim not in (1, 2):
-                raise ValueError(
-                    f"A waveform has shape (samples,) or (channels, samples), got {_as_array(self.source).shape}."
-                )
-        self.sampling_rate = sampling_rate
-
-    def load(self, sampling_rate: int | None = None) -> np.ndarray:
-        """Reads the waveform, resampled if a rate is asked for.
-
-        Args:
-            sampling_rate: The rate a subject expects. None keeps the original.
-
-        Returns:
-            A mono float32 waveform of shape (samples,).
-
-        Raises:
-            ImportError: If reading a file or resampling needs a package that isn't
-                installed, which `pip install cognarium[audio]` provides.
-        """
-        if isinstance(self.source, Path):
-            try:
-                import soundfile
-            except ImportError as error:
-                raise ImportError("Reading audio files needs soundfile: pip install cognarium[audio].") from error
-            waveform, rate = soundfile.read(self.source, dtype="float32", always_2d=True)
-            waveform = waveform.T
-        else:
-            waveform, rate = _as_array(self.source).astype(np.float32), self.sampling_rate
-        if waveform.ndim == 2:
-            waveform = waveform.mean(axis=0)
-        if sampling_rate is None or sampling_rate == rate:
-            return waveform
-        try:
-            from scipy.signal import resample_poly
-        except ImportError as error:
-            raise ImportError("Resampling audio needs scipy: pip install cognarium[audio].") from error
-        divisor = np.gcd(int(sampling_rate), int(rate))
-        return resample_poly(waveform, sampling_rate // divisor, rate // divisor).astype(np.float32)
-
-    def _content_parts(self) -> list[bytes]:
-        return [*super()._content_parts(), str(self.sampling_rate).encode()]
-
-
 class Video(Media):
     """A sequence of frames.
 
     Args:
         source: A path to a video file, an array of shape (frames, height, width,
-            channels), or a list of images in any form `Image` takes.
+            channels), or a list of images, each an `Image` or in any form `Image`
+            takes.
         fps: The frames per second of in-memory frames, which some models use to
             place frames in time. A file states its own.
 
@@ -201,7 +137,7 @@ class Video(Media):
 
     def __init__(self, source: Any, fps: float | None = None) -> None:
         if isinstance(source, (list, tuple)):
-            source = np.stack([_image_array(frame) for frame in source])
+            source = np.stack([_image_array(frame.load() if isinstance(frame, Image) else frame) for frame in source])
         super().__init__(source)
         if not isinstance(self.source, Path):
             frames = _as_array(self.source)
@@ -240,30 +176,20 @@ def as_media(kind: str, value: Any) -> Media:
     """Turns what a stimulus field was given into a medium of that kind.
 
     Args:
-        kind: `"image"`, `"video"` or `"audio"`.
-        value: A medium, a path, or in-memory data. Audio in memory comes as a
-            `(waveform, sampling_rate)` pair.
+        kind: `"image"` or `"video"`.
+        value: A medium, a path, or in-memory data.
 
     Returns:
         The medium.
 
     Raises:
-        TypeError: If `value` is a medium of another kind, or audio in memory comes
-            without its sampling rate.
+        TypeError: If `value` is a medium of another kind.
     """
     if isinstance(value, Media):
         if value.kind != kind:
             raise TypeError(f"The {kind} field got {value.describe()}.")
         return value
-    if kind == "image":
-        return Image(value)
-    if kind == "video":
-        return Video(value)
-    if isinstance(value, (str, Path)):
-        return Audio(value)
-    if isinstance(value, tuple) and len(value) == 2:
-        return Audio(*value)
-    raise TypeError("Audio in memory needs its rate: pass cg.media.Audio(waveform, sampling_rate) or (waveform, rate).")
+    return Image(value) if kind == "image" else Video(value)
 
 
 def lab_to_srgb(lab: Any) -> np.ndarray:

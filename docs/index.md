@@ -49,7 +49,7 @@ uv add cognarium
 <h3><a href="concepts/#subjects">Learners</a></h3>
 <ul class="cg-rows">
 <li><a href="concepts/#subjects">Hugging Face models</a><span class="cg-task">Any causal language model, learning in context from its prompt, with logits, hidden states and the logit lens recorded.</span></li>
-<li><a href="multimodal/">Multimodal models</a><span class="cg-task">Vision-language, audio and omni models that see images and video or hear sound in their prompt, alone or mixed.</span></li>
+<li><a href="multimodal/">Multimodal models</a><span class="cg-task">Vision-language models that see images and video in their prompt, alone or mixed.</span></li>
 <li><a href="concepts/#subjects">PyTorch modules</a><span class="cg-task">The bundled LSTM or your own PyTorch module, learning in context or by training its weights.</span></li>
 <li><a href="concepts/#subjects">Exemplar learner</a><span class="cg-task">Labels by similarity to the examples it has stored, as in the Generalized Context Model (Nosofsky, 1986).</span></li>
 <li><a href="concepts/#subjects">Bayesian learner</a><span class="cg-task">Infers a labelling from a space of hypotheses and samples, averages or takes the most probable (Griffiths and Kalish, 2007).</span></li>

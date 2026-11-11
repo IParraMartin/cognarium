@@ -24,14 +24,14 @@ NETWORK_ONLY = ("cg.data.load(", "push_to_hub(")
 
 
 @pytest.fixture
-def tiny_load(byte_model_and_tokenizer, omni_model_and_processor, monkeypatch):
+def tiny_load(byte_model_and_tokenizer, vision_model_and_processor, monkeypatch):
     model, tokenizer = byte_model_and_tokenizer
-    omni, processor = omni_model_and_processor
+    vision, processor = vision_model_and_processor
     real = cg.load
 
     def load(name, **settings):
         if settings.get("multimodal"):
-            return real(omni, processor=processor, device="cpu")
+            return real(vision, processor=processor, device="cpu")
         return real(model, tokenizer=tokenizer, device="cpu")
 
     monkeypatch.setattr(cg, "load", load)

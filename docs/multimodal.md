@@ -1,8 +1,7 @@
 # Multimodal stimuli
 
-A stimulus can carry images, video and sound, alone or mixed, along with text and
-features. A Hugging Face model that reads media, such as a vision-language or an omni
-model, sees them in its prompt and learns from them in context, as a text model learns
+A stimulus can carry images and video, alone or mixed, along with text and features.
+A Hugging Face model that reads media, such as a vision-language model, sees them in its prompt and learns from them in context, as a text model learns
 from text. The same trials also run on the other learners: a text model reads the
 stimulus's text, and an exemplar or Bayesian learner reads its features. A colour can
 therefore be a chip image for one model, RGB values for another and CIELAB coordinates
@@ -12,7 +11,6 @@ Media need the extras for their kind:
 
 ```bash
 pip install "cognarium[vision]"   # images, and the processors of vision-language models
-pip install "cognarium[audio]"    # reading and resampling sound
 pip install "cognarium[video]"    # reading video files
 ```
 
@@ -22,10 +20,9 @@ pip install "cognarium[video]"    # reading video files
 |---|---|---|
 | `cg.media.Image` | A path, a PIL image, an array of shape (height, width, channels) or a tensor of shape (channels, height, width) | Float arrays are read from 0 to 1 |
 | `cg.media.Video` | A path, frames of shape (frames, height, width, channels), or a list of images | `fps=` places frames in time for models that use it |
-| `cg.media.Audio` | A path, or a waveform with its `sampling_rate` | Averaged to mono, and resampled to the rate the model expects |
 
-A `Stimulus` takes any of these, or anything they take, in its `image`, `video` and
-`audio` fields. A path is read only when a model needs it. Each medium has a digest of
+A `Stimulus` takes either of these, or anything they take, in its `image` and `video`
+fields. A path is read only when a model needs it. Each medium has a digest of
 its content, which results and run keys record in place of the content, so changing an
 image starts a new run.
 
@@ -34,8 +31,8 @@ import numpy as np
 import cognarium as cg
 
 red = cg.media.swatch([0.9, 0.1, 0.1], size=32)
-beep = cg.media.Audio(np.sin(np.linspace(0, 880 * np.pi, 16000)).astype(np.float32), 16000)
-stimulus = cg.Stimulus(text="a red square", image=red, audio=beep)
+fading = cg.media.Video(np.linspace(1, 0.2, 4)[:, None, None, None] * np.array([0.9, 0.1, 0.1]) * np.ones((4, 32, 32, 3)), fps=2.0)
+stimulus = cg.Stimulus(text="a red square", image=red, video=fading)
 sorted(stimulus.modalities)
 ```
 
@@ -46,7 +43,7 @@ table of colours into chips.
 ## Placing media in prompts
 
 The prompt template places each field of a stimulus: `{text}` for its text, and
-`{image}`, `{video}` and `{audio}` for its media. Media the template doesn't place go
+`{image}` and `{video}` for its media. Media the template doesn't place go
 first, so a stimulus with text and an image shows both under the default template.
 A text model skips them, and refuses a template that places media, since text can't
 hold an image.
@@ -97,7 +94,7 @@ query is scored that way, with a warning.
 
 ## Iterated learning with colour chips
 
-A `cg.tasks.Mapping` takes one image, video or sound per item, with features or without.
+A `cg.tasks.Mapping` takes one image or video per item, with features or without.
 Here chains pass names for chips of eight hues down generations of a model that sees the
 chips, while an exemplar learner reads the same items' CIELAB coordinates.
 
@@ -127,22 +124,22 @@ and without `--show image` the same chains read each chip's RGB values as text.
 
 ## Mixing modalities
 
-A stimulus can hold several media, and the template places each one. A model reads
-whichever its processor handles, and a run fails before it starts if the template places
-a kind the model can't read.
+A stimulus can hold an image and a video, and the template places each one. A model
+reads whichever its processor handles, and a run fails before it starts if the template
+places a kind the model can't read.
 
 ```python
-tones = [
-    cg.media.Audio(np.sin(np.linspace(0, frequency * np.pi, 8000)).astype(np.float32), 16000)
-    for frequency in (200, 400, 600, 800)
+clips = [
+    cg.media.Video([chip, chips[(index + 1) % 8], chip], fps=2.0)
+    for index, chip in enumerate(chips[:4])
 ]
 paired = cg.tasks.Mapping(
     None,
     ("wug", "dax"),
     images=chips[:4],
-    audio=tones,
-    template=cg.PromptTemplate(stimulus="Sight {image} sound {audio} -> Label:", response=""),
-    points=[[frequency] for frequency in (200, 400, 600, 800)]
+    video=clips,
+    template=cg.PromptTemplate(stimulus="Chip {image} clip {video} -> Label:", response=""),
+    points=[[index] for index in range(4)]
 )
 cg.run(cg.paradigms.IteratedLearning(paired, generations=2, chains=1, n_prev_examples=2), subject).to_pandas().head()
 ```

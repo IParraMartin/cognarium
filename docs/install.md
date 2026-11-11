@@ -31,9 +31,8 @@ uv run pytest
 | `dev` | The test suite's tools, and the libraries its oracle tests compare against: SciPy, scikit-learn, dit and rsatoolbox |
 | `docs` | MkDocs Material and mkdocstrings, to build this site |
 | `vision` | Pillow and torchvision, for images and the processors of vision-language models |
-| `audio` | soundfile and SciPy, to read sound files and resample sound |
 | `video` | PyAV, to read video files |
-| `all` | `vision`, `audio` and `video` |
+| `all` | `vision` and `video` |
 
 ## Devices
 

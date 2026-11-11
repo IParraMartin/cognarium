@@ -5,9 +5,9 @@ to score, and a subject that responds.
 
 ## Stimuli and trials
 
-A `Stimulus` holds any mix of `text`, `image`, `video`, `audio` and `features`, a numeric
+A `Stimulus` holds any mix of `text`, `image`, `video` and `features`, a numeric
 vector. `features` lets an exemplar or Bayesian learner read the same trial a language
-model reads as text, and a model that reads media sees the images, video and sound
+model reads as text, and a model that reads media sees the images and video
 ([Multimodal stimuli](multimodal.md)). A `Trial` adds the response options, the correct answer if there is one,
 condition labels and an item ID.
 

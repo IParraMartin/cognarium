@@ -29,7 +29,7 @@ class Mapping:
     `Features: [0.2, 0.7, 0.1] -> Label: wug`. Iterated learning passes a mapping
     down chains of learners.
 
-    Items can also be images, videos or sounds, alone or mixed, and with features or
+    Items can also be images or videos, alone or mixed, and with features or
     without. A colour can be a chip image for a vision-language model and its
     CIELAB values for an exemplar learner, in the same run and with the same
     measures. The template places each medium in the prompt, as in
@@ -43,8 +43,6 @@ class Mapping:
         labels: The fixed set of labels a subject chooses from.
         images: One image per item, in any form `cg.media.Image` takes.
         video: One video per item, in any form `cg.media.Video` takes.
-        audio: One sound per item: a `cg.media.Audio`, a path, or a
-            `(waveform, sampling_rate)` pair.
         start: One label per item, the first generation's labels. None draws a
             random labelling for each chain from the run's seed.
         template: How an item and its label are written.
@@ -79,7 +77,6 @@ class Mapping:
         *,
         images: Sequence[Any] | None = None,
         video: Sequence[Any] | None = None,
-        audio: Sequence[Any] | None = None,
         start: Sequence[str] | None = None,
         template: PromptTemplate | None = None,
         points: Sequence[Sequence[float]] | None = None,
@@ -90,14 +87,14 @@ class Mapping:
     ) -> None:
         media = {
             kind: [as_media(kind, value) for value in values]
-            for kind, values in zip(MEDIA_KINDS, (images, video, audio), strict=True)
+            for kind, values in zip(MEDIA_KINDS, (images, video), strict=True)
             if values is not None
         }
         items = [] if features is None else [_plain(item) for item in features]
         counts = {len(values) for values in media.values()} | ({len(items)} if features is not None else set())
         if len(counts) > 1:
             raise ValueError(
-                f"features, images, video and audio need one entry per item, got {sorted(counts)} entries."
+                f"features, images and video need one entry per item, got {sorted(counts)} entries."
             )
         n_items = counts.pop() if counts else 0
         if not n_items:

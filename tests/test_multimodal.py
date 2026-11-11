@@ -1,6 +1,8 @@
-"""Hugging Face models that read images, video and audio along with text."""
+"""Hugging Face models that read images and video along with text."""
 
 from __future__ import annotations
+
+import copy
 
 import numpy as np
 import pytest
@@ -10,9 +12,8 @@ import cognarium as cg
 from cognarium.errors import MissingAbilityError
 from cognarium.subjects.multimodal import HFMultimodalSubject, find_media_tokens
 
-RATE = 16000
 COLOR = cg.PromptTemplate(stimulus="Color: {image} -> Label:", response="")
-MIXED = cg.PromptTemplate(stimulus="Sight {image} sound {audio} clip {video} ->", response="")
+MIXED = cg.PromptTemplate(stimulus="Sight {image} clip {video} ->", response="")
 
 
 def vision_subject(vision_model_and_processor, **settings):
@@ -20,18 +21,8 @@ def vision_subject(vision_model_and_processor, **settings):
     return cg.load(model, processor=processor, device="cpu", **settings)
 
 
-def omni_subject(omni_model_and_processor, **settings):
-    model, processor = omni_model_and_processor
-    return cg.load(model, processor=processor, device="cpu", **settings)
-
-
 def chip(value):
     return cg.media.swatch([value, 0.2, 1 - value])
-
-
-def tone(frequency, seconds=0.3):
-    time = np.arange(int(RATE * seconds)) / RATE
-    return cg.media.Audio((0.3 * np.sin(2 * np.pi * frequency * time)).astype(np.float32), RATE)
 
 
 def clip(value, frames=4):
@@ -64,7 +55,7 @@ def manual_scores(model, processor, text, images, options):
     return torch.tensor(scores, dtype=torch.float64)
 
 
-def test_load_gives_a_multimodal_subject_that_finds_its_media_tokens(vision_model_and_processor, omni_model_and_processor):
+def test_load_gives_a_multimodal_subject_that_finds_its_media_tokens(vision_model_and_processor):
     vision = vision_subject(vision_model_and_processor)
     assert isinstance(vision, HFMultimodalSubject)
     assert vision.media_tokens == {
@@ -73,9 +64,6 @@ def test_load_gives_a_multimodal_subject_that_finds_its_media_tokens(vision_mode
     }
     assert vision.modalities == frozenset({"text", "image", "video"})
     assert vision.state_layers() == ("layer_00", "layer_01")
-    omni = omni_subject(omni_model_and_processor)
-    assert omni.media_tokens["audio"] == "<|audio_bos|><|AUDIO|><|audio_eos|>"
-    assert omni.modalities == frozenset({"text", "image", "video", "audio"})
 
 
 def test_media_tokens_come_from_the_chat_template_without_token_attributes(vision_model_and_processor):
@@ -118,15 +106,14 @@ def test_a_query_scores_the_same_alone_and_in_any_batch(vision_model_and_process
     assert together == pytest.approx(alone, abs=1e-5)
 
 
-@pytest.mark.parametrize("build", ["vision", "omni"])
-def test_multi_token_options_from_the_cache_match_the_whole_prompt(build, vision_model_and_processor, omni_model_and_processor):
-    if build == "vision":
-        subject = vision_subject(vision_model_and_processor)
-        query = color_query(0.5, options=("blue green", "red orange", "violet"))
-    else:
-        subject = omni_subject(omni_model_and_processor)
-        stimulus = cg.Stimulus(image=chip(0.5), audio=tone(300), video=clip(0.2))
+@pytest.mark.parametrize("mixed", [False, True])
+def test_multi_token_options_from_the_cache_match_the_whole_prompt(mixed, vision_model_and_processor):
+    subject = vision_subject(vision_model_and_processor)
+    if mixed:
+        stimulus = cg.Stimulus(image=chip(0.5), video=clip(0.2))
         query = cg.Query(trial=cg.Trial(stimulus, options=("blue green", "red orange")), template=MIXED)
+    else:
+        query = color_query(0.5, options=("blue green", "red orange", "violet"))
     cached = subject.respond([query]).scores
     assert subject._cache_trusted is True
     subject._cache_trusted = False
@@ -178,18 +165,17 @@ def test_iterated_learning_passes_chip_images_down_chains_with_every_recording(v
     assert len(exemplar.to_pandas()) == len(table)
 
 
-def test_chains_can_pass_on_a_mix_of_image_sound_and_video(omni_model_and_processor, tmp_path):
+def test_chains_can_pass_on_a_mix_of_images_and_video(vision_model_and_processor, tmp_path):
     task = cg.tasks.Mapping(
         None,
         ("wug", "dax"),
         images=[chip(index / 5) for index in range(6)],
-        audio=[tone(200 + 60 * index, 0.2 + 0.05 * index) for index in range(6)],
-        video=[clip(index / 5) for index in range(6)],
+        video=[clip(index / 5, frames=2 + index % 3) for index in range(6)],
         template=MIXED,
         points=[[index] for index in range(6)]
     )
     paradigm = cg.paradigms.IteratedLearning(task, generations=2, chains=1, n_prev_examples=3)
-    results = cg.run(paradigm, omni_subject(omni_model_and_processor), out=tmp_path, record=["logits"], progress=False)
+    results = cg.run(paradigm, vision_subject(vision_model_and_processor), out=tmp_path, record=["logits"], progress=False)
     assert len(results.to_pandas()) == 12
     assert not results.metrics("ib_complexity", by=["generation"]).empty
 
@@ -224,9 +210,14 @@ def test_a_text_subject_refuses_a_template_that_places_media(byte_model_and_toke
 
 
 def test_a_subject_refuses_media_its_model_cant_read(vision_model_and_processor):
-    query = cg.Query(trial=cg.Trial(cg.Stimulus(audio=tone(300)), options=("a", "b")), template=cg.PromptTemplate("{audio}"))
-    with pytest.raises(MissingAbilityError, match="audio"):
-        vision_subject(vision_model_and_processor).respond([query])
+    model, processor = vision_model_and_processor
+    images_only = copy.copy(processor)
+    images_only.video_processor = None
+    subject = cg.load(model, processor=images_only, device="cpu")
+    assert subject.modalities == frozenset({"text", "image"})
+    query = cg.Query(trial=cg.Trial(cg.Stimulus(video=clip(0.3)), options=("a", "b")), template=cg.PromptTemplate("{video}"))
+    with pytest.raises(MissingAbilityError, match="video"):
+        subject.respond([query])
 
 
 def test_load_by_name_with_multimodal_reads_a_saved_model(vision_model_and_processor, tmp_path):
