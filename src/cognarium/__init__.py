@@ -26,7 +26,7 @@ from cognarium.runner import run
 from cognarium.stimuli import Observation, Stimulus, Trial
 from cognarium.subjects.base import Readout
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "Effect",

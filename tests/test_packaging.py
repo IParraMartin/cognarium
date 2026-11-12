@@ -75,7 +75,7 @@ def test_the_wheel_holds_only_the_library(wheel):
 
 def test_the_wheel_carries_release_metadata(wheel):
     metadata = metadata_of(wheel)
-    assert metadata["Version"] == "0.1.0"
+    assert metadata["Version"] == "0.2.0"
     assert metadata["License-Expression"] == "Apache-2.0"
     assert metadata["Keywords"]
     classifiers = metadata.get_all("Classifier")

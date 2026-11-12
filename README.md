@@ -9,7 +9,7 @@ of them, which vision-language models read in context.
 
 ## Status
 
-This is version 0.1.0. It has two learning paradigms, each of which also runs on
+This is version 0.2.0. It has two learning paradigms, each of which also runs on
 exemplar and Bayesian learners as baselines, and multimodal stimuli for Hugging Face
 models that read images or video. It has CSV and JSON conversion, a registry
 of open datasets pinned by checksum, comparison with human data, per-trial logits, the

@@ -73,7 +73,7 @@ def test_every_public_name_is_exposed():
 
 
 def test_the_version_is_the_first_release():
-    assert cg.__version__ == "0.1.0"
+    assert cg.__version__ == "0.2.0"
 
 
 def test_the_approved_shape_runs(tmp_path):
